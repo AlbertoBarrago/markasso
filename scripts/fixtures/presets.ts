@@ -23,7 +23,7 @@ const CENTERS: ReadonlyArray<[string, number, number]> = [
 ];
 
 /** Runs `fn` with `crypto.randomUUID` returning ...0001, ...0002, ... in call order. */
-function withCountingIds<T>(fn: () => T): T {
+export function withCountingIds<T>(fn: () => T): T {
   let n = 0;
   const spy = vi
     .spyOn(globalThis.crypto, 'randomUUID')

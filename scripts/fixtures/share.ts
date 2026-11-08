@@ -21,6 +21,7 @@ import type { Element } from '../../src/elements/element';
 import { PRESETS } from '../../src/io/presets';
 import { decodeScene, encodeScene, isShareHash } from '../../src/io/share';
 import { Family } from './common';
+import { withCountingIds } from './presets';
 import { SAMPLE_NAMES, sample } from './samples';
 
 function toBase64Url(bytes: Uint8Array): string {
@@ -50,7 +51,11 @@ function binaryBase64(bytes: Uint8Array): string {
 /** Scenes of growing size, the last ones with non-ASCII text and emoji. */
 function scenes(): Array<[string, Element[]]> {
   const all = SAMPLE_NAMES.map((name) => sample(name));
-  const flowchart = PRESETS[0].buildElements(0, 0, false);
+  // Counting ids, as in the presets family: random ones would change the
+  // fixture on every run.
+  const flowchart = withCountingIds(() =>
+    PRESETS[0].buildElements(0, 0, false),
+  );
   const many: Element[] = [];
   for (let i = 0; i < 300; i++) {
     many.push(
