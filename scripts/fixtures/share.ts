@@ -123,6 +123,28 @@ export async function buildShare(): Promise<Family> {
     await decodeScene(`#s=${toBase64Url(utf8(JSON.stringify(mixed)))}`),
   );
 
+  // A leading byte order mark: TextDecoder and Response.json() drop it (the
+  // inline and gzip forms decode), `decodeURIComponent(escape(binary))` keeps
+  // it and JSON.parse rejects it (the legacy raw form returns null).
+  const bomJson = `\uFEFF${JSON.stringify([sample(SAMPLE_NAMES[0], { id: 'bom' })])}`;
+  const bomHashes: Array<[string, string]> = [
+    ['inline raw', `#s=${toBase64Url(utf8(bomJson))}`],
+    ['inline gzip', `#s=${toBase64Url(await gzip(utf8(bomJson)))}`],
+    [
+      'legacy gzip',
+      `#share=${encodeURIComponent(binaryBase64(await gzip(utf8(bomJson))))}`,
+    ],
+    ['legacy raw', `#share=${encodeURIComponent(binaryBase64(utf8(bomJson)))}`],
+  ];
+  for (const [form, hash] of bomHashes) {
+    fam.add(
+      `decodeScene ${form} byte order mark`,
+      'decodeScene',
+      { hash },
+      await decodeScene(hash),
+    );
+  }
+
   // Malformed inputs.
   const malformed: Array<[string, string]> = [
     ['no prefix', 'abc'],

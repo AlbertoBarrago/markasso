@@ -80,6 +80,14 @@ export type WebOutcome =
       warnsNewerVersion: boolean;
     };
 
+/**
+ * The text readAsText hands to its onload: the browser decodes the file as
+ * UTF-8 and drops a leading byte order mark (WHATWG Encoding "decode").
+ */
+function browserText(text: string): string {
+  return text.replace(/^\uFEFF/, '');
+}
+
 /** Runs importMarkasso on `text` with the browser globals it needs stubbed. */
 function webRead(text: string): {
   /** i18n key importMarkasso passed to its onError callback, if any. */
@@ -100,7 +108,7 @@ function webRead(text: string): {
   class StubReader {
     onload: ((ev: { target: { result: string } }) => void) | null = null;
     readAsText(file: { fixtureText: string }): void {
-      this.onload?.({ target: { result: file.fixtureText } });
+      this.onload?.({ target: { result: browserText(file.fixtureText) } });
     }
   }
   g.FileReader = StubReader;
@@ -145,7 +153,7 @@ export function webOutcome(text: string): WebOutcome {
   >;
   // Reproduce validateMarkassoFile's viewport, then check it is what
   // importMarkasso loaded (the file's own one, else a fit to the window).
-  const data = JSON.parse(text) as Record<string, unknown>;
+  const data = JSON.parse(browserText(text)) as Record<string, unknown>;
   const viewport = validateViewport(data.viewport);
   const expected =
     viewport ?? fitToElements(elements, WINDOW.innerWidth, WINDOW.innerHeight);
