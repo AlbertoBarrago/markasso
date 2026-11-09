@@ -4,6 +4,17 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [1.21.0] - 2026-11-09
+
+### Added
+- **Ask the AI agent in a live session ([#108](https://github.com/AlbertoBarrago/markasso/pull/108)).** With a Markasso Cloud licence stored in the app, an **Ask** button appears next to each AI agent in the People panel. Your request goes to that agent only, and its progress (sent, seen by the agent, answered) and its replies show up under its name. Without a licence the button does not appear and the room refuses requests. Agents need `@markasso/mcp` 0.7.0 or later, which adds `live_wait_request` and `live_reply`.
+
+### Changed
+- **A roomier request box ([#110](https://github.com/AlbertoBarrago/markasso/pull/110)).** The request box grows with its text, shows the key hint below it and has a Send button, handy on mobile where Enter adds a new line.
+- **What's New.** The notice now opens with requests to AI agents, next to Markasso Cloud and the Mac app.
+
+---
+
 ## [1.20.0] - 2026-11-06
 
 ### Added
