@@ -4,7 +4,7 @@ All notable changes to `@markasso/mcp` are documented here. The MCP server is ve
 
 ---
 
-## [Unreleased]
+## [0.7.0] - 2026-11-09
 
 ### Added
 - **Requests from people in a live room.** People with a Markasso Cloud licence can ask the agent something from the participant list. Requests arrive at the end of any tool result, or through the new `live_wait_request`, which waits for the next one; the new `live_reply` answers under the agent's name. Requests are marked as untrusted input scoped to the board.
