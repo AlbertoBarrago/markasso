@@ -1,5 +1,9 @@
 import type { Command } from '../../src/commands/commands';
 import { isSessionCommand } from '../../src/engine/ephemeral';
+import {
+  type AgentRequestMsg,
+  MAX_AGENT_REPLY_CHARS,
+} from '../../src/io/agent_requests_protocol';
 import type { Diagram } from './diagram';
 import { markassoBaseUrl } from './storage';
 
@@ -22,7 +26,20 @@ type ServerMsg =
   | { type: 'apply'; command: Command; from: string }
   | { type: 'presence'; peers: PeerInfo[] }
   | { type: 'cursor' }
-  | { type: 'error'; error: string };
+  | { type: 'error'; error: string }
+  | AgentRequestMsg;
+
+/** A request a person in the room sent to this agent. */
+export interface LiveRequest {
+  readonly id: string;
+  readonly fromName: string;
+  readonly text: string;
+}
+
+/** Undelivered requests kept; older ones are dropped beyond this. */
+const MAX_INBOX = 20;
+/** Delivered request ids the agent may still answer with `reply`. */
+const MAX_ANSWERABLE = 100;
 
 const ROOM_ID = /^[a-zA-Z0-9_-]{3,64}$/;
 const AGENT_COLOR = '#c77dff';
@@ -78,6 +95,10 @@ export class LiveLink {
   private peers: PeerInfo[] = [];
   private selfId = '';
   private open = false;
+  private inbox: LiveRequest[] = [];
+  private readonly answerable = new Set<string>();
+  /** Pending `waitForRequests` calls, woken by a request or a disconnect. */
+  private readonly waiters = new Set<() => void>();
   /** Set while replaying a remote undo/redo, which History re-emits. */
 
   private constructor(
@@ -108,6 +129,78 @@ export class LiveLink {
   /** Other people currently in the room. */
   get otherPeers(): ReadonlyArray<PeerInfo> {
     return this.peers.filter((p) => p.id !== this.selfId);
+  }
+
+  /** Requests received and not yet handed to the model. */
+  get pendingRequests(): number {
+    return this.inbox.length;
+  }
+
+  /**
+   * Hands every queued request to the caller (the model) and tells each
+   * sender it was received. They can then be answered with `reply`.
+   */
+  takeRequests(): LiveRequest[] {
+    const taken = this.inbox;
+    this.inbox = [];
+    for (const request of taken) {
+      this.answerable.add(request.id);
+      this.send({ type: 'agent_status', id: request.id, status: 'received' });
+    }
+    while (this.answerable.size > MAX_ANSWERABLE) {
+      const oldest = this.answerable.values().next().value;
+      if (oldest === undefined) break;
+      this.answerable.delete(oldest);
+    }
+    return taken;
+  }
+
+  /**
+   * Resolves with the queued requests as soon as there is one, or with none
+   * after `timeoutMs` or when the room disconnects.
+   */
+  async waitForRequests(timeoutMs: number): Promise<LiveRequest[]> {
+    if (this.inbox.length === 0 && this.open) {
+      await new Promise<void>((resolve) => {
+        const wake = (): void => {
+          clearTimeout(timer);
+          this.waiters.delete(wake);
+          resolve();
+        };
+        const timer = setTimeout(wake, timeoutMs);
+        this.waiters.add(wake);
+      });
+    }
+    return this.takeRequests();
+  }
+
+  /** Sends an answer to the person behind a delivered request. */
+  reply(id: string, text: string): void {
+    if (!this.open) throw new LiveError('Not connected to the live room.');
+    if (!this.answerable.has(id))
+      throw new LiveError(`Unknown request id "${id}".`);
+    const trimmed = text.trim();
+    if (!trimmed || trimmed.length > MAX_AGENT_REPLY_CHARS)
+      throw new LiveError(
+        `A reply needs 1 to ${MAX_AGENT_REPLY_CHARS} characters.`,
+      );
+    this.send({ type: 'agent_status', id, status: 'replied', text: trimmed });
+  }
+
+  private wakeWaiters(): void {
+    for (const wake of [...this.waiters]) wake();
+  }
+
+  private receiveRequest(msg: AgentRequestMsg): void {
+    if (
+      typeof msg.id !== 'string' ||
+      typeof msg.text !== 'string' ||
+      typeof msg.fromName !== 'string'
+    )
+      return;
+    this.inbox.push({ id: msg.id, fromName: msg.fromName, text: msg.text });
+    if (this.inbox.length > MAX_INBOX) this.inbox.shift();
+    this.wakeWaiters();
   }
 
   private send(message: unknown): void {
@@ -178,6 +271,8 @@ export class LiveLink {
           if (isSessionCommand(msg.command)) history.applyRemote(msg.command);
         } else if (msg.type === 'presence') {
           this.peers = msg.peers;
+        } else if (msg.type === 'request') {
+          this.receiveRequest(msg);
         } else if (msg.type === 'error' && !this.open) {
           clearTimeout(timer);
           reject(
@@ -203,6 +298,7 @@ export class LiveLink {
           );
         this.open = false;
         history.setOnCommand(undefined);
+        this.wakeWaiters();
       });
       socket.addEventListener('error', () => {
         if (!this.open) {
@@ -220,6 +316,7 @@ export class LiveLink {
 
   leave(): void {
     this.open = false;
+    this.wakeWaiters();
     this.diagram.history.setOnCommand(undefined);
     this.socket?.close();
     this.socket = null;

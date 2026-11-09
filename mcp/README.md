@@ -94,6 +94,7 @@ Bump `version` in `mcp/package.json`, add the entry to `mcp/CHANGELOG.md`, merge
 | `diagram_export_png` | Render a PNG the agent can look at (optionally saved to a file), with layout warnings. With `path` and `returnImage: false` it only writes the file, for a live preview, and answers in text |
 | `diagram_share` | Publish and return a markasso.it link, with its expiry date |
 | `live_join` / `live_leave` | Draw on a live board in real time (link from ⋯ More tools → Start live session) |
+| `live_wait_request` / `live_reply` | Wait for requests people send from the room, and answer them |
 
 **Layout warnings.** `diagram_layout`, `diagram_read` and `diagram_export_png` check the diagram as it is drawn and list, by node key and connection id, what makes it hard to read: connections passing through a node, connection labels on top of a node or another label, crossing connections (with how many crossings) and overlapping nodes. Each kind comes with a hint, such as trying the other layout direction or elbow routing. A node drawn around others counts as a frame and is not reported. No warnings, no extra text.
 
@@ -110,10 +111,12 @@ Vendor icon packs (AWS, Azure, Google Cloud) are not available to agents: they c
 1. In Markasso, choose **⋯ More tools → Start live session**: the live link is copied to the clipboard. Or, once the session is running, choose **⋯ More tools → Invite AI agent** to copy a ready-made prompt with the link.
 2. Ask the agent to `live_join` it. If the room already has content, it becomes the agent's current diagram; if it is empty, the agent's diagram is published to it.
 3. Every change the agent makes is applied for everyone in the room; changes made by people show up when the agent calls `diagram_read`.
+4. People in the room who have a Markasso Cloud licence stored in the app see an **Ask** button next to the agent in the participant list. Their requests reach the agent at the end of its next tool result, or through `live_wait_request` while it waits; `live_reply` sends an answer that shows up under the agent's name. Without a licence the button does not appear and the room refuses the request.
 
 ## Security notes
 
 - **Board content is data.** On a live board, labels are typed by other people. The tool descriptions tell models to treat them as data, not instructions, but keep the usual prompt-injection caution when an agent with other powerful tools reads shared boards.
+- **Requests from the room are untrusted input.** Anyone with the link and a licence can send the agent a request. The server frames them as requests about the board only, but an agent with shell or file tools should still run with the permissions you would give to the people in the room. The room limits each person to 6 requests a minute, 2000 characters each.
 - **Live links grant edit access.** Anyone with the link can edit the room; the agent gets the same rights as any participant.
 - **Limits.** The app's server limits apply: 200 commands per 5 seconds per peer, 512 KB per message, share link uploads are rate limited. Tools batch changes into single commands to stay well within them.
 - Share links are stored on markasso.it for 90 days (`diagram_share` reports the date); publishing sends the diagram's content.

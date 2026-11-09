@@ -383,6 +383,66 @@ body.toolbar-placing * {
   flex-direction: column;
   gap: 4px;
 }
+.pp-agent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pp-ask {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.pp-ask:hover,
+.pp-ask:focus-visible,
+.pp-ask[aria-expanded="true"] {
+  background: var(--bg-hover);
+}
+.pp-composer {
+  resize: vertical;
+  min-height: 44px;
+  max-height: 160px;
+}
+.pp-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px 6px 4px 24px;
+  max-width: 280px;
+}
+.pp-request {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+.pp-request-text,
+.pp-reply {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.pp-request-text {
+  color: var(--text);
+}
+.pp-request-status {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.pp-request-error {
+  color: var(--alert);
+}
+.pp-reply {
+  color: var(--text);
+  border-left: 2px solid var(--accent);
+  padding-left: 6px;
+}
 .pp-leave {
   width: 100%;
   padding: 6px 8px;

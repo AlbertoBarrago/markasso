@@ -58,6 +58,7 @@ const rect = {
 };
 
 let address: URL;
+let store: Map<string, string>;
 beforeEach(() => {
   vi.useFakeTimers();
   FakeSocket.all = [];
@@ -83,7 +84,15 @@ beforeEach(() => {
       },
     },
   });
-  const store = new Map<string, string>();
+  // realtime.ts listens here for licence changes (markasso-cloud-change).
+  // createAppState reads the theme from documentElement.
+  vi.stubGlobal(
+    'document',
+    Object.assign(new EventTarget(), {
+      documentElement: { getAttribute: () => null },
+    }),
+  );
+  store = new Map<string, string>();
   vi.stubGlobal('localStorage', {
     getItem: (k: string) => store.get(k) ?? null,
     setItem: (k: string, v: string) => store.set(k, v),
@@ -130,5 +139,49 @@ describe('leaveLiveSession', () => {
     expect(leaveLiveSession()).toBe(true);
     vi.advanceTimersByTime(60_000);
     expect(FakeSocket.all).toHaveLength(1);
+  });
+});
+
+describe('live agent request access', () => {
+  afterEach(() => {
+    leaveLiveSession();
+  });
+
+  it('proves a stored licence on every connect, and nothing without one', () => {
+    const history = new History(createScene());
+    joinLiveSession(history, { roomId: 'room-123' });
+    FakeSocket.all[0]!.open();
+    expect(FakeSocket.all[0]!.sent).not.toContainEqual(
+      expect.objectContaining({ type: 'auth' }),
+    );
+    leaveLiveSession();
+
+    store.set('markasso-cloud-license', ' MKC-KEY ');
+    joinLiveSession(history, { roomId: 'room-123' });
+    FakeSocket.all[1]!.open();
+    expect(FakeSocket.all[1]!.sent).toContainEqual({
+      type: 'auth',
+      license: 'MKC-KEY',
+    });
+    FakeSocket.all[1]!.close(1006);
+    vi.advanceTimersByTime(1000);
+    FakeSocket.all[2]!.open();
+    expect(FakeSocket.all[2]!.sent).toContainEqual({
+      type: 'auth',
+      license: 'MKC-KEY',
+    });
+  });
+
+  it('re-authorizes when the licence changes during the session', () => {
+    const history = new History(createScene());
+    joinLiveSession(history, { roomId: 'room-123' });
+    const socket = FakeSocket.all[0]!;
+    socket.open();
+    store.set('markasso-cloud-license', 'MKC-NEW');
+    document.dispatchEvent(new Event('markasso-cloud-change'));
+    expect(socket.sent.at(-1)).toEqual({ type: 'auth', license: 'MKC-NEW' });
+    store.delete('markasso-cloud-license');
+    document.dispatchEvent(new Event('markasso-cloud-change'));
+    expect(socket.sent.at(-1)).toEqual({ type: 'auth', license: '' });
   });
 });
