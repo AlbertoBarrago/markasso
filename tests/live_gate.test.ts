@@ -77,7 +77,14 @@ describe('live agent licence gate', () => {
     await vi.waitFor(() =>
       expect(
         server.sent.filter((m) => m.type === 'presence').at(-1)?.peers,
-      ).toEqual([{ id: 'agent-client-1', name: 'Claude', color: '#c77dff' }]),
+      ).toEqual([
+        {
+          id: 'agent-client-1',
+          name: 'Claude',
+          color: '#c77dff',
+          kind: 'agent',
+        },
+      ]),
     );
   });
 

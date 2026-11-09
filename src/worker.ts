@@ -1,4 +1,14 @@
 import { isSessionCommand } from './engine/ephemeral';
+import {
+  type AgentRequestMsg,
+  type AgentRequestRejection,
+  MAX_AGENT_REPLY_CHARS,
+  MAX_AGENT_REQUEST_CHARS,
+  type PeerKind,
+  REQUEST_REF_RE,
+  type RequestAccessMsg,
+  type RequestStatusMsg,
+} from './io/agent_requests_protocol';
 import { randomAnimalName } from './io/animal_names';
 import { validateElements } from './io/element_validation';
 import {
@@ -32,6 +42,7 @@ interface PeerInfo {
   id: string;
   name: string;
   color: string;
+  kind: PeerKind;
 }
 
 const MAX_LOG_LENGTH = 5000;
@@ -43,6 +54,16 @@ const MAX_PEERS = 20;
 const CMD_WINDOW_MS = 5000;
 const MAX_CMD_PER_WINDOW = 200;
 const MAX_MSG_BYTES = 512 * 1024;
+/** Requests a person may send to agents per window (see agent_requests_protocol). */
+const REQUEST_WINDOW_MS = 60_000;
+const MAX_REQUESTS_PER_WINDOW = 6;
+/** Licence checks one browser peer may ask for per connection. */
+const MAX_AUTH_ATTEMPTS = 5;
+/** Licence checks the whole room may ask for per window (fresh clientIds). */
+const AUTH_WINDOW_MS = 60_000;
+const MAX_AUTH_PER_WINDOW = 30;
+/** Requests whose sender is remembered for routing agent replies. */
+const MAX_TRACKED_REQUESTS = 200;
 /** How long a gated agent has to send its `auth` message after connecting. */
 const AGENT_AUTH_TIMEOUT_MS = 5000;
 /** Set by the Worker on the request it forwards to a room; never trusted from clients. */
@@ -89,6 +110,15 @@ export class SessionRoom {
   private readonly sockets = new Map<WebSocket, string>(); // ws -> clientId
   private readonly peers = new Map<string, Omit<PeerInfo, 'id'>>(); // clientId -> props
   private readonly cmdCounts = new Map<string, number>();
+  /** Browser peers that proved a valid licence: they may message agents. */
+  private readonly licensed = new Set<string>();
+  private readonly authAttempts = new Map<string, number>();
+  private authWindowStart = Date.now();
+  private authCount = 0;
+  /** Send times of each peer's recent agent requests, for the rate limit. */
+  private readonly requestTimes = new Map<string, number[]>();
+  /** Request id -> sender and target, so only the target can answer. */
+  private readonly requests = new Map<string, { from: string; to: string }>();
   private cmdWindowStart = Date.now();
   private loaded = false;
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
@@ -163,14 +193,13 @@ export class SessionRoom {
     }
 
     const clientId = this.resolveClientId(url.searchParams.get('clientId'));
+    const kind: PeerKind =
+      request.headers.get(PEER_KIND_HEADER) === 'agent' ? 'agent' : 'browser';
 
-    if (
-      request.headers.get(PEER_KIND_HEADER) === 'agent' &&
-      this.env.LIVE_AGENT_REQUIRES_LICENSE === 'true'
-    ) {
+    if (kind === 'agent' && this.env.LIVE_AGENT_REQUIRES_LICENSE === 'true') {
       this.awaitAgentAuth(server, clientId);
     } else {
-      await this.admit(server, clientId);
+      await this.admit(server, clientId, kind);
     }
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -219,7 +248,7 @@ export class SessionRoom {
         async (valid) => {
           if (!valid) return refuse(CLOSE_LICENCE_REQUIRED, 'licence required');
           state = 'done';
-          await this.admit(server, clientId);
+          await this.admit(server, clientId, 'agent');
           for (const raw of queued) this.receive(clientId, raw);
         },
         (error: unknown) => {
@@ -244,7 +273,11 @@ export class SessionRoom {
   }
 
   /** Registers a socket as a room peer and sends it the room state. */
-  private async admit(server: WebSocket, clientId: string): Promise<void> {
+  private async admit(
+    server: WebSocket,
+    clientId: string,
+    kind: PeerKind,
+  ): Promise<void> {
     // A reconnect with the same clientId replaces any stale live socket so a
     // peer never ends up with two identities in the same room.
     for (const [sock, id] of this.sockets) {
@@ -259,9 +292,14 @@ export class SessionRoom {
     }
 
     this.sockets.set(server, clientId);
-    if (!this.peers.has(clientId)) {
-      this.peers.set(clientId, { name: randomAnimalName(), color: '#a78bfa' });
-    }
+    const known = this.peers.get(clientId);
+    if (known) known.kind = kind;
+    else
+      this.peers.set(clientId, {
+        name: randomAnimalName(),
+        color: '#a78bfa',
+        kind,
+      });
     this.touch();
     await this.indexRoom();
     await this.state.storage.put(LAST_ACTIVITY_KEY, this.lastActivity);
@@ -344,12 +382,201 @@ export class SessionRoom {
       }
       this.touch();
       this.broadcast({ type: 'presence', peers: this.peerList() });
+      return;
+    }
+
+    if (m.type === 'auth') {
+      this.authorizeRequests(clientId, m.license);
+      return;
+    }
+
+    if (m.type === 'request') {
+      this.relayRequest(clientId, m);
+      return;
+    }
+
+    if (m.type === 'agent_status') {
+      this.relayAgentStatus(clientId, m);
+    }
+  }
+
+  /**
+   * A browser peer proves its Markasso Cloud licence to message agents. Unlike
+   * the agent gate this never blocks the peer: without a licence it keeps
+   * drawing, it only gets `allowed: false`. The answer goes to that peer
+   * alone, so nobody learns who in the room holds a licence.
+   */
+  private authorizeRequests(clientId: string, license: unknown): void {
+    if (this.peers.get(clientId)?.kind !== 'browser') return;
+    const now = Date.now();
+    if (now - this.authWindowStart >= AUTH_WINDOW_MS) {
+      this.authWindowStart = now;
+      this.authCount = 0;
+    }
+    const attempts = (this.authAttempts.get(clientId) ?? 0) + 1;
+    this.authAttempts.set(clientId, attempts);
+    // Bounds the Polar lookups random keys can trigger, per peer and per room
+    // (a script can reconnect with fresh clientIds). Over the limit the peer
+    // keeps the access it already had.
+    if (
+      attempts > MAX_AUTH_ATTEMPTS ||
+      ++this.authCount > MAX_AUTH_PER_WINDOW
+    ) {
+      this.sendTo(clientId, {
+        type: 'request_access',
+        allowed: this.licensed.has(clientId),
+      });
+      return;
+    }
+    if (typeof license !== 'string' || license.length > 200) {
+      this.licensed.delete(clientId);
+      this.sendTo(clientId, { type: 'request_access', allowed: false });
+      return;
+    }
+    void licenseKeyValid(license, this.env).then(
+      (valid) => this.grantRequests(clientId, valid),
+      (error: unknown) => {
+        console.log('[live] request licence lookup failed', error);
+        this.grantRequests(clientId, false);
+      },
+    );
+  }
+
+  private grantRequests(clientId: string, allowed: boolean): void {
+    // The peer may have left while the licence was checked.
+    if (!this.isConnected(clientId)) return;
+    if (allowed) this.licensed.add(clientId);
+    else this.licensed.delete(clientId);
+    this.sendTo(clientId, { type: 'request_access', allowed });
+  }
+
+  /**
+   * Forwards a person's request to one agent, and only to it. Everything is
+   * checked here, whatever the client UI shows: a licensed browser sender, a
+   * connected agent target, a bounded text and a per-sender rate limit.
+   */
+  private relayRequest(clientId: string, m: Record<string, unknown>): void {
+    const ref =
+      typeof m.ref === 'string' && REQUEST_REF_RE.test(m.ref)
+        ? m.ref
+        : undefined;
+    const sender = this.peers.get(clientId);
+    const text = typeof m.text === 'string' ? m.text.trim() : '';
+    const to = typeof m.to === 'string' ? m.to : '';
+    let rejection: AgentRequestRejection | null = null;
+    if (sender?.kind !== 'browser' || !this.licensed.has(clientId))
+      rejection = 'unauthorized';
+    else if (!text || text.length > MAX_AGENT_REQUEST_CHARS)
+      rejection = 'invalid';
+    else if (this.peers.get(to)?.kind !== 'agent' || !this.isConnected(to))
+      rejection = 'unavailable';
+    // Last, so only well-formed requests count against the limit.
+    else if (!this.allowRequest(clientId)) rejection = 'rate_limited';
+    if (rejection || !sender) {
+      this.sendTo(clientId, {
+        type: 'request_status',
+        status: 'rejected',
+        reason: rejection ?? 'unauthorized',
+        ...(ref ? { ref } : {}),
+      });
+      return;
+    }
+
+    const id = crypto.randomUUID();
+    this.requests.set(id, { from: clientId, to });
+    if (this.requests.size > MAX_TRACKED_REQUESTS) {
+      // Maps iterate in insertion order: drop the oldest.
+      const oldest = this.requests.keys().next().value;
+      if (oldest) this.requests.delete(oldest);
+    }
+    this.touch();
+    this.sendTo(to, {
+      type: 'request',
+      id,
+      from: clientId,
+      fromName: sender.name,
+      text,
+    });
+    this.sendTo(clientId, {
+      type: 'request_status',
+      id,
+      status: 'sent',
+      ...(ref ? { ref } : {}),
+    });
+  }
+
+  /** Relays an agent's progress on a request to the person who sent it. */
+  private relayAgentStatus(clientId: string, m: Record<string, unknown>): void {
+    const id = typeof m.id === 'string' ? m.id : '';
+    const tracked = this.requests.get(id);
+    // Only the agent the request was sent to may answer it.
+    if (!tracked || tracked.to !== clientId) return;
+    if (m.status === 'received') {
+      this.sendTo(tracked.from, {
+        type: 'request_status',
+        id,
+        status: 'received',
+      });
+      return;
+    }
+    if (m.status === 'replied') {
+      const text = typeof m.text === 'string' ? m.text.trim() : '';
+      if (!text || text.length > MAX_AGENT_REPLY_CHARS) return;
+      this.touch();
+      this.sendTo(tracked.from, {
+        type: 'request_status',
+        id,
+        status: 'replied',
+        text,
+      });
+    }
+  }
+
+  private allowRequest(clientId: string): boolean {
+    const now = Date.now();
+    const recent = (this.requestTimes.get(clientId) ?? []).filter(
+      (time) => now - time < REQUEST_WINDOW_MS,
+    );
+    if (recent.length >= MAX_REQUESTS_PER_WINDOW) {
+      this.requestTimes.set(clientId, recent);
+      return false;
+    }
+    recent.push(now);
+    this.requestTimes.set(clientId, recent);
+    return true;
+  }
+
+  private isConnected(clientId: string): boolean {
+    for (const id of this.sockets.values()) if (id === clientId) return true;
+    return false;
+  }
+
+  /** Sends to every socket of one peer (normally exactly one). */
+  private sendTo(
+    clientId: string,
+    msg: AgentRequestMsg | RequestStatusMsg | RequestAccessMsg,
+  ): void {
+    const data = JSON.stringify(msg);
+    for (const [socket, peerId] of this.sockets) {
+      if (peerId !== clientId) continue;
+      try {
+        socket.send(data);
+      } catch {
+        // socket may be closing
+      }
     }
   }
 
   private dropPeer(socket: WebSocket, clientId: string): void {
     this.sockets.delete(socket);
     this.cmdCounts.delete(clientId);
+    // A replaced socket closes after its successor joined: keep the
+    // successor's licence and limits.
+    if (!this.isConnected(clientId)) {
+      this.licensed.delete(clientId);
+      this.authAttempts.delete(clientId);
+      this.requestTimes.delete(clientId);
+    }
     // Keep the peer's name/color in `peers` so a reconnect with the same
     // clientId restores them; only the live list is broadcast.
     this.broadcast({ type: 'presence', peers: this.peerList() });

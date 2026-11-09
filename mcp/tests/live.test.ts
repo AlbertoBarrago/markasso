@@ -190,3 +190,66 @@ describe('LiveLink', () => {
     await expect(pending).rejects.toThrow(/Markasso Cloud licence/);
   });
 });
+
+describe('LiveLink requests', () => {
+  const request = (id: string, text = 'Add a cache') => ({
+    type: 'request',
+    id,
+    from: 'p1',
+    fromName: 'Alberto',
+    text,
+  });
+
+  it('queues requests and acknowledges them when taken', async () => {
+    const { result, socket } = await join(new Diagram(), []);
+    socket.receive(request('r1'));
+    expect(result.link.pendingRequests).toBe(1);
+    expect(result.link.takeRequests()).toEqual([
+      { id: 'r1', fromName: 'Alberto', text: 'Add a cache' },
+    ]);
+    expect(socket.sent.at(-1)).toEqual({
+      type: 'agent_status',
+      id: 'r1',
+      status: 'received',
+    });
+    expect(result.link.pendingRequests).toBe(0);
+  });
+
+  it('wakes a waiting call when a request arrives', async () => {
+    const { result, socket } = await join(new Diagram(), []);
+    const waiting = result.link.waitForRequests(10_000);
+    socket.receive(request('r1'));
+    expect((await waiting).map((r) => r.id)).toEqual(['r1']);
+  });
+
+  it('returns nothing after the timeout or a disconnect', async () => {
+    const { result, socket } = await join(new Diagram(), []);
+    expect(await result.link.waitForRequests(5)).toEqual([]);
+    const waiting = result.link.waitForRequests(10_000);
+    socket.close();
+    expect(await waiting).toEqual([]);
+  });
+
+  it('keeps only the latest twenty requests', async () => {
+    const { result, socket } = await join(new Diagram(), []);
+    for (let i = 0; i < 25; i++) socket.receive(request(`r${i}`));
+    const ids = result.link.takeRequests().map((r) => r.id);
+    expect(ids).toHaveLength(20);
+    expect(ids[0]).toBe('r5');
+  });
+
+  it('replies only to delivered requests', async () => {
+    const { result, socket } = await join(new Diagram(), []);
+    socket.receive(request('r1'));
+    expect(() => result.link.reply('r1', 'Done')).toThrow(/Unknown request/);
+    result.link.takeRequests();
+    result.link.reply('r1', '  Done  ');
+    expect(socket.sent.at(-1)).toEqual({
+      type: 'agent_status',
+      id: 'r1',
+      status: 'replied',
+      text: 'Done',
+    });
+    expect(() => result.link.reply('r1', ' ')).toThrow(/characters/);
+  });
+});

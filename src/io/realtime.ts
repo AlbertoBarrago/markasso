@@ -2,7 +2,19 @@ import type { Command } from '../commands/commands';
 import type { Element } from '../elements/element';
 import { isSessionCommand } from '../engine/ephemeral';
 import type { History } from '../engine/history';
+import {
+  handleRequestAccess,
+  handleRequestStatus,
+  revokeAgentRequestAccess,
+  setAgentRequestSender,
+} from './agent_requests';
+import type {
+  PeerKind,
+  RequestAccessMsg,
+  RequestStatusMsg,
+} from './agent_requests_protocol';
 import { randomAnimalName } from './animal_names';
+import { LICENSE_KEY } from './cloud';
 import {
   clearCursors,
   setLocalCursorSender,
@@ -14,6 +26,8 @@ export interface PeerInfo {
   id: string;
   name: string;
   color: string;
+  /** Absent from rooms deployed before agent requests. */
+  kind?: PeerKind;
 }
 
 export interface LiveOptions {
@@ -49,7 +63,13 @@ interface PresenceMsg {
   type: 'presence';
   peers: PeerInfo[];
 }
-type ServerMsg = InitMsg | ApplyMsg | PresenceMsg | CursorMsg;
+type ServerMsg =
+  | InitMsg
+  | ApplyMsg
+  | PresenceMsg
+  | CursorMsg
+  | RequestAccessMsg
+  | RequestStatusMsg;
 
 const LIVE_PARAM = 'live';
 const NAME_KEY = 'markasso-live-name';
@@ -73,6 +93,15 @@ export function getClientId(): string {
     return id;
   } catch {
     return crypto.randomUUID();
+  }
+}
+
+/** The Markasso Cloud licence stored by the cloud boards flow, if any. */
+function storedLicense(): string {
+  try {
+    return localStorage.getItem(LICENSE_KEY)?.trim() ?? '';
+  } catch {
+    return '';
   }
 }
 
@@ -245,9 +274,32 @@ export function joinLiveSession(
     for (const cb of peerListeners) cb(others, self);
   };
 
+  /**
+   * Proves the stored licence so this tab may message agents. Without one
+   * there is nothing to ask: the room never grants access by default.
+   */
+  function authorizeRequests(): void {
+    const license = storedLicense();
+    if (license) send({ type: 'auth', license });
+  }
+
+  /** The licence was stored or removed while in the session. */
+  function onLicenseChange(): void {
+    if (!ready) return;
+    if (storedLicense()) authorizeRequests();
+    else {
+      // An empty key makes the room drop the access it granted before.
+      send({ type: 'auth', license: '' });
+      revokeAgentRequestAccess();
+    }
+  }
+  document.addEventListener('markasso-cloud-change', onLicenseChange);
+
   function leave(): void {
     left = true;
     ready = false;
+    document.removeEventListener('markasso-cloud-change', onLicenseChange);
+    setAgentRequestSender(null);
     if (reconnectTimer) {
       clearTimeout(reconnectTimer);
       reconnectTimer = null;
@@ -286,6 +338,7 @@ export function joinLiveSession(
   setLocalCursorSender((cursor) => {
     send({ type: 'cursor', ...cursor, name: self.name, color: self.color });
   });
+  setAgentRequestSender(send);
 
   history.setOnCommand((command) => {
     if (!ready || !isSessionCommand(command)) return;
@@ -324,6 +377,8 @@ export function joinLiveSession(
       reconnectAttempt = 0;
       opts.onStatus?.(true);
       send({ type: 'presence', name: self.name, color: self.color });
+      // The room forgets licences on disconnect: prove it on every connect.
+      authorizeRequests();
     };
 
     socket.onmessage = (event: MessageEvent) => {
@@ -378,11 +433,16 @@ export function joinLiveSession(
       } else if (msg.type === 'presence') {
         applyPeers(msg.peers);
         syncRemotePeers(msg.peers);
+      } else if (msg.type === 'request_access') {
+        handleRequestAccess(msg);
+      } else if (msg.type === 'request_status') {
+        handleRequestStatus(msg);
       }
     };
 
     socket.onclose = () => {
       ready = false;
+      revokeAgentRequestAccess();
       clearCursors();
       opts.onStatus?.(false);
       scheduleReconnect();
