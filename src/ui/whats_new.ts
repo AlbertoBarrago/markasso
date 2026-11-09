@@ -6,12 +6,12 @@ const STORAGE_KEY = 'markasso-whats-new-version';
  * Release whose highlights are shown. Bump it only when the list below
  * changes, so patch releases don't reopen the same notice.
  */
-const WHATS_NEW_ID = '1.18';
+const WHATS_NEW_ID = '1.21';
 const RELEASE_URL = 'https://github.com/AlbertoBarrago/markasso/releases';
 
 /** [title, text, optional link]: the link opens in a new tab. */
 const HIGHLIGHTS: readonly (readonly [string, string, string?])[] = [
-  ['whatsNewDialogsTitle', 'whatsNewDialogs'],
+  ['whatsNewAgentsTitle', 'whatsNewAgents', '/cloud/'],
   ['whatsNewCloudTitle', 'whatsNewCloud', '/cloud/'],
   ['whatsNewMacTitle', 'whatsNewMac', '/mac/'],
 ];
