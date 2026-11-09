@@ -76,7 +76,19 @@ export function initPeopleList(container: HTMLElement): () => void {
     return thread;
   }
 
-  function buildComposer(agent: PeerInfo): HTMLTextAreaElement {
+  /**
+   * Grows the textbox with its text, up to the CSS max-height; past that it
+   * scrolls. Needs the element in the DOM to measure it.
+   */
+  function fitComposer(input: HTMLTextAreaElement): void {
+    input.style.height = 'auto';
+    input.style.height = `${input.scrollHeight + 2}px`;
+  }
+
+  /** Textbox plus a footer with the key hint and a Send button. */
+  function buildComposer(agent: PeerInfo): HTMLElement {
+    const box = document.createElement('div');
+    box.className = 'pp-compose';
     const input = document.createElement('textarea');
     input.className = 'pp-input pp-composer';
     input.rows = 2;
@@ -86,7 +98,32 @@ export function initPeopleList(container: HTMLElement): () => void {
       agent.name,
     );
     input.value = drafts.get(agent.id) ?? '';
-    input.addEventListener('input', () => drafts.set(agent.id, input.value));
+
+    const footer = document.createElement('div');
+    footer.className = 'pp-compose-footer';
+    const hint = document.createElement('span');
+    hint.className = 'pp-compose-hint';
+    hint.textContent = t('agentAskHint');
+    const sendBtn = document.createElement('button');
+    sendBtn.type = 'button';
+    sendBtn.className = 'pp-send';
+    sendBtn.textContent = t('agentSend');
+    sendBtn.disabled = !input.value.trim();
+    footer.append(hint, sendBtn);
+
+    const submit = (): void => {
+      if (!sendAgentRequest(agent.id, input.value)) return;
+      // The send already re-rendered the list: rebuild it without the draft
+      // and keep typing in the fresh textbox.
+      drafts.delete(agent.id);
+      rerender();
+      container.querySelector<HTMLElement>('.pp-composer')?.focus();
+    };
+    input.addEventListener('input', () => {
+      drafts.set(agent.id, input.value);
+      sendBtn.disabled = !input.value.trim();
+      fitComposer(input);
+    });
     input.addEventListener('keydown', (e) => {
       // Keeps canvas shortcuts (and the panel's own keys) out of the textbox.
       e.stopPropagation();
@@ -95,10 +132,12 @@ export function initPeopleList(container: HTMLElement): () => void {
         rerender();
       } else if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
         e.preventDefault();
-        if (sendAgentRequest(agent.id, input.value)) drafts.delete(agent.id);
+        submit();
       }
     });
-    return input;
+    sendBtn.addEventListener('click', submit);
+    box.append(input, footer);
+    return box;
   }
 
   /** An AI agent's row: name, Ask toggle, composer and recent requests. */
@@ -162,8 +201,15 @@ export function initPeopleList(container: HTMLElement): () => void {
     lastSelf = self;
     // A rename in progress owns the list until it ends (it re-renders then).
     if (editing) return;
+    // activeElement, not `:focus`: the latter stops matching while the window
+    // is in the background, and an update arriving then would drop focus.
+    const active = document.activeElement;
     const focused =
-      container.querySelector<HTMLTextAreaElement>('.pp-composer:focus');
+      active instanceof HTMLTextAreaElement &&
+      active.classList.contains('pp-composer') &&
+      container.contains(active)
+        ? active
+        : null;
     const caret = focused
       ? [focused.selectionStart, focused.selectionEnd]
       : null;
@@ -222,11 +268,14 @@ export function initPeopleList(container: HTMLElement): () => void {
       );
     }
 
-    if (caret) {
-      const composer =
-        container.querySelector<HTMLTextAreaElement>('.pp-composer');
-      composer?.focus();
-      composer?.setSelectionRange(caret[0] ?? 0, caret[1] ?? 0);
+    const composer =
+      container.querySelector<HTMLTextAreaElement>('.pp-composer');
+    if (composer) {
+      fitComposer(composer);
+      if (caret) {
+        composer.focus();
+        composer.setSelectionRange(caret[0] ?? 0, caret[1] ?? 0);
+      }
     }
   }
 

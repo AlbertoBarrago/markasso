@@ -405,10 +405,45 @@ body.toolbar-placing * {
 .pp-ask[aria-expanded="true"] {
   background: var(--bg-hover);
 }
+.pp-compose {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  /* Widens the panel while a request is being written. */
+  min-width: 260px;
+}
 .pp-composer {
-  resize: vertical;
-  min-height: 44px;
-  max-height: 160px;
+  display: block;
+  resize: none;
+  line-height: 1.4;
+  /* About 6 lines; the textbox scrolls past that. */
+  max-height: 128px;
+  overflow-y: auto;
+}
+.pp-compose-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pp-compose-hint {
+  flex: 1;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.pp-send {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.pp-send:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 .pp-thread {
   display: flex;
