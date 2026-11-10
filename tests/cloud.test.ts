@@ -73,6 +73,7 @@ async function editable(ctx: ReturnType<typeof setup>) {
 async function conflict(ctx: ReturnType<typeof setup>) {
   await editable(ctx);
   ctx.fetcher.mockResolvedValueOnce(response({ version: 4 }, 409));
+  ctx.fetcher.mockResolvedValueOnce(response({ ...board(4), elements: [] }));
   ctx.client.schedule(scene);
   await ctx.client.flush();
   expect(ctx.client.state).toBe('conflict');
@@ -281,7 +282,7 @@ describe('conflicts', () => {
     await conflict(ctx);
     ctx.client.schedule(newer);
     await vi.advanceTimersByTimeAsync(100000);
-    expect(ctx.fetcher).toHaveBeenCalledTimes(2);
+    expect(ctx.fetcher).toHaveBeenCalledTimes(3);
   });
   it('Keep mine writes the latest local scene with the server version', async () => {
     const ctx = setup();
@@ -289,11 +290,11 @@ describe('conflicts', () => {
     ctx.client.schedule(newer);
     ctx.fetcher.mockResolvedValueOnce(response({ version: 5 }));
     await ctx.client.keepMine();
-    expect(ctx.fetcher.mock.calls[2]?.[1]?.headers).toMatchObject({
+    expect(ctx.fetcher.mock.calls[3]?.[1]?.headers).toMatchObject({
       'If-Match': '"4"',
     });
     expect(
-      JSON.parse(ctx.fetcher.mock.calls[2]?.[1]?.body as string).elements,
+      JSON.parse(ctx.fetcher.mock.calls[3]?.[1]?.body as string).elements,
     ).toEqual(newer.elements);
     expect(ctx.client.state).toBe('saved');
   });
@@ -301,6 +302,7 @@ describe('conflicts', () => {
     const ctx = setup();
     await conflict(ctx);
     ctx.fetcher.mockResolvedValueOnce(response({ version: 6 }, 409));
+    ctx.fetcher.mockResolvedValueOnce(response({ ...board(6), elements: [] }));
     await ctx.client.keepMine();
     expect(ctx.client.state).toBe('conflict');
     expect(ctx.client.version).toBe(6);
@@ -313,7 +315,7 @@ describe('conflicts', () => {
     );
     expect((await ctx.client.takeTheirs()).elements).toEqual(newer.elements);
     await ctx.client.flush();
-    expect(ctx.fetcher).toHaveBeenCalledTimes(3);
+    expect(ctx.fetcher).toHaveBeenCalledTimes(4);
     expect(ctx.client.state).toBe('saved');
   });
   it('Save a copy creates a separate cloud board from the local scene', async () => {
@@ -327,7 +329,7 @@ describe('conflicts', () => {
       ),
     );
     await ctx.client.saveCopy(newer, download);
-    expect(ctx.fetcher.mock.calls[2]?.[0]).toBe('/api/board');
+    expect(ctx.fetcher.mock.calls[3]?.[0]).toBe('/api/board');
     expect(ctx.client.id).toBe('New123def456');
     expect(download).not.toHaveBeenCalled();
   });
@@ -341,7 +343,7 @@ describe('conflicts', () => {
     expect(ctx.client.id).toBe(id);
     expect(ctx.client.state).toBe('conflict');
     await vi.advanceTimersByTimeAsync(100000);
-    expect(ctx.fetcher).toHaveBeenCalledTimes(3);
+    expect(ctx.fetcher).toHaveBeenCalledTimes(4);
   });
 });
 
@@ -436,7 +438,7 @@ describe('remote check', () => {
     await conflict(other);
     expect(await other.client.check()).toBe('skipped');
     expect(ctx.fetcher).toHaveBeenCalledTimes(1);
-    expect(other.fetcher).toHaveBeenCalledTimes(2);
+    expect(other.fetcher).toHaveBeenCalledTimes(3);
   });
   it('is a no-op while a save, a read or another check is in flight', async () => {
     const ctx = setup();
@@ -686,6 +688,7 @@ describe('cloud board conflict UI', () => {
     history.dispatch({ type: 'DELETE_ELEMENTS', ids: ['rect'] });
     const viewport = history.present.viewport;
     ctx.fetcher.mockResolvedValueOnce(response({ version: 4 }, 409));
+    ctx.fetcher.mockResolvedValueOnce(response(board(4)));
     await vi.advanceTimersByTimeAsync(2000);
     ctx.fetcher.mockResolvedValueOnce(
       response({ ...board(5), elements: newer.elements }),
@@ -700,13 +703,154 @@ describe('cloud board conflict UI', () => {
     expect(history.present.appState).toBe(appState);
     expect(history.present.viewport).toBe(viewport);
     await vi.advanceTimersByTimeAsync(2000);
-    expect(ctx.fetcher).toHaveBeenCalledTimes(3);
+    expect(ctx.fetcher).toHaveBeenCalledTimes(4);
     history.undo();
     expect(history.present.elements).toEqual([]);
     expect(history.present.appState).toEqual(appState);
     expect(history.present.viewport).toBe(viewport);
     history.undo();
     expect(history.present.elements).toEqual(scene.elements);
+  });
+});
+
+describe('cloud save recovery', () => {
+  it.each([
+    ['120', 120000],
+    [null, 60000],
+    ['invalid', 60000],
+    ['1.5', 60000],
+    ['-1', 60000],
+  ])('keeps edits offline until Retry-After %s expires', async (header, delay) => {
+    const ctx = setup();
+    await editable(ctx);
+    ctx.fetcher.mockResolvedValueOnce(
+      Response.json(
+        {},
+        {
+          status: 429,
+          headers: header === null ? {} : { 'Retry-After': header },
+        },
+      ),
+    );
+    ctx.client.schedule(scene);
+    await ctx.client.flush();
+    await vi.advanceTimersByTimeAsync(1000);
+    ctx.client.schedule(newer);
+    expect(ctx.client.state).toBe('offline');
+    await vi.advanceTimersByTimeAsync(Number(delay) - 1001);
+    expect(ctx.fetcher).toHaveBeenCalledTimes(2);
+    ctx.fetcher.mockResolvedValueOnce(response({ version: 2 }));
+    await vi.advanceTimersByTimeAsync(1);
+    expect(ctx.client.state).toBe('saved');
+    expect(
+      JSON.parse(ctx.fetcher.mock.calls[2]?.[1]?.body as string).elements,
+    ).toEqual(newer.elements);
+  });
+  it.each([
+    0, 503,
+  ])('keeps edits offline for the %s failure backoff', async (status) => {
+    const ctx = setup();
+    await editable(ctx);
+    if (status) ctx.fetcher.mockResolvedValueOnce(response({}, status));
+    else ctx.fetcher.mockRejectedValueOnce(new TypeError('offline'));
+    ctx.client.schedule(scene);
+    await ctx.client.flush();
+    await vi.advanceTimersByTimeAsync(1000);
+    ctx.client.schedule(newer);
+    expect(ctx.client.state).toBe('offline');
+    await vi.advanceTimersByTimeAsync(8999);
+    expect(ctx.fetcher).toHaveBeenCalledTimes(2);
+    ctx.fetcher.mockResolvedValueOnce(response({ version: 2 }));
+    await vi.advanceTimersByTimeAsync(1);
+    expect(ctx.client.state).toBe('saved');
+  });
+  it.each([
+    'retry',
+    'keepMine',
+  ] as const)('%s bypasses the deadline and success clears it', async (action) => {
+    const ctx = setup();
+    await editable(ctx);
+    ctx.fetcher.mockResolvedValueOnce(response({}, 429));
+    ctx.client.schedule(scene);
+    await ctx.client.flush();
+    ctx.fetcher.mockResolvedValueOnce(response({ version: 2 }));
+    await ctx.client[action]();
+    expect(ctx.client.state).toBe('saved');
+    ctx.fetcher.mockResolvedValueOnce(response({ version: 3 }));
+    ctx.client.schedule(newer);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(ctx.client.version).toBe(3);
+  });
+  it('recovers a lost reply with reordered keys and saves newer pending edits', async () => {
+    const ctx = setup();
+    await editable(ctx);
+    ctx.fetcher.mockResolvedValueOnce(response({}, 503));
+    ctx.client.schedule(scene);
+    await ctx.client.flush();
+    ctx.fetcher.mockResolvedValueOnce(response({ version: 2 }, 409));
+    let finish!: (value: Response) => void;
+    ctx.fetcher.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const saving = ctx.client.retry();
+    await vi.advanceTimersByTimeAsync(0);
+    ctx.client.schedule(newer);
+    finish(
+      response({
+        ...board(2),
+        elements: [Object.fromEntries(Object.entries(element).reverse())],
+      }),
+    );
+    await saving;
+    expect(ctx.client.version).toBe(2);
+    expect(ctx.client.state).toBe('saving');
+    ctx.fetcher.mockResolvedValueOnce(response({ version: 3 }));
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(ctx.client.state).toBe('saved');
+    expect(ctx.fetcher.mock.calls[4]?.[1]?.headers).toMatchObject({
+      'If-Match': '"2"',
+    });
+  });
+  it.each([
+    'equal',
+    'different',
+    'failed',
+    'detached',
+  ])('reconciles a 409 with a %s snapshot', async (result) => {
+    const ctx = setup();
+    await editable(ctx);
+    ctx.fetcher.mockResolvedValueOnce(response({ version: 4 }, 409));
+    let finish!: (value: Response) => void;
+    ctx.fetcher.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    ctx.client.schedule(scene);
+    const saving = ctx.client.flush();
+    await vi.advanceTimersByTimeAsync(0);
+    if (result === 'detached') ctx.client.detach();
+    finish(
+      result === 'failed'
+        ? response({}, 503)
+        : response({
+            ...board(4),
+            elements: result === 'different' ? newer.elements : scene.elements,
+          }),
+    );
+    await saving;
+    if (result === 'detached') {
+      expect(ctx.client.version).toBe(0);
+      expect(ctx.client.id).toBeNull();
+    } else {
+      expect(ctx.client.version).toBe(4);
+      expect(ctx.client.state).toBe(result === 'equal' ? 'saved' : 'conflict');
+      expect(ctx.client.unsaved).toBe(result !== 'equal');
+    }
   });
 });
 

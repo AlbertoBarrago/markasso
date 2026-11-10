@@ -182,6 +182,13 @@ export function initCanvasView(
   // Event listeners
   canvas.addEventListener('mousedown', (e) => {
     closeLabelEditor();
+    // Commit before another tool can start a history drag transaction.
+    if (
+      textTool.editingId !== null &&
+      history.present.appState.activeTool !== 'text'
+    ) {
+      textTool.onDeactivate(toolCtx);
+    }
     if (e.button === 1 || (e.button === 0 && e.altKey)) {
       // Middle click or Alt+click = pan
       gesture.begin(TOOLS.hand);
