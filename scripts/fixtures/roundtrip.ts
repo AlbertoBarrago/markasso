@@ -102,9 +102,17 @@ export function firstDifference(
     : `${path}: ${JSON.stringify(a)} != ${JSON.stringify(b)}`;
 }
 
+/**
+ * `JSON.parse` past a leading byte order mark, which the readers skip (corpus case 062). The readers themselves still
+ * get the file as written: they do not all treat the mark alike.
+ */
+function parseSkippingBom(text: string): unknown {
+  return JSON.parse(text.replace(/^\uFEFF/, '')) as unknown;
+}
+
 /** Root members other than version, viewport and elements; null for an array root. */
 function uninterpretedKeys(text: string): Record<string, unknown> | null {
-  const root = JSON.parse(text) as unknown;
+  const root = parseSkippingBom(text);
   if (!root || typeof root !== 'object' || Array.isArray(root)) return null;
   return Object.fromEntries(
     Object.entries(root as Record<string, unknown>).filter(
@@ -142,7 +150,7 @@ async function reference(
   }
   if (!mcp.accepted || !mcp.elements)
     return { web: false, mcp: false, scene: null };
-  const root = JSON.parse(text) as unknown;
+  const root = parseSkippingBom(text);
   const own =
     root && typeof root === 'object' && !Array.isArray(root)
       ? validateViewport((root as { viewport?: unknown }).viewport)
