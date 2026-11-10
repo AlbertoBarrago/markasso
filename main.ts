@@ -129,13 +129,19 @@ async function bootstrap(): Promise<void> {
     () => starCta.open(),
     () => mcpSetup.open(),
   );
-  const { selectTool } = initCanvasView(canvas, hist);
+  const { selectTool, historyActions } = initCanvasView(canvas, hist);
   initContextPanel(workspace, hist, (source) =>
     selectTool.activateFormatPainter(source),
   );
-  initMobileActionBar(workspace, hist);
-  initShortcuts(hist, selectTool, openPreferences, openFile);
-  initCommandPalette(hist, selectTool, () => mcpSetup.open(), openFile);
+  initMobileActionBar(workspace, hist, historyActions);
+  initShortcuts(hist, selectTool, openPreferences, openFile, historyActions);
+  initCommandPalette(
+    hist,
+    selectTool,
+    () => mcpSetup.open(),
+    openFile,
+    historyActions,
+  );
   initMinimap(workspace, hist);
   initElementSearch(workspace, hist);
   initLibraryPanel(workspace, hist, canvas);
