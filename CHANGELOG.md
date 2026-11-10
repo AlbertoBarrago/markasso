@@ -4,6 +4,13 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [Unreleased]
+
+### Removed
+- **Share to X, Reddit and Bluesky.** The Share menu entry now copies the board's link directly, like the Command Palette; the social compose shortcuts are gone.
+
+---
+
 ## [1.21.1] - 2026-11-10
 
 ### Fixed
