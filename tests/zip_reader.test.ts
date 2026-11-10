@@ -10,7 +10,12 @@ async function deflateRaw(data: Uint8Array): Promise<Uint8Array> {
 
 /** Builds a ZIP in memory; `deflate` picks the method per entry. */
 async function makeZip(
-  files: Array<{ name: string; text: string; deflate?: boolean }>,
+  files: Array<{
+    name: string;
+    text: string;
+    deflate?: boolean;
+    declaredSize?: number;
+  }>,
 ): Promise<Uint8Array> {
   const enc = new TextEncoder();
   const locals: Uint8Array[] = [];
@@ -25,7 +30,7 @@ async function makeZip(
     lv.setUint32(0, 0x04034b50, true);
     lv.setUint16(8, f.deflate ? 8 : 0, true);
     lv.setUint32(18, data.length, true);
-    lv.setUint32(22, raw.length, true);
+    lv.setUint32(22, f.declaredSize ?? raw.length, true);
     lv.setUint16(26, name.length, true);
     local.set(name, 30);
     local.set(data, 30 + name.length);
@@ -34,7 +39,7 @@ async function makeZip(
     cv.setUint32(0, 0x02014b50, true);
     cv.setUint16(10, f.deflate ? 8 : 0, true);
     cv.setUint32(20, data.length, true);
-    cv.setUint32(24, raw.length, true);
+    cv.setUint32(24, f.declaredSize ?? raw.length, true);
     cv.setUint16(28, name.length, true);
     cv.setUint32(42, offset, true);
     central.set(name, 46);
@@ -123,6 +128,19 @@ describe('zip reader', () => {
         maxTotalBytes: 5_000,
       }),
     ).rejects.toThrow('Archive too large');
+  });
+
+  it('limits a stored entry by its payload, not only its declared size', async () => {
+    const zip = await makeZip([
+      { name: 'big.svg', text: 'x'.repeat(10_000), declaredSize: 0 },
+    ]);
+    await expect(
+      readZipEntries(zip, () => true, {
+        maxEntries: 10,
+        maxEntryBytes: 1_000,
+        maxTotalBytes: 1_000_000,
+      }),
+    ).rejects.toThrow('Entry too large: big.svg');
   });
 
   it('enforces the entry count limit', async () => {

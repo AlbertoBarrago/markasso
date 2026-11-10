@@ -178,6 +178,11 @@ export async function readZipEntries(
     const raw = bytes.subarray(start, end);
     let data: Uint8Array;
     if (record.method === METHOD_STORED) {
+      // The per-entry limit was checked against the declared size, which a stored entry may understate: its
+      // payload is what it decompresses to, so the limit applies to that too.
+      if (record.compressedSize > limits.maxEntryBytes) {
+        throw new ZipError(`Entry too large: ${record.name}`);
+      }
       data = raw.slice();
     } else if (record.method === METHOD_DEFLATE) {
       data = await inflateRaw(raw, limits.maxEntryBytes);
