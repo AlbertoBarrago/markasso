@@ -10,6 +10,7 @@ import type { History } from '../engine/history';
 import { validateElements } from '../io/element_validation';
 import { exportMarkasso } from '../io/markasso';
 import type { SelectTool } from '../tools/select_tool';
+import type { HistoryActions } from './canvas_gesture';
 import {
   fileShortcut,
   isFocusInPanel,
@@ -68,6 +69,7 @@ export function initShortcuts(
   selectTool: SelectTool,
   openPreferences: () => void,
   openFile: () => void,
+  historyActions: HistoryActions = history,
 ): void {
   let pasteCount = 0;
   const shortcuts = new Map<string, () => void>([
@@ -172,12 +174,12 @@ export function initShortcuts(
       (key === 'y' || (e.shiftKey && key === 'z'))
     ) {
       e.preventDefault();
-      history.redo();
+      historyActions.redo();
       return;
     }
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && key === 'z') {
       e.preventDefault();
-      history.undo();
+      historyActions.undo();
       return;
     }
     if ((e.ctrlKey || e.metaKey) && key === 'a') {

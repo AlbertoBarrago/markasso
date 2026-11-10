@@ -37,6 +37,10 @@ export class HandTool implements Tool {
     this.isPanning = false;
   }
 
+  onCancel(): void {
+    this.isPanning = false;
+  }
+
   onMouseLeave(): void {
     this.isPanning = false;
   }

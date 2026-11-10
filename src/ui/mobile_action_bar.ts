@@ -13,6 +13,7 @@ import {
   ARROW_HEAD_STYLE_LABEL_KEYS,
   arrowHeadStyleIcon,
 } from './arrow_head_icons';
+import type { HistoryActions } from './canvas_gesture';
 import {
   CLOUD_ACTIONS,
   CLOUD_GROUPS,
@@ -56,6 +57,7 @@ const FILL_PRESETS = [
 export function initMobileActionBar(
   workspace: HTMLElement,
   history: History,
+  historyActions: HistoryActions = history,
 ): void {
   // ── Bottom sheet (style panel) ──────────────────────────────────────────────
   const sheet = document.createElement('div');
@@ -538,8 +540,8 @@ export function initMobileActionBar(
 
   bar.append(nameChip, undoBtn, redoBtn, shareBtn, sep, propsBtn, deleteBtn);
 
-  undoBtn.addEventListener('click', () => history.undo());
-  redoBtn.addEventListener('click', () => history.redo());
+  undoBtn.addEventListener('click', () => historyActions.undo());
+  redoBtn.addEventListener('click', () => historyActions.redo());
 
   shareBtn.addEventListener('click', () => {
     if (history.present.elements.length === 0) return;

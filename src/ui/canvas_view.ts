@@ -65,6 +65,7 @@ import { ShapeTool } from '../tools/shape_tool';
 import { StickyTool } from '../tools/sticky_tool';
 import { TextTool } from '../tools/text_tool';
 import type { Tool, ToolContext } from '../tools/tool';
+import { CanvasGesture } from './canvas_gesture';
 import { toolAfterLabelEdit } from './label_edit_tool';
 
 const textTool = new TextTool();
@@ -87,7 +88,7 @@ const TOOLS: Record<ActiveTool, Tool> = {
 export function initCanvasView(
   canvas: HTMLCanvasElement,
   history: History,
-): { selectTool: SelectTool } {
+): { selectTool: SelectTool; historyActions: CanvasGesture } {
   const ctx2d = canvas.getContext('2d')!;
 
   let isPanning = false;
@@ -104,6 +105,8 @@ export function initCanvasView(
       needsRender = true;
     },
   };
+
+  const gesture = new CanvasGesture(toolCtx);
 
   onImageLoad(() => {
     needsRender = true;
@@ -188,6 +191,7 @@ export function initCanvasView(
     }
     if (e.button === 1 || (e.button === 0 && e.altKey)) {
       // Middle click or Alt+click = pan
+      gesture.begin(TOOLS.hand);
       isPanning = true;
       panStartX = e.clientX;
       panStartY = e.clientY;
@@ -197,11 +201,13 @@ export function initCanvasView(
     }
     if (e.button !== 0) return;
     const [wx, wy] = getWorldCoords(e);
+    gesture.begin(getActiveTool());
     getActiveTool().onMouseDown(e, wx, wy, toolCtx);
     needsRender = true;
   });
 
   canvas.addEventListener('mousemove', (e) => {
+    if (gesture.cancelled) return;
     if (isPanning) {
       const dx = e.clientX - panStartX;
       const dy = e.clientY - panStartY;
@@ -222,12 +228,14 @@ export function initCanvasView(
   window.addEventListener('mouseup', (e) => {
     if (isPanning) {
       isPanning = false;
+      gesture.end();
       canvas.style.cursor = getActiveTool().getCursor(0, 0, toolCtx);
       return;
     }
     if (e.button !== 0) return;
     const [wx, wy] = getWorldCoords(e);
-    getActiveTool().onMouseUp(e, wx, wy, toolCtx);
+    if (!gesture.cancelled) getActiveTool().onMouseUp(e, wx, wy, toolCtx);
+    gesture.end();
     needsRender = true;
   });
 
@@ -485,6 +493,7 @@ export function initCanvasView(
         _lastTouchX = t.clientX;
         _lastTouchY = t.clientY;
         const [wx, wy] = getWorldCoordsFromTouch(t);
+        gesture.begin(getActiveTool());
         getActiveTool().onMouseDown(
           syntheticMouse('mousedown', t.clientX, t.clientY),
           wx,
@@ -499,7 +508,7 @@ export function initCanvasView(
         longPressClientY = t.clientY;
         longPressMoved = false;
         longPressTimer = window.setTimeout(() => {
-          if (!longPressMoved && touch2Id === -1) {
+          if (!gesture.cancelled && !longPressMoved && touch2Id === -1) {
             openCtxMenu(longPressClientX, longPressClientY);
           }
         }, LONG_PRESS_MS);
@@ -509,9 +518,12 @@ export function initCanvasView(
         // Cancel any in-progress single-touch draw.
         // A second finger is almost always pinch-to-zoom, not an intentional
         // stroke end, so never synthesize mouseup here.
-        const activeTool = getActiveTool();
         if (touch1Id !== -1) {
-          activeTool.onCancel?.(toolCtx);
+          // The stroke is abandoned, but the pinch that follows is not a
+          // cancelled gesture: ending it keeps the remaining finger tracked
+          // when one is lifted, as before.
+          gesture.cancel();
+          gesture.end();
           needsRender = true;
         }
         const t1 = e.touches.item(0)!;
@@ -559,6 +571,7 @@ export function initCanvasView(
         prevInertiaY = t.clientY;
         lastTouchMoveTime = now;
         const [wx, wy] = getWorldCoordsFromTouch(t);
+        if (gesture.cancelled) return;
         sendLocalCursor(wx, wy);
         getActiveTool().onMouseMove(
           syntheticMouse('mousemove', t.clientX, t.clientY),
@@ -609,6 +622,12 @@ export function initCanvasView(
     (e) => {
       preventIfCancelable(e);
       clearTimeout(longPressTimer);
+      if (gesture.cancelled) {
+        if (e.touches.length === 0) gesture.end();
+        touch1Id = -1;
+        touch2Id = -1;
+        return;
+      }
       if (touch2Id === -1) {
         // Single-finger end
         const changedTouch = e.changedTouches[0];
@@ -624,6 +643,7 @@ export function initCanvasView(
             wy,
             toolCtx,
           );
+          gesture.end();
           // Touch pan inertia — only when panning, not drawing
           if (history.present.appState.activeTool === 'hand') {
             cancelAnimationFrame(inertiaRafId);
@@ -687,10 +707,8 @@ export function initCanvasView(
   // call, system gesture). Cancel any in-progress tool action so the tool
   // state doesn't get stuck with drawing=true and a dangling preview.
   canvas.addEventListener('touchcancel', () => {
-    const activeTool = getActiveTool();
-    if (activeTool.onCancel) {
-      activeTool.onCancel(toolCtx);
-    }
+    gesture.cancel();
+    gesture.end();
     touch1Id = -1;
     touch2Id = -1;
     needsRender = true;
@@ -1028,7 +1046,7 @@ export function initCanvasView(
     needsRender = true;
   };
 
-  return { selectTool: TOOLS.select as SelectTool };
+  return { selectTool: TOOLS.select as SelectTool, historyActions: gesture };
 }
 
 function drawSlashTrail(
