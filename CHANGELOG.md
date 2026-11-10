@@ -4,12 +4,12 @@ All notable changes to this project will be documented here.
 
 ---
 
-## [Unreleased]
+## [1.21.1] - 2026-11-10
 
 ### Fixed
 - **Cloud saves.** Local edits respect retry delays after rate limits and service failures, and a save whose reply was lost no longer reports a conflict when the cloud already holds the same elements.
 - **Text editing and undo.** Committing text before another tool handles a canvas press keeps text edits separate from moves and cancelled drags.
-- Undo and redo during a canvas drag cancel the gesture and restore its starting state without creating extra undo steps.
+- **Undo during a drag.** Undo and redo pressed while dragging cancel the gesture and restore where it started, instead of leaving one undo step per movement.
 - **Icon pack import.** A stored ZIP entry is limited by its actual size, not only by the size it declares.
 
 ---
