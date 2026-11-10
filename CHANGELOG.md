@@ -4,6 +4,13 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **Cloud saves.** Local edits respect retry delays after rate limits and service failures, and a save whose reply was lost no longer reports a conflict when the cloud already holds the same elements.
+
+---
+
 ## [1.21.0] - 2026-11-09
 
 ### Added
