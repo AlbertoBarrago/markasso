@@ -4,6 +4,13 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **Icon pack import.** A stored ZIP entry is limited by its actual size, not only by the size it declares.
+
+---
+
 ## [1.21.0] - 2026-11-09
 
 ### Added
