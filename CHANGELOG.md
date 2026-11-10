@@ -4,6 +4,13 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- Undo and redo during a canvas drag cancel the gesture and restore its starting state without creating extra undo steps.
+
+---
+
 ## [1.21.0] - 2026-11-09
 
 ### Added

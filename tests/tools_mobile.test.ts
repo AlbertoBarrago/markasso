@@ -26,6 +26,7 @@ import { RectangleTool } from '../src/tools/rectangle_tool';
 import { RomboTool } from '../src/tools/rombo_tool';
 import { SelectTool } from '../src/tools/select_tool';
 import type { ToolContext } from '../src/tools/tool';
+import { CanvasGesture } from '../src/ui/canvas_gesture';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -620,4 +621,66 @@ describe('SelectTool — mobile touch sequence', () => {
 
     expect(history.present.selectedIds.size).toBe(0);
   });
+});
+
+describe('History actions during canvas gestures', () => {
+  for (const action of ['undo', 'redo'] as const) {
+    it(`${action} cancels a move and preserves the existing history`, () => {
+      const history = new History(createScene());
+      history.dispatch({ type: 'CREATE_ELEMENT', element: makeRect() });
+      history.dispatch({
+        type: 'CREATE_ELEMENT',
+        element: makeRect({ id: 'el-2', x: 300 }),
+      });
+      history.undo();
+      const tool = new SelectTool();
+      const ctx = makeCtx(history);
+      const gesture = new CanvasGesture(ctx);
+      gesture.begin(tool);
+      tool.onMouseDown(me(50, 50), 50, 50, ctx);
+      tool.onMouseMove(me(80, 80), 80, 80, ctx);
+      expect(history.present.elements[0]?.x).toBe(30);
+
+      gesture[action]();
+      expect(history.present.elements[0]?.x).toBe(0);
+      expect(history.canRedo()).toBe(true);
+      // Repeated shortcuts while the button is down still belong to this gesture.
+      gesture[action]();
+      tool.onMouseMove(me(100, 100), 100, 100, ctx);
+      tool.onMouseUp(me(100, 100), 100, 100, ctx);
+      gesture.end();
+      expect(history.present.elements[0]?.x).toBe(0);
+      gesture.undo();
+      expect(history.present.elements).toHaveLength(0);
+      expect(history.canUndo()).toBe(false);
+      gesture.redo();
+      expect(history.present.elements).toHaveLength(1);
+      gesture.redo();
+      expect(history.present.elements).toHaveLength(2);
+      gesture.undo();
+      expect(history.present.elements).toHaveLength(1);
+      gesture.undo();
+      expect(history.present.elements).toHaveLength(0);
+      expect(history.canUndo()).toBe(false);
+    });
+
+    it(`${action} cancels erasing and ignores later moves`, () => {
+      const history = new History(createScene());
+      history.dispatch({ type: 'CREATE_ELEMENT', element: makeRect() });
+      const tool = new EraserTool();
+      const ctx = makeCtx(history);
+      const gesture = new CanvasGesture(ctx);
+      gesture.begin(tool);
+      tool.onMouseDown(me(50, 50), 50, 50, ctx);
+      expect(history.present.elements).toHaveLength(0);
+      gesture[action]();
+      tool.onMouseMove(me(60, 60), 60, 60, ctx);
+      tool.onMouseUp(me(60, 60), 60, 60, ctx);
+      gesture.end();
+      expect(history.present.elements).toHaveLength(1);
+      gesture.undo();
+      expect(history.present.elements).toHaveLength(0);
+      expect(history.canUndo()).toBe(false);
+    });
+  }
 });

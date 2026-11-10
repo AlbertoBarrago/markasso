@@ -9,6 +9,7 @@ import { exportMarkasso } from '../io/markasso';
 import { buildShareUrl } from '../io/share';
 import { exportHTML, exportPNG, exportSVG } from '../rendering/export';
 import type { SelectTool } from '../tools/select_tool';
+import type { HistoryActions } from './canvas_gesture';
 import { clearCanvas } from './clear_canvas';
 import {
   CLOUD_ACTIONS,
@@ -88,6 +89,7 @@ export function initCommandPalette(
   _selectTool: SelectTool,
   openMcpSetup: () => void,
   openFile: () => void,
+  historyActions: HistoryActions = history,
 ): void {
   // ── DOM ──────────────────────────────────────────────────────────────────
   const overlay = document.createElement('div');
@@ -239,7 +241,7 @@ export function initCommandPalette(
       hint: 'Ctrl+Z',
       category: 'action',
       icon: `<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h9a4 4 0 010 8H8"/><path d="M7 5L4 8l3 3"/></svg>`,
-      execute: () => history.undo(),
+      execute: () => historyActions.undo(),
     });
     items.push({
       id: 'action:redo',
@@ -247,7 +249,7 @@ export function initCommandPalette(
       hint: 'Ctrl+Y',
       category: 'action',
       icon: `<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8H7a4 4 0 000 8h5"/><path d="M13 5l3 3-3 3"/></svg>`,
-      execute: () => history.redo(),
+      execute: () => historyActions.redo(),
     });
     items.push({
       id: 'action:fit',
