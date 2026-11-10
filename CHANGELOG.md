@@ -8,6 +8,7 @@ All notable changes to this project will be documented here.
 
 ### Fixed
 - **Cloud saves.** Local edits respect retry delays after rate limits and service failures, and a save whose reply was lost no longer reports a conflict when the cloud already holds the same elements.
+- **Text editing and undo.** Committing text before another tool handles a canvas press keeps text edits separate from moves and cancelled drags.
 
 ---
 
