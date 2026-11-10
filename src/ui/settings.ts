@@ -179,9 +179,6 @@ const ICONS = {
       'M8.5 11.5a3.5 3.5 0 005 0l2.5-2.5a3.5 3.5 0 00-5-5l-1 1M11.5 8.5a3.5 3.5 0 00-5 0L4 11a3.5 3.5 0 005 5l1-1',
     ),
   ),
-  x: `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>`,
-  reddit: `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095z"/></svg>`,
-  bluesky: `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 10.8c-1.087-2.114-4.046-6.053-6.798-7.995C2.566.944 1.561 1.266.902 1.565.139 1.912 0 3.083 0 3.75c0 .667.365 5.46.6 6.256.771 2.627 3.516 3.516 6.056 3.216-3.86.57-7.286 1.996-2.79 7.03 4.958 5.4 6.79-1.157 7.734-4.4.944 3.243 2.077 9.573 7.634 4.4 4.22-4.4 1.07-6.46-2.79-7.03 2.54.3 5.285-.59 6.056-3.216.235-.796.6-5.59.6-6.256 0-.667-.14-1.838-.902-2.185-.66-.3-2.164-.621-4.998 1.62-2.752 2.05-5.71 5.98-6.798 8.14z"/></svg>`,
   trash: svg(p('M4 6h12M9 3h2M16 6l-1 11H5L4 6M9 10v4M11 10v4')),
   prefs: svg(p('M3 5h14M3 10h14M3 15h14M7 3v4M13 8v4M10 13v4')),
   chevron: svg(p('M8 5l5 5-5 5')),
@@ -373,15 +370,7 @@ export function initSettings(
           item('menu-export-svg', ICONS.svg, t('exportSVG')) +
           item('menu-export-html', ICONS.html, t('exportHTML')),
       )}
-      ${parentItem(
-        'menu-share',
-        ICONS.share,
-        t('shareLink'),
-        item('menu-share-copy', ICONS.link, t('shareCopyLink')) +
-          item('menu-share-x', ICONS.x, t('shareX')) +
-          item('menu-share-reddit', ICONS.reddit, t('shareReddit')) +
-          item('menu-share-bluesky', ICONS.bluesky, t('shareBluesky')),
-      )}
+      ${item('menu-share', ICONS.share, t('shareLink'))}
       ${CLOUD_ACTIONS.length ? parentItem('menu-cloud', ICONS.cloud, t('cloudMenu'), cloudSubmenu()) : ''}
       ${item('menu-clear', ICONS.trash, t('clearCanvas'), 'menu-item--danger')}
       ${separator}
@@ -762,10 +751,7 @@ export function initSettings(
       if (hasElements) el.removeAttribute('aria-disabled');
       else el.setAttribute('aria-disabled', 'true');
     }
-    if (
-      !hasElements &&
-      (openParent?.id === 'menu-export' || openParent?.id === 'menu-share')
-    ) {
+    if (!hasElements && openParent?.id === 'menu-export') {
       closeSubmenu();
     }
 
@@ -833,36 +819,11 @@ export function initSettings(
   for (const action of CLOUD_ACTIONS)
     onActivate(`#menu-${action}`, () => cloudAction(history, action));
 
-  onActivate('#menu-share-copy', async () => {
+  onActivate('#menu-share', async () => {
     const url = await buildShareUrl(history.present.elements);
     const ok = await copyToClipboard(url);
     showShareToast(ok, url);
   });
-  const shareTo = (intent: (url: string) => string) => async () => {
-    const url = await buildShareUrl(history.present.elements);
-    window.open(intent(url), '_blank', 'noopener');
-  };
-  onActivate(
-    '#menu-share-x',
-    shareTo(
-      (url) =>
-        `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent('Check out my Markasso drawing')}`,
-    ),
-  );
-  onActivate(
-    '#menu-share-reddit',
-    shareTo(
-      (url) =>
-        `https://www.reddit.com/submit?url=${encodeURIComponent(url)}&title=Check%20out%20my%20Markasso%20drawing`,
-    ),
-  );
-  onActivate(
-    '#menu-share-bluesky',
-    shareTo(
-      (url) =>
-        `https://bsky.app/intent/compose?text=${encodeURIComponent(`Check out my Markasso drawing: ${url}`)}`,
-    ),
-  );
 
   onActivate('#menu-guide', openGuide);
   onActivate('#menu-mac', () => window.open('/mac/', '_blank', 'noopener'));
