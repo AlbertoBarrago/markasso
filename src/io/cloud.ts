@@ -28,6 +28,7 @@ export class CloudError extends Error {
   constructor(
     public readonly status: number,
     public readonly serverVersion?: number,
+    public readonly retryAfter?: number,
   ) {
     super('Cloud request failed');
   }
@@ -75,6 +76,7 @@ export class CloudClient {
   private requests = 0;
   private pending: CloudScene | null = null;
   private timer: ReturnType<typeof setTimeout> | undefined;
+  private retryNotBefore = 0;
   private busy = false;
   private checking = false;
   private generation = 0;
@@ -239,7 +241,10 @@ export class CloudClient {
         this.onActivity();
       }
     }
-    if (response.ok || response.status === 304) this.lastSyncedAt = Date.now();
+    if (response.ok || response.status === 304) {
+      this.lastSyncedAt = Date.now();
+      this.retryNotBefore = 0;
+    }
     // 304 Not Modified and 204 No Content (a deleted board) carry no body.
     if (response.status === 304 || response.status === 204) return null;
     if (!response.ok) {
@@ -250,6 +255,15 @@ export class CloudClient {
           Number.isInteger(data.version) && data.version! > 0
             ? data.version
             : undefined,
+        );
+      }
+      if (response.status === 429) {
+        const header = response.headers.get('Retry-After')?.trim() ?? '';
+        const seconds = /^\d+$/.test(header) ? Number(header) : NaN;
+        throw new CloudError(
+          429,
+          undefined,
+          Number.isSafeInteger(seconds) ? seconds : 60,
         );
       }
       throw new CloudError(response.status);
@@ -382,10 +396,14 @@ export class CloudClient {
     this.pending = { elements: scene.elements, viewport: scene.viewport };
     if (this.timer) clearTimeout(this.timer);
     if (this.state === 'conflict' || this.state === 'error') return;
-    this.notify('saving');
-    this.timer = setTimeout(() => {
-      void this.flush();
-    }, 2000);
+    const remaining = this.retryNotBefore - Date.now();
+    if (remaining <= 0) this.notify('saving');
+    this.timer = setTimeout(
+      () => {
+        void this.flush();
+      },
+      remaining > 0 ? remaining : 2000,
+    );
   }
   async flush(keepalive = false): Promise<void> {
     if (this.timer) clearTimeout(this.timer);
@@ -423,14 +441,32 @@ export class CloudClient {
       )
         throw new CloudError(503);
       this.version = data.version as number;
-      if (this.id) touchBoard(this.storage, this.id, scene.elements, 'saved');
-      if (this.pending === scene) this.pending = null;
-      this.notify(this.pending ? 'saving' : 'saved');
+      this.saved(scene);
     } catch (error) {
       if (generation === this.generation) {
-        if (error instanceof CloudError && error.serverVersion)
-          this.version = error.serverVersion;
-        this.failed(error);
+        let recovered = false;
+        if (error instanceof CloudError && error.status === 409) {
+          try {
+            const board = parseBoard(await this.send(`/api/board/${this.id}`));
+            if (generation !== this.generation) return;
+            if (
+              elementsJson(board.scene.elements) ===
+              elementsJson(scene.elements)
+            ) {
+              this.version = board.version;
+              this.saved(scene);
+              recovered = true;
+            }
+          } catch {
+            // An unreadable server snapshot cannot resolve the conflict.
+          }
+        }
+        if (generation !== this.generation) return;
+        if (!recovered) {
+          if (error instanceof CloudError && error.serverVersion)
+            this.version = error.serverVersion;
+          this.failed(error);
+        }
       }
     } finally {
       this.busy = false;
@@ -440,8 +476,20 @@ export class CloudClient {
         void this.flush();
       }, 2000);
   }
+  private saved(scene: CloudScene): void {
+    this.retryNotBefore = 0;
+    if (this.id) touchBoard(this.storage, this.id, scene.elements, 'saved');
+    if (this.pending === scene) this.pending = null;
+    this.notify(this.pending ? 'saving' : 'saved');
+  }
   private failed(error: unknown): void {
     const status = error instanceof CloudError ? error.status : 503;
+    if ([0, 429, 503].includes(status))
+      this.retryNotBefore =
+        Date.now() +
+        (status === 429
+          ? (error instanceof CloudError ? (error.retryAfter ?? 60) : 60) * 1000
+          : 10000);
     this.notify(
       status === 409
         ? 'conflict'
@@ -450,13 +498,15 @@ export class CloudClient {
           : 'error',
       status,
     );
-    if (this.pending && this.state === 'offline')
+    if (this.pending && this.state === 'offline') {
+      if (this.timer) clearTimeout(this.timer);
       this.timer = setTimeout(
         () => {
           void this.flush();
         },
-        status === 429 ? 60000 : 10000,
+        Math.max(0, this.retryNotBefore - Date.now()),
       );
+    }
   }
   async keepMine(): Promise<void> {
     this.notify('saving');
@@ -486,6 +536,7 @@ export class CloudClient {
   }
   detach(): void {
     if (this.timer) clearTimeout(this.timer);
+    this.retryNotBefore = 0;
     this.generation++;
     this.pending = null;
     this.id = null;
@@ -509,4 +560,17 @@ function parseBoard(data: Record<string, unknown> | null): CloudBoard {
     scene: { elements, ...(viewport ? { viewport } : {}) },
     version: data.version as number,
   };
+}
+
+/** Compares JSON element data independently of object key insertion order. */
+function elementsJson(elements: readonly Element[]): string {
+  return JSON.stringify(elements, (_key, value: unknown) =>
+    value && typeof value === 'object' && !Array.isArray(value)
+      ? Object.fromEntries(
+          Object.entries(value).sort(([a], [b]) =>
+            a < b ? -1 : a > b ? 1 : 0,
+          ),
+        )
+      : value,
+  );
 }
