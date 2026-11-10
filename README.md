@@ -36,6 +36,16 @@
 
 ---
 
+## Featured in
+
+[TypeScript.fm — Episode 87](https://typescript.fm/87) · October 29, 2026
+
+Markasso was featured in **Library Watch**. [Listen at 25:49](https://typescript.fm/87#t=25m49s).
+
+Thanks to Erik Onarheim and Kamran Ayub for the shout-out!
+
+---
+
 ## Draw with AI agents (MCP)
 
 Markasso ships an [MCP](https://modelcontextprotocol.io) server: Claude, Codex, Gemini and local models (e.g. Gemma in LM Studio) can create, read and edit diagrams, and even draw live on a shared board.
