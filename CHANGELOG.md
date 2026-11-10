@@ -4,6 +4,13 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **Text editing and undo.** Committing text before another tool handles a canvas press keeps text edits separate from moves and cancelled drags.
+
+---
+
 ## [1.21.0] - 2026-11-09
 
 ### Added
