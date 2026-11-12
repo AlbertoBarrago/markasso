@@ -494,11 +494,6 @@ body.toolbar-placing * {
 .pp-leave:focus-visible {
   background: var(--bg-hover);
 }
-.pp-mobile {
-  border-top: 1px solid var(--island-border);
-  margin-top: 6px;
-  padding-top: 6px;
-}
 
 .tb-locked-indicator {
   color: var(--warning) !important;

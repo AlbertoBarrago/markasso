@@ -8,11 +8,6 @@ vi.mock('../src/i18n', () => ({
   getLocale: () => 'en',
   LOCALES: [],
 }));
-vi.mock('../src/ui/people_list', () => ({
-  initPeopleList: () => {
-    throw new Error('share sheet ready');
-  },
-}));
 /** Minimal DOM capture: tests inspect rendered entries without a browser dependency. */
 class Node {
   id = '';
@@ -61,7 +56,7 @@ afterEach(() => {
 });
 
 describe.each([false, true])('cloud UI enabled=%s', (enabled) => {
-  it('renders the menu submenu, mobile actions and palette consistently', async () => {
+  it('renders the menu submenu and palette consistently', async () => {
     vi.stubEnv('VITE_CLOUD_ENABLED', String(enabled));
     vi.doMock('../src/ui/cloud_boards', async (importOriginal) => {
       const original =
@@ -122,31 +117,6 @@ describe.each([false, true])('cloud UI enabled=%s', (enabled) => {
       for (const action of actions)
         expect(submenu).toContain(`id="menu-${action}"`);
     }
-
-    const { initMobileActionBar } = await import('../src/ui/mobile_action_bar');
-    expect(() => initMobileActionBar(element, history)).toThrow(
-      'share sheet ready',
-    );
-    const mobile = nodes.find((node) => node.id === 'mobile-share-sheet')!;
-    // The licence note, then the four groups split by three dividers ('').
-    expect(mobile.children.map((node) => node.textContent)).toEqual(
-      enabled
-        ? [
-            'cloudMenuNote',
-            'cloudSave',
-            'cloudBoards',
-            '',
-            'cloudMac',
-            '',
-            'cloudReadLink',
-            'cloudEditLink',
-            'cloudDuplicate',
-            '',
-            'cloudLicense',
-            'cloudSubscription',
-          ]
-        : [],
-    );
 
     const { initCommandPalette } = await import('../src/ui/command_palette');
     initCommandPalette(history, {} as SelectTool, noop, noop);

@@ -79,7 +79,6 @@
 [data-theme="light"] .fsb-popover,
 [data-theme="light"] #mobile-actions,
 [data-theme="light"] #mobile-style-sheet,
-[data-theme="light"] #mobile-share-sheet,
 [data-theme="light"] .wl-card,
 [data-theme="light"] .about-modal-box {
   background: var(--bg-island) !important;
