@@ -1,16 +1,10 @@
-import { measureTextBounds } from '../core/text_measure';
-import { cloneElementsWithOffset } from '../elements/clone';
 import {
   ARROW_HEAD_STYLES,
-  type ArrowElement,
-  type ConnectorRouting,
   type Element,
-  type LineElement,
   SHAPE_KINDS,
 } from '../elements/element';
 import type { History } from '../engine/history';
 import { t } from '../i18n';
-import { hasEndHead, hasStartHead } from '../rendering/connector_geometry';
 import { getElementBounds } from '../rendering/draw_selection';
 import {
   ARROW_HEAD_STYLE_LABEL_KEYS,
@@ -25,35 +19,54 @@ import {
   updateCustomColorButton,
 } from './color_picker';
 import { SHAPE_KIND_LABEL_KEYS, shapeKindIcon } from './shape_icons';
-import { hasFillStyle, hasStrokeStyle, styleTypeOf } from './style_type';
+import {
+  applyFontSize,
+  applyStrokeOrLabelColor,
+  deleteSelection,
+  duplicateSelection,
+  isSwatchActive,
+  type LayerMove,
+  reorderSelection,
+  toggleSelectionLock,
+  toggleTextFormat,
+} from './style_actions';
+import { isFloatingStyleControls } from './style_controls_mode';
+import {
+  arrowHeadOptions,
+  FILL_PRESETS,
+  FONT_FAMILIES,
+  ICON_DELETE,
+  ICON_DUPLICATE,
+  ICON_TO_FRONT,
+  routingOptions,
+  STROKE_PRESETS,
+  strokeStyleOptions,
+  strokeWidthOptions,
+  textAlignOptions,
+} from './style_presets';
+import {
+  getStyleState,
+  hasShapeLabel,
+  type StyleState,
+  selectedElements,
+} from './style_state';
 
-const SHARED_COLOR_PRESETS = [
-  '#e2e2ef',
-  '#ff6b6b',
-  '#6bcb77',
-  '#4d96ff',
-  '#c77dff',
-];
-const FILL_PRESETS = ['transparent', ...SHARED_COLOR_PRESETS];
-const STROKE_PRESETS = FILL_PRESETS;
-
-function hasShapeLabel(el: Element): el is Element & { labelColor?: string } {
-  return (
-    el.type === 'rectangle' ||
-    el.type === 'ellipse' ||
-    el.type === 'rhombus' ||
-    el.type === 'shape' ||
-    el.type === 'stencil' ||
-    el.type === 'line' ||
-    el.type === 'arrow'
-  );
+/** Lets other style surfaces (the floating bar) drive the context panel. */
+export interface ContextPanelHandle {
+  /**
+   * With the floating style bar on, opens the full panel for the current
+   * selection or tool (More... in the bar), or closes it when already open.
+   */
+  toggleFull(): void;
+  /** Re-reads the style controls setting. */
+  refresh(): void;
 }
 
 export function initContextPanel(
   workspace: HTMLElement,
   history: History,
   onFormatPainter?: (source: Element) => void,
-): void {
+): ContextPanelHandle {
   const panel = document.createElement('div');
   panel.id = 'context-panel';
   panel.setAttribute('role', 'region');
@@ -201,33 +214,18 @@ export function initContextPanel(
     },
   });
 
-  function getLabelColorTargets(): Array<Element & { labelColor?: string }> {
-    const scene = history.present;
-    if (scene.appState.activeTool !== 'text') return [];
-    return [...scene.selectedIds]
-      .map((id) => scene.elements.find((el) => el.id === id))
-      .filter(
-        (el): el is Element & { labelColor?: string } =>
-          el !== undefined && hasShapeLabel(el),
-      );
-  }
-
-  function isEditingLabelColor(): boolean {
-    return getLabelColorTargets().length > 0;
-  }
-
   function dispatchStrokeOrLabelColor(color: string): void {
-    history.dispatch(
-      isEditingLabelColor()
-        ? { type: 'APPLY_STYLE', labelColor: color }
-        : { type: 'APPLY_STYLE', strokeColor: color },
-    );
+    applyStrokeOrLabelColor(history, color);
   }
 
   function currentStrokeOrLabelColor(): string {
-    const labelTarget = getLabelColorTargets()[0];
+    const scene = history.present;
+    const labelTarget =
+      scene.appState.activeTool === 'text'
+        ? selectedElements(scene).find(hasShapeLabel)
+        : undefined;
     if (labelTarget) return labelTarget.labelColor ?? labelTarget.strokeColor;
-    return history.present.appState.strokeColor;
+    return scene.appState.strokeColor;
   }
 
   // ── Stroke swatches ────────────────────────────────────────────────────────
@@ -239,6 +237,7 @@ export function initContextPanel(
     sw.title = swLabel;
     sw.setAttribute('aria-label', swLabel);
     sw.setAttribute('aria-pressed', 'false');
+    sw.dataset.color = color;
     if (color === 'transparent') {
       sw.classList.add('cp-color-swatch-transparent');
     } else {
@@ -284,6 +283,7 @@ export function initContextPanel(
     sw.title = swLabel;
     sw.setAttribute('aria-label', swLabel);
     sw.setAttribute('aria-pressed', 'false');
+    sw.dataset.color = color;
     if (color === 'transparent') {
       sw.classList.add('cp-color-swatch-transparent');
     } else {
@@ -325,11 +325,7 @@ export function initContextPanel(
 
   // ── Width presets ──────────────────────────────────────────────────────────
   const widthPresets = panel.querySelector('#cp-width-presets')!;
-  const WIDTHS = [
-    { value: 1, label: t('thin') },
-    { value: 3, label: t('medium') },
-    { value: 8, label: t('thick') },
-  ];
+  const WIDTHS = strokeWidthOptions();
   for (const w of WIDTHS) {
     const btn = document.createElement('button');
     btn.className = 'cp-btn cp-width-btn';
@@ -367,11 +363,7 @@ export function initContextPanel(
 
   // ── Style presets ──────────────────────────────────────────────────────────
   const stylePresets = panel.querySelector('#cp-style-presets')!;
-  const STYLES = [
-    { value: 'solid', label: t('solid') },
-    { value: 'dashed', label: t('dashed') },
-    { value: 'dotted', label: t('dotted') },
-  ];
+  const STYLES = strokeStyleOptions();
   for (const s of STYLES) {
     const btn = document.createElement('button');
     btn.className = 'cp-btn cp-style-btn';
@@ -424,32 +416,7 @@ export function initContextPanel(
 
   // ── Arrowhead presets ─────────────────────────────────────────────────────
   const arrowHeadPresets = panel.querySelector('#cp-arrowhead-presets')!;
-  const ARROW_HEADS: Array<{
-    value: 'none' | 'end' | 'start' | 'both';
-    label: string;
-    icon: string;
-  }> = [
-    {
-      value: 'none',
-      label: t('arrowNone'),
-      icon: `<svg width="18" height="18" viewBox="0 0 20 20" fill="none"><line x1="3" y1="10" x2="17" y2="10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`,
-    },
-    {
-      value: 'end',
-      label: t('arrowEnd'),
-      icon: `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="10" x2="15" y2="10"/><path d="M11 6l4 4-4 4"/></svg>`,
-    },
-    {
-      value: 'start',
-      label: t('arrowStart'),
-      icon: `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="10" x2="17" y2="10"/><path d="M9 6L5 10l4 4"/></svg>`,
-    },
-    {
-      value: 'both',
-      label: t('arrowBoth'),
-      icon: `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="10" x2="14" y2="10"/><path d="M8 5L3.5 10 8 15"/><path d="M12 5l4.5 5-4.5 5"/></svg>`,
-    },
-  ];
+  const ARROW_HEADS = arrowHeadOptions();
   for (const ah of ARROW_HEADS) {
     const btn = document.createElement('button');
     btn.className = 'cp-btn cp-arrowhead-btn';
@@ -461,24 +428,6 @@ export function initContextPanel(
       history.dispatch({ type: 'APPLY_STYLE', arrowHead: ah.value });
     });
     arrowHeadPresets.appendChild(btn);
-  }
-
-  /**
-   * Shows the `#cp-<name>-section` preset row (or hides it) and marks the
-   * button whose `data-value` matches.
-   */
-  function syncPresetRow(
-    name: string,
-    visible: boolean,
-    value: string | undefined,
-  ): void {
-    panel.querySelector<HTMLElement>(`#cp-${name}-section`)!.style.display =
-      visible ? '' : 'none';
-    const row = panel.querySelector<HTMLElement>(`#cp-${name}-presets`)!;
-    row.querySelectorAll<HTMLButtonElement>('.cp-btn').forEach((btn) => {
-      btn.classList.toggle('active', btn.dataset.value === value);
-    });
-    syncAriaPressed(row, '.cp-btn');
   }
 
   // ── Arrowhead styles (per end) ────────────────────────────────────────────
@@ -505,22 +454,7 @@ export function initContextPanel(
 
   // ── Connector routing ─────────────────────────────────────────────────────
   const routingPresets = panel.querySelector('#cp-routing-presets')!;
-  const ROUTINGS: Array<{
-    value: ConnectorRouting;
-    label: string;
-    icon: string;
-  }> = [
-    {
-      value: 'straight',
-      label: t('routingStraight'),
-      icon: `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="16" y2="4"/></svg>`,
-    },
-    {
-      value: 'elbow',
-      label: t('routingElbow'),
-      icon: `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v-6h12V4"/></svg>`,
-    },
-  ];
+  const ROUTINGS = routingOptions();
   for (const r of ROUTINGS) {
     const btn = document.createElement('button');
     btn.className = 'cp-btn cp-routing-btn';
@@ -547,9 +481,8 @@ export function initContextPanel(
     btn.innerHTML = shapeKindIcon(kind);
     btn.dataset.value = kind;
     btn.addEventListener('click', () => {
-      const scene = history.present;
-      const hasSelectedShape = [...scene.selectedIds].some(
-        (id) => scene.elements.find((el) => el.id === id)?.type === 'shape',
+      const hasSelectedShape = selectedElements(history.present).some(
+        (el) => el.type === 'shape',
       );
       if (hasSelectedShape) {
         history.dispatch({ type: 'APPLY_STYLE', shapeKind: kind });
@@ -602,31 +535,7 @@ export function initContextPanel(
   const fontSizeInput = panel.querySelector<HTMLInputElement>('#cp-font-size')!;
   fontSizeInput.addEventListener('focus', () => fontSizeInput.select());
   fontSizeInput.addEventListener('change', () => {
-    const size = parseInt(fontSizeInput.value, 10);
-    if (!Number.isNaN(size) && size >= 6 && size <= 400) {
-      const scene = history.present;
-      const selectedText = scene.elements.find(
-        (el) => scene.selectedIds.has(el.id) && el.type === 'text',
-      );
-      const bounds =
-        selectedText?.type === 'text'
-          ? measureTextBounds(
-              selectedText.content,
-              size,
-              selectedText.fontFamily,
-              selectedText.bold,
-              selectedText.padding,
-            )
-          : undefined;
-      history.dispatch({
-        type: 'SET_FONT_SIZE',
-        size,
-        ...(bounds !== undefined && {
-          width: bounds.width,
-          height: bounds.height,
-        }),
-      });
-    }
+    applyFontSize(history, parseInt(fontSizeInput.value, 10));
   });
   fontSizeInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') fontSizeInput.blur();
@@ -634,12 +543,6 @@ export function initContextPanel(
 
   // ── Font family presets ────────────────────────────────────────────────────
   const fontFamilyPresets = panel.querySelector('#cp-font-family-presets')!;
-  const FONT_FAMILIES = [
-    { label: 'Aa', family: 'Arial, sans-serif', title: 'Arial' },
-    { label: 'Ss', family: 'Georgia, serif', title: 'Georgia' },
-    { label: 'M_', family: '"Courier New", monospace', title: 'Monospace' },
-    { label: 'Ff', family: '"Comic Sans MS", cursive', title: 'Comic Sans' },
-  ];
   for (const f of FONT_FAMILIES) {
     const btn = document.createElement('button');
     btn.className = 'cp-btn cp-font-family-btn';
@@ -706,51 +609,13 @@ export function initContextPanel(
     btn.title = f.label;
     btn.innerHTML = f.html;
     btn.dataset.fmt = f.key;
-    btn.addEventListener('click', () => {
-      // Toggle: read current value from first selected text element
-      const scene = history.present;
-      const firstText = [...scene.selectedIds]
-        .map((id) => scene.elements.find((el) => el.id === id))
-        .find((el) => el?.type === 'text');
-      const currentVal =
-        firstText?.type === 'text'
-          ? !!(
-              firstText as {
-                bold?: boolean;
-                italic?: boolean;
-                underline?: boolean;
-                strikethrough?: boolean;
-              }
-            )[f.key]
-          : false;
-      history.dispatch({ type: 'APPLY_STYLE', [f.key]: !currentVal });
-    });
+    btn.addEventListener('click', () => toggleTextFormat(history, f.key));
     textFormatRow.appendChild(btn);
   }
 
   // ── Align presets ──────────────────────────────────────────────────────────
   const alignPresets = panel.querySelector('#cp-align-presets')!;
-  const ALIGNS: {
-    value: 'left' | 'center' | 'right';
-    label: string;
-    icon: string;
-  }[] = [
-    {
-      value: 'left',
-      label: t('left'),
-      icon: `<svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><line x1="3" y1="5" x2="17" y2="5"/><line x1="3" y1="9" x2="13" y2="9"/><line x1="3" y1="13" x2="17" y2="13"/><line x1="3" y1="17" x2="11" y2="17"/></svg>`,
-    },
-    {
-      value: 'center',
-      label: t('center'),
-      icon: `<svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><line x1="3" y1="5" x2="17" y2="5"/><line x1="5" y1="9" x2="15" y2="9"/><line x1="3" y1="13" x2="17" y2="13"/><line x1="6" y1="17" x2="14" y2="17"/></svg>`,
-    },
-    {
-      value: 'right',
-      label: t('right'),
-      icon: `<svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><line x1="3" y1="5" x2="17" y2="5"/><line x1="7" y1="9" x2="17" y2="9"/><line x1="3" y1="13" x2="17" y2="13"/><line x1="9" y1="17" x2="17" y2="17"/></svg>`,
-    },
-  ];
+  const ALIGNS = textAlignOptions();
   for (const a of ALIGNS) {
     const btn = document.createElement('button');
     btn.className = 'cp-btn cp-align-btn';
@@ -879,7 +744,7 @@ export function initContextPanel(
 
   // ── Layer actions ──────────────────────────────────────────────────────────
   const layerActions = panel.querySelector('#cp-layer-actions')!;
-  const LAYERS = [
+  const LAYERS: Array<{ icon: string; label: string; action: LayerMove }> = [
     {
       icon: `<svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="17" x2="17" y2="17"/><polyline points="10,14 10,4"/><polyline points="6,8 10,4 14,8"/><line x1="3" y1="17" x2="17" y2="17"/></svg>`,
       label: t('toBack'),
@@ -896,7 +761,7 @@ export function initContextPanel(
       action: 'forward',
     },
     {
-      icon: `<svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="3" x2="17" y2="3"/><polyline points="10,6 10,16"/><polyline points="6,12 10,16 14,12"/></svg>`,
+      icon: ICON_TO_FRONT,
       label: t('toFront'),
       action: 'front',
     },
@@ -907,25 +772,7 @@ export function initContextPanel(
     btn.innerHTML = l.icon;
     btn.title = l.label;
     btn.dataset.layer = l.action;
-    btn.addEventListener('click', () => {
-      const scene = history.present;
-      const ids = [...scene.selectedIds];
-      if (ids.length === 0) return;
-
-      const currentIndex = scene.elements.findIndex((el) => el.id === ids[0]);
-      let targetIndex = currentIndex;
-
-      if (l.action === 'back') targetIndex = 0;
-      else if (l.action === 'backward')
-        targetIndex = Math.max(0, currentIndex - 1);
-      else if (l.action === 'forward')
-        targetIndex = Math.min(scene.elements.length - 1, currentIndex + 1);
-      else if (l.action === 'front') targetIndex = scene.elements.length - 1;
-
-      if (targetIndex !== currentIndex) {
-        history.dispatch({ type: 'REORDER_ELEMENTS', ids, targetIndex });
-      }
-    });
+    btn.addEventListener('click', () => reorderSelection(history, l.action));
     layerActions.appendChild(btn);
   }
 
@@ -933,12 +780,12 @@ export function initContextPanel(
   const actions = panel.querySelector('#cp-actions')!;
   const ACTIONS = [
     {
-      icon: `<svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="9" height="9" rx="1.5"/><path d="M13 7V5.5A1.5 1.5 0 0 0 11.5 4h-7A1.5 1.5 0 0 0 3 5.5v7A1.5 1.5 0 0 0 4.5 14H7"/></svg>`,
+      icon: ICON_DUPLICATE,
       label: t('duplicate'),
       action: 'duplicate',
     },
     {
-      icon: `<svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,6 17,6"/><path d="M8 6V4h4v2"/><rect x="5" y="6" width="10" height="10" rx="1"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="12" y1="10" x2="12" y2="14"/></svg>`,
+      icon: ICON_DELETE,
       label: t('delete'),
       action: 'delete',
     },
@@ -950,20 +797,8 @@ export function initContextPanel(
     btn.title = a.label;
     btn.dataset.action = a.action;
     btn.addEventListener('click', () => {
-      const scene = history.present;
-      const ids = [...scene.selectedIds];
-      if (ids.length === 0) return;
-
-      if (a.action === 'duplicate') {
-        const elements = ids
-          .map((id) => scene.elements.find((e) => e.id === id))
-          .filter((el): el is Element => el !== undefined);
-        const newElements = cloneElementsWithOffset(elements, 20, 20);
-        if (newElements.length > 0)
-          history.dispatch({ type: 'CREATE_ELEMENTS', elements: newElements });
-      } else if (a.action === 'delete') {
-        history.dispatch({ type: 'DELETE_ELEMENTS', ids });
-      }
+      if (a.action === 'duplicate') duplicateSelection(history);
+      else deleteSelection(history);
     });
     actions.appendChild(btn);
   }
@@ -992,587 +827,147 @@ export function initContextPanel(
   const UNLOCK_ICON = `<svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1.5"/><path d="M7 9V6a3 3 0 0 1 6 0"/></svg>`;
   lockBtn.innerHTML = LOCK_ICON;
   lockBtn.title = t('lockElements');
-  lockBtn.addEventListener('click', () => {
-    const scene = history.present;
-    const ids = [...scene.selectedIds];
-    if (ids.length === 0) return;
-    const allLocked = ids.every(
-      (id) => scene.elements.find((el) => el.id === id)?.locked,
-    );
-    if (allLocked) {
-      history.dispatch({ type: 'UNLOCK_ELEMENTS', ids });
-    } else {
-      history.dispatch({ type: 'LOCK_ELEMENTS', ids });
-    }
-  });
+  lockBtn.addEventListener('click', () => toggleSelectionLock(history));
   actions.appendChild(lockBtn);
 
-  const colorRowStroke = panel.querySelector<HTMLElement>(
-    '#cp-stroke-swatches',
-  )!.parentElement!;
-  const colorRowFill =
-    panel.querySelector<HTMLElement>('#cp-fill-swatches')!.parentElement!;
+  const strokeSection = strokeSwatches.parentElement!.parentElement!;
+  const fillSection = fillSwatches.parentElement!.parentElement!;
+  const textPropsSection = panel.querySelector<HTMLElement>('#cp-text-props')!;
 
-  /** Updates aria-pressed on all buttons in a group based on their .active class. */
-  function syncAriaPressed(container: HTMLElement, selector: string): void {
-    container.querySelectorAll<HTMLButtonElement>(selector).forEach((b) => {
-      b.setAttribute('aria-pressed', String(b.classList.contains('active')));
+  /** Shows or hides the section that holds `#<rowId>`. */
+  function showSection(rowId: string, visible: boolean): void {
+    panel.querySelector<HTMLElement>(`#${rowId}`)!
+      .parentElement!.style.display = visible ? '' : 'none';
+  }
+
+  /**
+   * Marks as active (and aria-pressed) the buttons of `#<rowId>` whose
+   * `data-<key>` equals `value`.
+   */
+  function markActive(rowId: string, key: string, value: string): void {
+    const row = panel.querySelector<HTMLElement>(`#${rowId}`)!;
+    row.querySelectorAll<HTMLButtonElement>('.cp-btn').forEach((btn) => {
+      const on = btn.dataset[key] === value;
+      btn.classList.toggle('active', on);
+      btn.setAttribute('aria-pressed', String(on));
     });
   }
 
+  /** Marks the swatch (or the custom color button) matching `current`. */
+  function markSwatches(
+    swatches: ParentNode,
+    more: HTMLButtonElement,
+    custom: string | null,
+    current: string,
+  ): void {
+    swatches
+      .querySelectorAll<HTMLButtonElement>('.cp-color-swatch')
+      .forEach((sw) => {
+        const on = isSwatchActive(sw.dataset.color ?? '', current);
+        sw.classList.toggle('active', on);
+        sw.setAttribute('aria-pressed', String(on));
+      });
+    const customOn = !!custom && isSwatchActive(custom, current);
+    more.classList.toggle('active', customOn);
+    more.setAttribute('aria-pressed', String(customOn));
+  }
+
   // ── Sync panel ─────────────────────────────────────────────────────────────
-  const DRAWING_TOOLS = new Set<string>([
-    'rectangle',
-    'ellipse',
-    'line',
-    'rombo',
-    'shape',
-    'freehand',
-    'text',
-  ]);
+  /** With the floating style bar on, More... asked for the full panel. */
+  let fullRequested = false;
+
+  function render(state: StyleState): void {
+    const { sections: show, values } = state;
+    // The floating bar can change the custom color slots too.
+    customStroke = loadCustomColor('stroke');
+    customFill = loadCustomColor('fill');
+    updateCustomColorButton(strokeMore, customStroke, t('moreColors'));
+    updateCustomColorButton(fillMore, customFill, t('moreColors'));
+
+    markSwatches(strokeSwatches, strokeMore, customStroke, values.strokeColor);
+    markSwatches(fillSwatches, fillMore, customFill, values.fillColor);
+    markActive('cp-width-presets', 'value', String(values.strokeWidth));
+    if (widthDisplay) widthDisplay.textContent = `${values.strokeWidth}px`;
+    else widthInput.value = String(values.strokeWidth);
+    markActive('cp-style-presets', 'style', values.strokeStyle);
+    markActive('cp-roughness-presets', 'roughness', String(values.roughness));
+    markActive('cp-linecap-presets', 'cap', values.lineCap);
+    markActive('cp-arrowhead-presets', 'arrowhead', values.arrowHead);
+    markActive(
+      'cp-border-presets',
+      'border',
+      values.rounded ? 'rounded' : 'sharp',
+    );
+    markActive('cp-start-head-presets', 'value', values.startHeadStyle);
+    markActive('cp-end-head-presets', 'value', values.endHeadStyle);
+    markActive('cp-routing-presets', 'value', values.routing);
+    markActive('cp-shape-kind-presets', 'value', values.shapeKind ?? '');
+    opacitySlider.value = String(Math.round(values.opacity * 100));
+    opacityVal.textContent = String(Math.round(values.opacity * 100));
+
+    strokeSection.style.display = show.stroke ? '' : 'none';
+    (strokeSection.querySelector('.cp-label') as HTMLElement).textContent =
+      state.strokeIsColor ? t('color') : t('stroke');
+    fillSection.style.display = show.fill ? '' : 'none';
+    showSection('cp-width-presets', show.width);
+    showSection('cp-style-presets', show.strokeStyle);
+    showSection('cp-roughness-presets', show.strokeStyle);
+    showSection('cp-linecap-presets', show.lineCap);
+    showSection('cp-arrowhead-presets', show.arrowHead);
+    showSection('cp-start-head-presets', show.startHead);
+    showSection('cp-end-head-presets', show.endHead);
+    showSection('cp-routing-presets', show.routing);
+    showSection('cp-border-presets', show.border);
+    showSection('cp-shape-kind-presets', show.shapeKind);
+    showSection('cp-spatial-align-actions', show.spatialAlign);
+    showSection('cp-actions', show.actions);
+    formatPainterBtn.style.display = show.formatPainter ? '' : 'none';
+
+    lockBtn.classList.toggle('active', values.allLocked);
+    lockBtn.setAttribute('aria-pressed', String(values.allLocked));
+    lockBtn.innerHTML = values.allLocked ? UNLOCK_ICON : LOCK_ICON;
+    lockBtn.title = values.allLocked ? t('unlockElements') : t('lockElements');
+
+    textPropsSection.style.display = show.text ? '' : 'none';
+    if (show.text) {
+      fontSizeInput.value = String(values.fontSize ?? '');
+      markActive('cp-font-family-presets', 'family', values.fontFamily ?? '');
+      markActive('cp-textmode-presets', 'mode', values.textMode);
+      markActive('cp-align-presets', 'align', values.textAlign);
+      textFormatRow
+        .querySelectorAll<HTMLButtonElement>('.cp-btn')
+        .forEach((btn) => {
+          const key = btn.dataset.fmt as keyof typeof values.textFormat;
+          const on = values.textFormat[key];
+          btn.classList.toggle('active', on);
+          btn.setAttribute('aria-pressed', String(on));
+        });
+    }
+  }
 
   function sync(): void {
-    const scene = history.present;
-    const selected = [...scene.selectedIds]
-      .map((id) => scene.elements.find((el) => el.id === id))
-      .filter((el): el is Element => el !== undefined);
-
-    const hasSelection = selected.length > 0;
+    const state = getStyleState(history.present);
+    if (state === null) fullRequested = false;
     const isTouch = window.matchMedia('(pointer: coarse)').matches;
-    const isDrawingTool = DRAWING_TOOLS.has(scene.appState.activeTool);
-    const isOpen = !isTouch && (hasSelection || isDrawingTool);
+    const isOpen =
+      !isTouch &&
+      state !== null &&
+      (!isFloatingStyleControls() || fullRequested);
     panel.classList.toggle('open', isOpen);
-
-    if (!isOpen) {
-      return;
-    }
-
-    if (!hasSelection) {
-      if (!isDrawingTool) return;
-      // ── Tool mode: sync appState defaults, show only relevant sections ──────
-      const { activeTool, fontSize, fontFamily } = scene.appState;
-      const lastEl = scene.appState.lastCreatedId
-        ? scene.elements.find((e) => e.id === scene.appState.lastCreatedId)
-        : undefined;
-      const strokeColor = lastEl
-        ? lastEl.strokeColor
-        : scene.appState.strokeColor;
-      const fillColor = lastEl ? lastEl.fillColor : scene.appState.fillColor;
-      const strokeWidth = lastEl
-        ? lastEl.strokeWidth
-        : scene.appState.strokeWidth;
-      const strokeStyle = lastEl
-        ? (lastEl.strokeStyle ?? 'solid')
-        : scene.appState.strokeStyle;
-      const roughness = lastEl
-        ? (lastEl.roughness ?? 0)
-        : scene.appState.roughness;
-      const opacity = lastEl ? lastEl.opacity : scene.appState.opacity;
-      const isText = activeTool === 'text';
-      const hasFill =
-        activeTool === 'rectangle' ||
-        activeTool === 'ellipse' ||
-        activeTool === 'rombo' ||
-        activeTool === 'shape' ||
-        activeTool === 'text';
-      const hasStyle = activeTool !== 'text' && activeTool !== 'freehand';
-
-      panel
-        .querySelectorAll<HTMLButtonElement>(
-          '#cp-stroke-swatches .cp-color-swatch',
-        )
-        .forEach((sw) => {
-          sw.classList.toggle('active', sw.title === strokeColor);
-        });
-      strokeMore.classList.toggle(
-        'active',
-        !!customStroke &&
-          customStroke.toLowerCase() === strokeColor.toLowerCase(),
-      );
-      syncAriaPressed(colorRowStroke, '.cp-color-swatch, .cp-color-more');
-      panel
-        .querySelectorAll<HTMLButtonElement>(
-          '#cp-fill-swatches .cp-color-swatch',
-        )
-        .forEach((sw) => {
-          sw.classList.toggle(
-            'active',
-            sw.title === fillColor ||
-              (sw.classList.contains('cp-color-swatch-transparent') &&
-                fillColor === 'transparent'),
-          );
-        });
-      fillMore.classList.toggle(
-        'active',
-        !!customFill && customFill.toLowerCase() === fillColor.toLowerCase(),
-      );
-      syncAriaPressed(colorRowFill, '.cp-color-swatch, .cp-color-more');
-      panel
-        .querySelectorAll<HTMLButtonElement>('#cp-width-presets .cp-btn')
-        .forEach((btn) => {
-          btn.classList.toggle(
-            'active',
-            btn.dataset.value === String(strokeWidth),
-          );
-        });
-      syncAriaPressed(
-        panel.querySelector<HTMLElement>('#cp-width-presets')!,
-        '.cp-btn',
-      );
-      if (widthDisplay) widthDisplay.textContent = `${strokeWidth}px`;
-      else widthInput.value = String(strokeWidth);
-      panel
-        .querySelectorAll<HTMLButtonElement>('#cp-style-presets .cp-btn')
-        .forEach((btn) => {
-          btn.classList.toggle('active', btn.dataset.style === strokeStyle);
-        });
-      syncAriaPressed(
-        panel.querySelector<HTMLElement>('#cp-style-presets')!,
-        '.cp-btn',
-      );
-      panel
-        .querySelectorAll<HTMLButtonElement>('#cp-roughness-presets .cp-btn')
-        .forEach((btn) => {
-          btn.classList.toggle(
-            'active',
-            btn.dataset.roughness === String(roughness),
-          );
-        });
-      syncAriaPressed(
-        panel.querySelector<HTMLElement>('#cp-roughness-presets')!,
-        '.cp-btn',
-      );
-      opacitySlider.value = String(Math.round(opacity * 100));
-      opacityVal.textContent = String(Math.round(opacity * 100));
-
-      const hasLineCap = false;
-      const hasArrowHead = activeTool === 'line';
-      const toolArrowHead =
-        (lastEl?.type === 'line' ? lastEl.arrowHead : undefined) ?? 'none';
-      panel
-        .querySelectorAll<HTMLButtonElement>('#cp-arrowhead-presets .cp-btn')
-        .forEach((btn) => {
-          btn.classList.toggle(
-            'active',
-            btn.dataset.arrowhead === toolArrowHead,
-          );
-        });
-      syncAriaPressed(
-        panel.querySelector<HTMLElement>('#cp-arrowhead-presets')!,
-        '.cp-btn',
-      );
-      const strokeSection = panel.querySelector('#cp-stroke-swatches')!
-        .parentElement!.parentElement!;
-      strokeSection.style.display = '';
-      (strokeSection.querySelector('.cp-label') as HTMLElement).textContent =
-        isText ? t('color') : t('stroke');
-      panel.querySelector('#cp-fill-swatches')!.parentElement!
-        .parentElement!.style.display = hasFill ? '' : 'none';
-      panel.querySelector('#cp-width-presets')!.parentElement!.style.display =
-        isText ? 'none' : '';
-      panel.querySelector('#cp-style-presets')!.parentElement!.style.display =
-        hasStyle ? '' : 'none';
-      panel.querySelector('#cp-roughness-presets')!
-        .parentElement!.style.display = hasStyle ? '' : 'none';
-      (
-        panel.querySelector('#cp-linecap-section') as HTMLElement
-      ).style.display = hasLineCap ? '' : 'none';
-      (
-        panel.querySelector('#cp-arrowhead-section') as HTMLElement
-      ).style.display = hasArrowHead ? '' : 'none';
-      panel.querySelector('#cp-border-presets')!.parentElement!.style.display =
-        activeTool === 'rectangle' || activeTool === 'rombo' ? '' : 'none';
-      syncPresetRow(
-        'shape-kind',
-        activeTool === 'shape',
-        scene.appState.shapeKind,
-      );
-      syncPresetRow(
-        'routing',
-        activeTool === 'line',
-        scene.appState.lineRouting,
-      );
-      syncPresetRow('start-head', false, 'open');
-      syncPresetRow('end-head', false, 'open');
-
-      const textPropsSection =
-        panel.querySelector<HTMLElement>('#cp-text-props')!;
-      textPropsSection.style.display = isText ? '' : 'none';
-      if (isText) {
-        fontSizeInput.value = String(fontSize);
-        panel
-          .querySelectorAll<HTMLButtonElement>(
-            '#cp-font-family-presets .cp-btn',
-          )
-          .forEach((btn) => {
-            btn.classList.toggle('active', btn.dataset.family === fontFamily);
-          });
-        syncAriaPressed(
-          panel.querySelector<HTMLElement>('#cp-font-family-presets')!,
-          '.cp-btn',
-        );
-        panel
-          .querySelectorAll<HTMLButtonElement>('#cp-textmode-presets .cp-btn')
-          .forEach((btn) => {
-            btn.classList.toggle(
-              'active',
-              btn.dataset.mode === scene.appState.textMode,
-            );
-          });
-        syncAriaPressed(
-          panel.querySelector<HTMLElement>('#cp-textmode-presets')!,
-          '.cp-btn',
-        );
-        panel
-          .querySelectorAll<HTMLButtonElement>('#cp-align-presets .cp-btn')
-          .forEach((btn) => {
-            btn.classList.toggle(
-              'active',
-              btn.dataset.align === scene.appState.textAlign,
-            );
-          });
-        syncAriaPressed(
-          panel.querySelector<HTMLElement>('#cp-align-presets')!,
-          '.cp-btn',
-        );
-        // Text format — sync from lastCreatedId element if present, otherwise all off
-        const fmtEl = lastEl?.type === 'text' ? lastEl : null;
-        panel
-          .querySelectorAll<HTMLButtonElement>('#cp-text-format .cp-btn')
-          .forEach((btn) => {
-            const k = btn.dataset.fmt as
-              | 'bold'
-              | 'italic'
-              | 'underline'
-              | 'strikethrough'
-              | undefined;
-            btn.classList.toggle(
-              'active',
-              k ? !!(fmtEl as Record<string, unknown> | null)?.[k] : false,
-            );
-          });
-        syncAriaPressed(
-          panel.querySelector<HTMLElement>('#cp-text-format')!,
-          '.cp-btn',
-        );
-      }
-
-      formatPainterBtn.style.display = 'none';
-      panel.querySelector<HTMLElement>('#cp-actions')!
-        .parentElement!.style.display = 'none';
-      panel.querySelector<HTMLElement>(
-        '#cp-spatial-align-section',
-      )!.style.display = 'none';
-      return;
-    }
-
-    // ── Restore sections visibility for selection mode ───────────────────────
-    panel.querySelector<HTMLElement>('#cp-layer-actions')!
-      .parentElement!.style.display = '';
-    panel.querySelector<HTMLElement>('#cp-actions')!
-      .parentElement!.style.display = '';
-    formatPainterBtn.style.display = selected.length === 1 ? '' : 'none';
-
-    const first = selected[0]!;
-    const allText = selected.every((el) => el.type === 'text');
-    const allImage = selected.every((el) => styleTypeOf(el) === 'image');
-    const labelColorMode =
-      scene.appState.activeTool === 'text' && selected.some(hasShapeLabel);
-    const firstLabelTarget = selected.find(hasShapeLabel);
-    const visibleStrokeColor =
-      labelColorMode && firstLabelTarget
-        ? (firstLabelTarget.labelColor ?? firstLabelTarget.strokeColor)
-        : first.strokeColor;
-
-    // Update swatches
-    panel
-      .querySelectorAll<HTMLButtonElement>(
-        '#cp-stroke-swatches .cp-color-swatch',
-      )
-      .forEach((sw) => {
-        sw.classList.toggle('active', sw.title === visibleStrokeColor);
-      });
-    strokeMore.classList.toggle(
-      'active',
-      !!customStroke &&
-        customStroke.toLowerCase() === visibleStrokeColor.toLowerCase(),
-    );
-    syncAriaPressed(colorRowStroke, '.cp-color-swatch, .cp-color-more');
-    panel
-      .querySelectorAll<HTMLButtonElement>('#cp-fill-swatches .cp-color-swatch')
-      .forEach((sw) => {
-        sw.classList.toggle('active', sw.title === first.fillColor);
-      });
-    fillMore.classList.toggle(
-      'active',
-      !!customFill &&
-        customFill.toLowerCase() === first.fillColor.toLowerCase(),
-    );
-    syncAriaPressed(colorRowFill, '.cp-color-swatch, .cp-color-more');
-
-    // Update width presets
-    panel
-      .querySelectorAll<HTMLButtonElement>('#cp-width-presets .cp-btn')
-      .forEach((btn) => {
-        btn.classList.toggle(
-          'active',
-          btn.dataset.value === String(first.strokeWidth),
-        );
-      });
-    syncAriaPressed(
-      panel.querySelector<HTMLElement>('#cp-width-presets')!,
-      '.cp-btn',
-    );
-    if (widthDisplay) widthDisplay.textContent = `${first.strokeWidth}px`;
-    else widthInput.value = String(first.strokeWidth);
-
-    // Update style presets
-    panel
-      .querySelectorAll<HTMLButtonElement>('#cp-style-presets .cp-btn')
-      .forEach((btn) => {
-        btn.classList.toggle(
-          'active',
-          btn.dataset.style === (first.strokeStyle ?? 'solid'),
-        );
-      });
-    syncAriaPressed(
-      panel.querySelector<HTMLElement>('#cp-style-presets')!,
-      '.cp-btn',
-    );
-
-    // Update roughness presets
-    panel
-      .querySelectorAll<HTMLButtonElement>('#cp-roughness-presets .cp-btn')
-      .forEach((btn) => {
-        btn.classList.toggle(
-          'active',
-          btn.dataset.roughness === String(first.roughness ?? 0),
-        );
-      });
-    syncAriaPressed(
-      panel.querySelector<HTMLElement>('#cp-roughness-presets')!,
-      '.cp-btn',
-    );
-
-    // Update line cap presets
-    panel
-      .querySelectorAll<HTMLButtonElement>('#cp-linecap-presets .cp-btn')
-      .forEach((btn) => {
-        btn.classList.toggle(
-          'active',
-          btn.dataset.cap === (first.lineCap ?? 'round'),
-        );
-      });
-    syncAriaPressed(
-      panel.querySelector<HTMLElement>('#cp-linecap-presets')!,
-      '.cp-btn',
-    );
-
-    // Update border presets
-    const cr =
-      first.type === 'rectangle' || first.type === 'rhombus'
-        ? (first.cornerRadius ?? 0)
-        : 0;
-    panel
-      .querySelectorAll<HTMLButtonElement>('#cp-border-presets .cp-btn')
-      .forEach((btn) => {
-        btn.classList.toggle(
-          'active',
-          btn.dataset.border === (cr > 0 ? 'rounded' : 'sharp'),
-        );
-      });
-    syncAriaPressed(
-      panel.querySelector<HTMLElement>('#cp-border-presets')!,
-      '.cp-btn',
-    );
-
-    // Update opacity slider
-    opacitySlider.value = String(Math.round(first.opacity * 100));
-    opacityVal.textContent = String(Math.round(first.opacity * 100));
-
-    // Dynamic section visibility based on selected element types
-    const CAP_TYPES = new Set(['line', 'freehand']);
-    const hasFill = !labelColorMode && !allImage && selected.some(hasFillStyle);
-    const hasStyle =
-      !labelColorMode && !allImage && !allText && selected.some(hasStrokeStyle);
-    const hasLineCap =
-      !labelColorMode &&
-      !allImage &&
-      !allText &&
-      selected.some((el) => CAP_TYPES.has(el.type));
-    const hasArrowHead =
-      !labelColorMode &&
-      !allImage &&
-      !allText &&
-      selected.some((el) => el.type === 'line');
-    const hasBorder = selected.some(
-      (el) =>
-        !labelColorMode && (el.type === 'rectangle' || el.type === 'rhombus'),
-    );
-    const hasWidth = !labelColorMode && !allText && !allImage;
-
-    // Update arrowhead presets (from first selected line element)
-    const firstLine = selected.find((el) => el.type === 'line');
-    const selArrowHead =
-      (firstLine?.type === 'line' ? firstLine.arrowHead : undefined) ?? 'none';
-    panel
-      .querySelectorAll<HTMLButtonElement>('#cp-arrowhead-presets .cp-btn')
-      .forEach((btn) => {
-        btn.classList.toggle('active', btn.dataset.arrowhead === selArrowHead);
-      });
-    syncAriaPressed(
-      panel.querySelector<HTMLElement>('#cp-arrowhead-presets')!,
-      '.cp-btn',
-    );
-
-    const strokeSection = panel.querySelector('#cp-stroke-swatches')!
-      .parentElement!.parentElement!;
-    strokeSection.style.display = allImage ? 'none' : '';
-    (strokeSection.querySelector('.cp-label') as HTMLElement).textContent =
-      allText || labelColorMode ? t('color') : t('stroke');
-    panel.querySelector('#cp-fill-swatches')!.parentElement!
-      .parentElement!.style.display = hasFill ? '' : 'none';
-    panel.querySelector('#cp-width-presets')!.parentElement!.style.display =
-      hasWidth ? '' : 'none';
-    panel.querySelector('#cp-style-presets')!.parentElement!.style.display =
-      hasStyle ? '' : 'none';
-    panel.querySelector('#cp-roughness-presets')!.parentElement!.style.display =
-      hasStyle ? '' : 'none';
-    (panel.querySelector('#cp-linecap-section') as HTMLElement).style.display =
-      hasLineCap ? '' : 'none';
-    (
-      panel.querySelector('#cp-arrowhead-section') as HTMLElement
-    ).style.display = hasArrowHead ? '' : 'none';
-    panel.querySelector('#cp-border-presets')!.parentElement!.style.display =
-      hasBorder ? '' : 'none';
-    const firstConnector = selected.find(
-      (el) => el.type === 'line' || el.type === 'arrow',
-    );
-    // A head row shows when a selected connector actually draws that head.
-    const connectors = selected.filter(
-      (el): el is LineElement | ArrowElement =>
-        el.type === 'line' || el.type === 'arrow',
-    );
-    const withStartHead = connectors.find(hasStartHead);
-    const withEndHead = connectors.find(hasEndHead);
-    syncPresetRow(
-      'start-head',
-      !labelColorMode && withStartHead !== undefined,
-      (withStartHead?.type === 'line'
-        ? withStartHead.startHeadStyle
-        : undefined) ?? 'open',
-    );
-    syncPresetRow(
-      'end-head',
-      !labelColorMode && withEndHead !== undefined,
-      withEndHead?.endHeadStyle ?? 'open',
-    );
-    syncPresetRow(
-      'routing',
-      !labelColorMode && firstConnector !== undefined,
-      (firstConnector?.type === 'line' || firstConnector?.type === 'arrow'
-        ? firstConnector.routing
-        : undefined) ?? 'straight',
-    );
-    const firstShape = selected.find((el) => el.type === 'shape');
-    syncPresetRow(
-      'shape-kind',
-      !labelColorMode && firstShape !== undefined,
-      firstShape?.type === 'shape' ? firstShape.kind : undefined,
-    );
-
-    // Spatial alignment section — only when ≥2 elements are selected
-    panel.querySelector<HTMLElement>(
-      '#cp-spatial-align-section',
-    )!.style.display = selected.length >= 2 ? '' : 'none';
-
-    // Layer + action groups always present when selection exists
-    syncAriaPressed(
-      panel.querySelector<HTMLElement>('#cp-layer-actions')!,
-      '.cp-btn',
-    );
-
-    // Sync lock button state
-    const lockButton = panel.querySelector<HTMLButtonElement>('#cp-lock-btn');
-    if (lockButton) {
-      const ids = [...scene.selectedIds];
-      const allLocked =
-        ids.length > 0 &&
-        ids.every((id) => scene.elements.find((el) => el.id === id)?.locked);
-      lockButton.classList.toggle('active', allLocked);
-      lockButton.innerHTML = allLocked ? UNLOCK_ICON : LOCK_ICON;
-      lockButton.title = allLocked ? t('unlockElements') : t('lockElements');
-    }
-
-    syncAriaPressed(
-      panel.querySelector<HTMLElement>('#cp-actions')!,
-      '.cp-btn',
-    );
-
-    // Show/sync text-specific controls
-    const textPropsSection =
-      panel.querySelector<HTMLElement>('#cp-text-props')!;
-    textPropsSection.style.display = allText ? '' : 'none';
-    if (allText && first.type === 'text') {
-      fontSizeInput.value = String(first.fontSize);
-      panel
-        .querySelectorAll<HTMLButtonElement>('#cp-font-family-presets .cp-btn')
-        .forEach((btn) => {
-          btn.classList.toggle(
-            'active',
-            btn.dataset.family === first.fontFamily,
-          );
-        });
-      syncAriaPressed(
-        panel.querySelector<HTMLElement>('#cp-font-family-presets')!,
-        '.cp-btn',
-      );
-      panel
-        .querySelectorAll<HTMLButtonElement>('#cp-textmode-presets .cp-btn')
-        .forEach((btn) => {
-          btn.classList.toggle(
-            'active',
-            btn.dataset.mode === (first.isCode ? 'code' : 'text'),
-          );
-        });
-      syncAriaPressed(
-        panel.querySelector<HTMLElement>('#cp-textmode-presets')!,
-        '.cp-btn',
-      );
-      panel
-        .querySelectorAll<HTMLButtonElement>('#cp-align-presets .cp-btn')
-        .forEach((btn) => {
-          btn.classList.toggle(
-            'active',
-            btn.dataset.align === (first.textAlign ?? 'left'),
-          );
-        });
-      syncAriaPressed(
-        panel.querySelector<HTMLElement>('#cp-align-presets')!,
-        '.cp-btn',
-      );
-      // Text format buttons
-      panel
-        .querySelectorAll<HTMLButtonElement>('#cp-text-format .cp-btn')
-        .forEach((btn) => {
-          const k = btn.dataset.fmt as
-            | 'bold'
-            | 'italic'
-            | 'underline'
-            | 'strikethrough'
-            | undefined;
-          btn.classList.toggle(
-            'active',
-            k ? !!(first as unknown as Record<string, unknown>)[k] : false,
-          );
-        });
-      syncAriaPressed(
-        panel.querySelector<HTMLElement>('#cp-text-format')!,
-        '.cp-btn',
-      );
-    }
+    if (isOpen && state) render(state);
   }
 
   history.subscribe(sync);
   sync();
+
+  return {
+    toggleFull() {
+      fullRequested = !fullRequested;
+      sync();
+    },
+    refresh() {
+      fullRequested = false;
+      sync();
+    },
+  };
 }

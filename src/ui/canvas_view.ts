@@ -1,7 +1,6 @@
 import type { ActiveTool } from '../core/app_state';
 import { normalizeRect } from '../core/geometry';
 import { screenToWorld, worldToScreen } from '../core/viewport';
-import { cloneElementsWithOffset } from '../elements/clone';
 import type {
   ConnectorAnchor,
   Element as DrawableElement,
@@ -11,7 +10,6 @@ import type {
   RhombusElement,
   ShapeElement,
   StencilElement,
-  TextElement,
 } from '../elements/element';
 import {
   DEFAULT_LABEL_FONT_FAMILY,
@@ -30,7 +28,7 @@ import {
   sendLocalCursor,
   subscribeCursors,
 } from '../io/presence';
-import { distToRoute, getRoutePointAt } from '../rendering/connector_geometry';
+import { getRoutePointAt } from '../rendering/connector_geometry';
 import { getConnectorLabelBoxes } from '../rendering/connector_labels';
 import {
   contrastColor,
@@ -60,13 +58,14 @@ import { LineTool } from '../tools/line_tool';
 import { PenTool } from '../tools/pen_tool';
 import { RectangleTool } from '../tools/rectangle_tool';
 import { RomboTool } from '../tools/rombo_tool';
-import { SelectTool } from '../tools/select_tool';
+import { hitTest, SelectTool } from '../tools/select_tool';
 import { ShapeTool } from '../tools/shape_tool';
 import { StickyTool } from '../tools/sticky_tool';
 import { TextTool } from '../tools/text_tool';
 import type { Tool, ToolContext } from '../tools/tool';
 import { CanvasGesture } from './canvas_gesture';
 import { toolAfterLabelEdit } from './label_edit_tool';
+import { deleteSelection, duplicateSelection } from './style_actions';
 
 const textTool = new TextTool();
 const stickyTool = new StickyTool();
@@ -88,7 +87,12 @@ const TOOLS: Record<ActiveTool, Tool> = {
 export function initCanvasView(
   canvas: HTMLCanvasElement,
   history: History,
-): { selectTool: SelectTool; historyActions: CanvasGesture } {
+): {
+  selectTool: SelectTool;
+  historyActions: CanvasGesture;
+  /** Opens the text or label editor of an element (double click, menu). */
+  editText: (el: DrawableElement) => void;
+} {
   const ctx2d = canvas.getContext('2d')!;
 
   let isPanning = false;
@@ -251,83 +255,52 @@ export function initCanvasView(
     }
 
     const scene = history.present;
-    // Find element under cursor (topmost first)
-    for (let i = scene.elements.length - 1; i >= 0; i--) {
-      const el = scene.elements[i];
-      if (!el) continue;
-
-      if (el.type === 'text') {
-        const x = el.x,
-          y = el.y,
-          w = el.width,
-          h = el.height;
-        if (wx >= x - 4 && wx <= x + w + 4 && wy >= y - 4 && wy <= y + h + 4) {
-          (TOOLS.text as TextTool).editExisting(el as TextElement, toolCtx);
-          needsRender = true;
-          return;
-        }
-      }
-
-      if (
-        el.type === 'rectangle' ||
-        el.type === 'ellipse' ||
-        el.type === 'rhombus' ||
-        el.type === 'shape' ||
-        el.type === 'stencil'
-      ) {
-        const { x: bx, y: by, w: bw, h: bh } = normalizeRect(el);
-        if (
-          wx >= bx - 4 &&
-          wx <= bx + bw + 4 &&
-          wy >= by - 4 &&
-          wy <= by + bh + 4
-        ) {
-          const previousTool = history.present.appState.activeTool;
-          history.dispatch({ type: 'SELECT_ELEMENTS', ids: [el.id] });
-          history.dispatch({
-            type: 'SET_TOOL',
-            tool: 'text',
-            keepSelection: true,
-          });
-          openShapeLabelEditor(el, history, canvas, previousTool, (id) => {
-            editingShapeLabelId = id;
-            needsRender = true;
-          });
-          needsRender = true;
-          return;
-        }
-      }
-
-      if (el.type === 'arrow' || el.type === 'line') {
-        const line = el as LineElement;
-        const route =
-          line.routing === 'elbow'
-            ? resolveConnectorRoute(line, scene.elements)
-            : null;
-        const hitLabel = isPointInArrowLabel(wx, wy, line, scene.elements);
-        const hitShaft =
-          (route
-            ? distToRoute(wx, wy, route)
-            : distPointToSegment(wx, wy, line.x, line.y, line.x2, line.y2)) <
-          line.strokeWidth / 2 + 8;
-        if (hitLabel || hitShaft) {
-          const previousTool = history.present.appState.activeTool;
-          history.dispatch({ type: 'SELECT_ELEMENTS', ids: [line.id] });
-          history.dispatch({
-            type: 'SET_TOOL',
-            tool: 'text',
-            keepSelection: true,
-          });
-          openArrowLabelEditor(line, history, canvas, previousTool, (id) => {
-            editingShapeLabelId = id;
-            needsRender = true;
-          });
-          needsRender = true;
-          return;
-        }
-      }
-    }
+    // A connector label wins (it is drawn over everything); otherwise the
+    // same hit test as selection, so a double click edits what a click picks.
+    const hit =
+      connectorLabelAt(wx, wy, scene.elements) ??
+      hitTest(scene.elements, wx, wy, scene.viewport);
+    if (hit) editText(hit);
   });
+
+  /**
+   * Opens the editor for the text of `el`: a text element's content, or the
+   * label of a shape, stencil or connector. Other elements are ignored.
+   */
+  function editText(el: DrawableElement): void {
+    if (el.type === 'text') {
+      (TOOLS.text as TextTool).editExisting(el, toolCtx);
+      needsRender = true;
+      return;
+    }
+    const isShape =
+      el.type === 'rectangle' ||
+      el.type === 'ellipse' ||
+      el.type === 'rhombus' ||
+      el.type === 'shape' ||
+      el.type === 'stencil';
+    const isConnector = el.type === 'arrow' || el.type === 'line';
+    if (!isShape && !isConnector) return;
+
+    const previousTool = history.present.appState.activeTool;
+    history.dispatch({ type: 'SELECT_ELEMENTS', ids: [el.id] });
+    history.dispatch({ type: 'SET_TOOL', tool: 'text', keepSelection: true });
+    const onEditingChange = (id: string | null): void => {
+      editingShapeLabelId = id;
+      needsRender = true;
+    };
+    if (isConnector)
+      openArrowLabelEditor(
+        el as LineElement,
+        history,
+        canvas,
+        previousTool,
+        onEditingChange,
+      );
+    else
+      openShapeLabelEditor(el, history, canvas, previousTool, onEditingChange);
+    needsRender = true;
+  }
 
   // ── Touch support ──────────────────────────────────────────────────────────
   let touch1Id = -1,
@@ -381,18 +354,7 @@ export function initCanvasView(
           label: t('duplicate'),
           icon: `<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="9" height="9" rx="1.5"/><path d="M13 7V5.5A1.5 1.5 0 0 0 11.5 4h-7A1.5 1.5 0 0 0 3 5.5v7A1.5 1.5 0 0 0 4.5 14H7"/></svg>`,
           action: () => {
-            const sc = history.present;
-            const elements = [...sc.selectedIds]
-              .map((id) => sc.elements.find((e) => e.id === id))
-              .filter(
-                (el): el is (typeof sc.elements)[number] => el !== undefined,
-              );
-            const newElements = cloneElementsWithOffset(elements, 20, 20);
-            if (newElements.length > 0)
-              history.dispatch({
-                type: 'CREATE_ELEMENTS',
-                elements: newElements,
-              });
+            duplicateSelection(history);
             closeCtxMenu();
           },
         },
@@ -400,13 +362,7 @@ export function initCanvasView(
           label: t('delete'),
           icon: `<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,6 17,6"/><path d="M8 6V4h4v2"/><rect x="5" y="6" width="10" height="10" rx="1"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="12" y1="10" x2="12" y2="14"/></svg>`,
           action: () => {
-            const sc = history.present;
-            const ids = [...sc.selectedIds].filter((id) => {
-              const el = sc.elements.find((e) => e.id === id);
-              return el && !el.locked;
-            });
-            if (ids.length > 0)
-              history.dispatch({ type: 'DELETE_ELEMENTS', ids });
+            deleteSelection(history);
             closeCtxMenu();
           },
         },
@@ -1046,7 +1002,11 @@ export function initCanvasView(
     needsRender = true;
   };
 
-  return { selectTool: TOOLS.select as SelectTool, historyActions: gesture };
+  return {
+    selectTool: TOOLS.select as SelectTool,
+    historyActions: gesture,
+    editText,
+  };
 }
 
 function drawSlashTrail(
@@ -1275,35 +1235,26 @@ function connectorLabelCenter(
   return [x, y];
 }
 
-/** True when the point falls on the connector's drawn label box. */
-function isPointInArrowLabel(
+/** The topmost connector whose drawn label box contains the point. */
+function connectorLabelAt(
   wx: number,
   wy: number,
-  el: LineElement,
   allElements: ReadonlyArray<DrawableElement>,
-): boolean {
-  const box = el.label ? getConnectorLabelBoxes(allElements).get(el.id) : null;
-  return (
-    !!box &&
-    Math.abs(wx - box.x) <= box.w / 2 &&
-    Math.abs(wy - box.y) <= box.h / 2
-  );
-}
-
-function distPointToSegment(
-  px: number,
-  py: number,
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-): number {
-  const dx = x2 - x1,
-    dy = y2 - y1;
-  const lenSq = dx * dx + dy * dy;
-  if (lenSq === 0) return Math.hypot(px - x1, py - y1);
-  const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / lenSq));
-  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+): DrawableElement | null {
+  const boxes = getConnectorLabelBoxes(allElements);
+  for (let i = allElements.length - 1; i >= 0; i--) {
+    const el = allElements[i];
+    if (!el || (el.type !== 'line' && el.type !== 'arrow') || !el.label)
+      continue;
+    const box = boxes.get(el.id);
+    if (
+      box &&
+      Math.abs(wx - box.x) <= box.w / 2 &&
+      Math.abs(wy - box.y) <= box.h / 2
+    )
+      return el;
+  }
+  return null;
 }
 
 function openArrowLabelEditor(

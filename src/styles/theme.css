@@ -72,8 +72,11 @@
 
 [data-theme="light"] .tb-island,
 [data-theme="light"] .settings-panel,
+[data-theme="light"] .context-menu,
 [data-theme="light"] .menu-sub:not(.menu-sub--inline),
 [data-theme="light"] #context-panel,
+[data-theme="light"] #floating-style-bar,
+[data-theme="light"] .fsb-popover,
 [data-theme="light"] #mobile-actions,
 [data-theme="light"] #mobile-style-sheet,
 [data-theme="light"] #mobile-share-sheet,
@@ -141,6 +144,23 @@
 }
 
 /* Context panel */
+[data-theme="light"] #floating-style-bar,
+[data-theme="light"] .fsb-popover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+[data-theme="light"]
+  #floating-style-bar
+  .fsb-group:not([hidden])
+  ~ .fsb-group:not([hidden]) {
+  border-left-color: rgba(0, 0, 0, 0.12);
+}
+[data-theme="light"] .fsb-color-btn {
+  border-color: rgba(0, 0, 0, 0.2);
+}
+[data-theme="light"] .fsb-color-btn--transparent {
+  background:
+    repeating-conic-gradient(#d0d0d0 0% 25%, #ffffff 0% 50%) 0 0 / 8px 8px;
+}
 [data-theme="light"] #context-panel {
   border-color: var(--island-border);
   box-shadow: none;

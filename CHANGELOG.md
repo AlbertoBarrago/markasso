@@ -4,7 +4,18 @@ All notable changes to this project will be documented here.
 
 ---
 
-## [Unreleased]
+## [1.22.0] - 2026-11-12
+
+### Added
+- **Floating style bar ([#120](https://github.com/AlbertoBarrago/markasso/pull/120)).** Settings > Preferences now let you choose where style controls live: the context panel, as before, or a compact bar floating above the selection, or next to the toolbar while a drawing tool is active, as in the Mac app. More styles opens the full panel. The bar hides while you drag or type and is desktop only.
+- **Right-click menu.** Right-click an element to cut, copy or paste it, copy it as PNG or SVG, add or edit its text, copy and paste its style, change its layer order, group or ungroup, duplicate, lock or delete it. On empty canvas it offers paste and select all. Paste style is also on Ctrl/⌘+Alt+V.
+
+### Fixed
+- **Arrows inside a box ([#121](https://github.com/AlbertoBarrago/markasso/pull/121)).** An arrow drawn below an unfilled rectangle, ellipse, rhombus or flowchart shape can be selected and labelled: a click or double click on its stroke picks the arrow instead of the shape around it. Near the shape's outline, or when the shape is filled, the shape still wins.
+
+### Changed
+- **What's New.** The notice now opens with the floating style bar and the right-click menu, next to Markasso Cloud and the Mac app.
+- **Locked elements.** Deleting from the style panel now skips locked elements, like the Delete key.
 
 ### Removed
 - **Share to X, Reddit and Bluesky.** The Share menu entry now copies the board's link directly, like the Command Palette; the social compose shortcuts are gone.

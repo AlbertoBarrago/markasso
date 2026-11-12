@@ -68,9 +68,15 @@ function getCanvasBg(): string {
 
 // ── PNG export ─────────────────────────────────────────────────────────────────
 
-export function exportPNG(scene: Scene, withBackground = true): void {
-  const { elements } = scene;
-  if (elements.length === 0) return;
+/**
+ * The elements drawn at 2x on a canvas cropped to their bounds with a margin,
+ * on the canvas background when `withBackground` is set; null when empty.
+ */
+function renderElementsToCanvas(
+  elements: ReadonlyArray<Element>,
+  withBackground: boolean,
+): HTMLCanvasElement | null {
+  if (elements.length === 0) return null;
 
   const { minX, minY, maxX, maxY } = computeBounds(elements);
   const PAD = 24;
@@ -95,9 +101,34 @@ export function exportPNG(scene: Scene, withBackground = true): void {
     drawElement(ctx, el, elements);
   }
   drawConnectorLabels(ctx, elements, getCanvasBg());
+  return canvas;
+}
 
+export function exportPNG(scene: Scene, withBackground = true): void {
+  const canvas = renderElementsToCanvas(scene.elements, withBackground);
+  if (!canvas) return;
   const url = canvas.toDataURL('image/png');
   triggerDownload(url, 'markasso-export.png');
+}
+
+/**
+ * PNG of the given elements (a selection) with a transparent background, for
+ * the clipboard; null when empty or when the canvas cannot encode.
+ */
+export function renderElementsPNG(
+  elements: ReadonlyArray<Element>,
+): Promise<Blob | null> {
+  const canvas = renderElementsToCanvas(elements, false);
+  if (!canvas) return Promise.resolve(null);
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+}
+
+/** SVG of the given elements (a selection) with a transparent background. */
+export function elementsToSVG(elements: ReadonlyArray<Element>): string | null {
+  return sceneToSVG(elements, {
+    canvasColor: getCanvasBg(),
+    withBackground: false,
+  });
 }
 
 /**

@@ -10,8 +10,10 @@ import { decodeScene, isShareHash } from './src/io/share';
 import { initCanvasView } from './src/ui/canvas_view';
 import { initCloudBoards } from './src/ui/cloud_boards';
 import { initCommandPalette } from './src/ui/command_palette';
+import { initContextMenu } from './src/ui/context_menu';
 import { initContextPanel } from './src/ui/context_panel';
 import { initElementSearch } from './src/ui/element_search';
+import { initFloatingStyleBar } from './src/ui/floating_style_bar';
 import { initGuide } from './src/ui/guide';
 import { initHintBar } from './src/ui/hint_bar';
 import { initIdleTips } from './src/ui/idle_tips';
@@ -129,10 +131,12 @@ async function bootstrap(): Promise<void> {
     () => starCta.open(),
     () => mcpSetup.open(),
   );
-  const { selectTool, historyActions } = initCanvasView(canvas, hist);
-  initContextPanel(workspace, hist, (source) =>
+  const { selectTool, historyActions, editText } = initCanvasView(canvas, hist);
+  initContextMenu({ canvas, history: hist, selectTool, editText });
+  const contextPanel = initContextPanel(workspace, hist, (source) =>
     selectTool.activateFormatPainter(source),
   );
+  initFloatingStyleBar(workspace, hist, canvas, contextPanel);
   initMobileActionBar(workspace, hist, historyActions);
   initShortcuts(hist, selectTool, openPreferences, openFile, historyActions);
   initCommandPalette(

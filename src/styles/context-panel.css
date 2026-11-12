@@ -517,3 +517,93 @@
 .cp-head-style-row {
   flex-wrap: wrap;
 }
+
+/* ── Floating style bar (Settings > Floating style bar) ─────────────────── */
+#floating-style-bar {
+  position: fixed;
+  z-index: 31;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 6px;
+  background: var(--bg-island);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  white-space: nowrap;
+}
+#floating-style-bar[hidden] {
+  display: none;
+}
+#floating-style-bar .fsb-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+#floating-style-bar .fsb-group[hidden] {
+  display: none;
+}
+/* A divider before every visible group but the first. */
+#floating-style-bar .fsb-group:not([hidden]) ~ .fsb-group:not([hidden]) {
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  padding-left: 4px;
+}
+#floating-style-bar
+  .fsb-group[data-section="stroke"]:not([hidden])
+  + .fsb-group[data-section="fill"]:not([hidden]) {
+  /* Stroke and fill read as one color pair. */
+  border-left: none;
+  padding-left: 0;
+}
+#floating-style-bar .cp-btn {
+  width: 28px;
+  height: 28px;
+}
+.fsb-color-btn {
+  width: 22px;
+  height: 22px;
+  margin: 0 2px;
+  border-radius: 6px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  background: var(--fsb-swatch, transparent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.fsb-color-btn--transparent {
+  background:
+    repeating-conic-gradient(#3a3a3a 0% 25%, #2a2a2a 0% 50%) 0 0 / 8px 8px;
+}
+.fsb-color-btn[aria-expanded="true"] {
+  border-color: var(--accent);
+}
+
+.fsb-popover {
+  position: fixed;
+  z-index: 32;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  background: var(--bg-island);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+.fsb-popover[hidden] {
+  display: none;
+}
+.fsb-pop-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fsb-popover .cp-btn-row {
+  align-items: center;
+}
+.fsb-popover .cp-color-more {
+  margin-left: 8px;
+}
