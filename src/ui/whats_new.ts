@@ -12,7 +12,7 @@ const RELEASE_URL = 'https://github.com/AlbertoBarrago/markasso/releases';
 /** [title, text, optional link]: the link opens in a new tab. */
 const HIGHLIGHTS: readonly (readonly [string, string, string?])[] = [
   ['whatsNewStyleBarTitle', 'whatsNewStyleBar'],
-  ['whatsNewAgentsTitle', 'whatsNewAgents', '/cloud/'],
+  ['whatsNewContextMenuTitle', 'whatsNewContextMenu'],
   ['whatsNewCloudTitle', 'whatsNewCloud', '/cloud/'],
   ['whatsNewMacTitle', 'whatsNewMac', '/mac/'],
 ];
