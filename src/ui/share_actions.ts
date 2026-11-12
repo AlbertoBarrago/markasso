@@ -80,3 +80,15 @@ export function showLiveStatusToast(connected: boolean): void {
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 3000);
 }
+
+/** A short notice toast; `warn` for something that did not work. */
+export function showNoticeToast(message: string, warn = false): void {
+  document.getElementById('share-toast')?.remove();
+  const toast = document.createElement('div');
+  toast.id = 'share-toast';
+  toast.className = `share-toast ${warn ? 'share-toast--warn' : 'share-toast--ok'}`;
+  toast.setAttribute('role', 'status');
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}

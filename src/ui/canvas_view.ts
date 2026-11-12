@@ -1,7 +1,6 @@
 import type { ActiveTool } from '../core/app_state';
 import { normalizeRect } from '../core/geometry';
 import { screenToWorld, worldToScreen } from '../core/viewport';
-import { cloneElementsWithOffset } from '../elements/clone';
 import type {
   ConnectorAnchor,
   Element as DrawableElement,
@@ -66,6 +65,7 @@ import { TextTool } from '../tools/text_tool';
 import type { Tool, ToolContext } from '../tools/tool';
 import { CanvasGesture } from './canvas_gesture';
 import { toolAfterLabelEdit } from './label_edit_tool';
+import { deleteSelection, duplicateSelection } from './style_actions';
 
 const textTool = new TextTool();
 const stickyTool = new StickyTool();
@@ -87,7 +87,12 @@ const TOOLS: Record<ActiveTool, Tool> = {
 export function initCanvasView(
   canvas: HTMLCanvasElement,
   history: History,
-): { selectTool: SelectTool; historyActions: CanvasGesture } {
+): {
+  selectTool: SelectTool;
+  historyActions: CanvasGesture;
+  /** Opens the text or label editor of an element (double click, menu). */
+  editText: (el: DrawableElement) => void;
+} {
   const ctx2d = canvas.getContext('2d')!;
 
   let isPanning = false;
@@ -255,25 +260,30 @@ export function initCanvasView(
     const hit =
       connectorLabelAt(wx, wy, scene.elements) ??
       hitTest(scene.elements, wx, wy, scene.viewport);
-    if (!hit) return;
+    if (hit) editText(hit);
+  });
 
-    if (hit.type === 'text') {
-      (TOOLS.text as TextTool).editExisting(hit, toolCtx);
+  /**
+   * Opens the editor for the text of `el`: a text element's content, or the
+   * label of a shape, stencil or connector. Other elements are ignored.
+   */
+  function editText(el: DrawableElement): void {
+    if (el.type === 'text') {
+      (TOOLS.text as TextTool).editExisting(el, toolCtx);
       needsRender = true;
       return;
     }
-
     const isShape =
-      hit.type === 'rectangle' ||
-      hit.type === 'ellipse' ||
-      hit.type === 'rhombus' ||
-      hit.type === 'shape' ||
-      hit.type === 'stencil';
-    const isConnector = hit.type === 'arrow' || hit.type === 'line';
+      el.type === 'rectangle' ||
+      el.type === 'ellipse' ||
+      el.type === 'rhombus' ||
+      el.type === 'shape' ||
+      el.type === 'stencil';
+    const isConnector = el.type === 'arrow' || el.type === 'line';
     if (!isShape && !isConnector) return;
 
     const previousTool = history.present.appState.activeTool;
-    history.dispatch({ type: 'SELECT_ELEMENTS', ids: [hit.id] });
+    history.dispatch({ type: 'SELECT_ELEMENTS', ids: [el.id] });
     history.dispatch({ type: 'SET_TOOL', tool: 'text', keepSelection: true });
     const onEditingChange = (id: string | null): void => {
       editingShapeLabelId = id;
@@ -281,16 +291,16 @@ export function initCanvasView(
     };
     if (isConnector)
       openArrowLabelEditor(
-        hit as LineElement,
+        el as LineElement,
         history,
         canvas,
         previousTool,
         onEditingChange,
       );
     else
-      openShapeLabelEditor(hit, history, canvas, previousTool, onEditingChange);
+      openShapeLabelEditor(el, history, canvas, previousTool, onEditingChange);
     needsRender = true;
-  });
+  }
 
   // ── Touch support ──────────────────────────────────────────────────────────
   let touch1Id = -1,
@@ -344,18 +354,7 @@ export function initCanvasView(
           label: t('duplicate'),
           icon: `<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="9" height="9" rx="1.5"/><path d="M13 7V5.5A1.5 1.5 0 0 0 11.5 4h-7A1.5 1.5 0 0 0 3 5.5v7A1.5 1.5 0 0 0 4.5 14H7"/></svg>`,
           action: () => {
-            const sc = history.present;
-            const elements = [...sc.selectedIds]
-              .map((id) => sc.elements.find((e) => e.id === id))
-              .filter(
-                (el): el is (typeof sc.elements)[number] => el !== undefined,
-              );
-            const newElements = cloneElementsWithOffset(elements, 20, 20);
-            if (newElements.length > 0)
-              history.dispatch({
-                type: 'CREATE_ELEMENTS',
-                elements: newElements,
-              });
+            duplicateSelection(history);
             closeCtxMenu();
           },
         },
@@ -363,13 +362,7 @@ export function initCanvasView(
           label: t('delete'),
           icon: `<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,6 17,6"/><path d="M8 6V4h4v2"/><rect x="5" y="6" width="10" height="10" rx="1"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="12" y1="10" x2="12" y2="14"/></svg>`,
           action: () => {
-            const sc = history.present;
-            const ids = [...sc.selectedIds].filter((id) => {
-              const el = sc.elements.find((e) => e.id === id);
-              return el && !el.locked;
-            });
-            if (ids.length > 0)
-              history.dispatch({ type: 'DELETE_ELEMENTS', ids });
+            deleteSelection(history);
             closeCtxMenu();
           },
         },
@@ -1009,7 +1002,11 @@ export function initCanvasView(
     needsRender = true;
   };
 
-  return { selectTool: TOOLS.select as SelectTool, historyActions: gesture };
+  return {
+    selectTool: TOOLS.select as SelectTool,
+    historyActions: gesture,
+    editText,
+  };
 }
 
 function drawSlashTrail(

@@ -72,6 +72,7 @@
 
 [data-theme="light"] .tb-island,
 [data-theme="light"] .settings-panel,
+[data-theme="light"] .context-menu,
 [data-theme="light"] .menu-sub:not(.menu-sub--inline),
 [data-theme="light"] #context-panel,
 [data-theme="light"] #floating-style-bar,

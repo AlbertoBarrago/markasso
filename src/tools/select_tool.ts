@@ -3,6 +3,11 @@ import { worldToScreen } from '../core/viewport';
 import { cloneElementsWithOffset } from '../elements/clone';
 import type { ConnectorAnchor, Element } from '../elements/element';
 import {
+  applyStyleCommand,
+  captureStyle,
+  type StyleSnapshot,
+} from '../elements/style_snapshot';
+import {
   distToQuadraticCurve,
   distToRoute,
 } from '../rendering/connector_geometry';
@@ -147,26 +152,10 @@ export class SelectTool implements Tool {
    * Call `activateFormatPainter()` to start, or Escape to cancel.
    */
   formatPainterActive = false;
-  private formatPainterStyle: Record<string, unknown> = {};
+  private formatPainterStyle: StyleSnapshot = {};
 
   activateFormatPainter(sourceElement: Element): void {
-    this.formatPainterStyle = {
-      strokeColor: sourceElement.strokeColor,
-      fillColor: sourceElement.fillColor,
-      strokeWidth: sourceElement.strokeWidth,
-      opacity: sourceElement.opacity,
-      roughness: sourceElement.roughness,
-      strokeStyle: sourceElement.strokeStyle,
-      lineCap: sourceElement.lineCap,
-      lineJoin: sourceElement.lineJoin,
-      shadowBlur: sourceElement.shadowBlur,
-      shadowColor: sourceElement.shadowColor,
-      shadowOffsetX: sourceElement.shadowOffsetX,
-      shadowOffsetY: sourceElement.shadowOffsetY,
-      ...(sourceElement.type === 'rectangle' || sourceElement.type === 'rhombus'
-        ? { cornerRadius: sourceElement.cornerRadius }
-        : {}),
-    };
+    this.formatPainterStyle = captureStyle(sourceElement);
     this.formatPainterActive = true;
   }
 
@@ -181,14 +170,8 @@ export class SelectTool implements Tool {
       const scene = ctx.history.present;
       const hit = hitTest(scene.elements, worldX, worldY, scene.viewport);
       if (hit) {
-        // Build APPLY_STYLE command from captured style — only defined keys
-        const style = this.formatPainterStyle;
-        const cmd: Record<string, unknown> = { type: 'APPLY_STYLE' };
-        for (const [k, v] of Object.entries(style)) {
-          if (v !== undefined) cmd[k] = v;
-        }
         ctx.history.dispatch({ type: 'SELECT_ELEMENTS', ids: [hit.id] });
-        ctx.history.dispatch(cmd as Parameters<typeof ctx.history.dispatch>[0]);
+        ctx.history.dispatch(applyStyleCommand(this.formatPainterStyle));
       }
       this.formatPainterActive = false;
       this.formatPainterStyle = {};

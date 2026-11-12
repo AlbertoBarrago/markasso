@@ -1,16 +1,15 @@
 import type { ActiveTool } from '../core/app_state';
-import {
-  ELEMENT_CLIPBOARD_MIME,
-  ELEMENT_CLIPBOARD_TEXT_PREFIX,
-  serializeElementClipboard,
-} from '../core/clipboard';
+import { ELEMENT_CLIPBOARD_MIME } from '../core/clipboard';
 import { fitToElements } from '../core/viewport';
-import { cloneElementsWithOffset } from '../elements/clone';
 import type { History } from '../engine/history';
-import { validateElements } from '../io/element_validation';
 import { exportMarkasso } from '../io/markasso';
 import type { SelectTool } from '../tools/select_tool';
 import type { HistoryActions } from './canvas_gesture';
+import {
+  elementPayloadFrom,
+  pasteElementPayload,
+  writeSelectionToClipboardData,
+} from './clipboard_actions';
 import {
   fileShortcut,
   isFocusInPanel,
@@ -18,6 +17,16 @@ import {
 } from './keyboard_utils';
 import { toggleLibrary } from './library_panel';
 import { toggleMinimap } from './settings';
+import {
+  copyStyle,
+  duplicateSelection,
+  groupSelection,
+  pasteStyle,
+  selectAll,
+  toggleSelectionLock,
+  ungroupSelection,
+} from './style_actions';
+import { selectedElements } from './style_state';
 import { zoomIn, zoomOut } from './toolbar';
 
 // The Plus and Minus keys sit on different physical keys per layout (e.g.
@@ -71,7 +80,6 @@ export function initShortcuts(
   openFile: () => void,
   historyActions: HistoryActions = history,
 ): void {
-  let pasteCount = 0;
   const shortcuts = new Map<string, () => void>([
     ['h', () => history.dispatch({ type: 'SET_TOOL', tool: 'hand' })],
     ['v', () => history.dispatch({ type: 'SET_TOOL', tool: 'select' })],
@@ -184,8 +192,7 @@ export function initShortcuts(
     }
     if ((e.ctrlKey || e.metaKey) && key === 'a') {
       e.preventDefault();
-      const ids = history.present.elements.map((el) => el.id);
-      if (ids.length > 0) history.dispatch({ type: 'SELECT_ELEMENTS', ids });
+      selectAll(history);
       return;
     }
 
@@ -231,26 +238,27 @@ export function initShortcuts(
     // Ctrl+D — duplicate selected elements with a small offset
     if ((e.ctrlKey || e.metaKey) && key === 'd') {
       e.preventDefault();
-      const scene = history.present;
-      const selectedEls = scene.elements.filter((el) =>
-        scene.selectedIds.has(el.id),
-      );
-      const newElements = cloneElementsWithOffset(selectedEls, 20, 20);
-      if (newElements.length > 0)
-        history.dispatch({ type: 'CREATE_ELEMENTS', elements: newElements });
+      duplicateSelection(history);
       return;
     }
 
-    // Ctrl+Alt+C (Cmd+Alt+C) — copy style of first selected element (format painter)
+    // Ctrl+Alt+C (Cmd+Alt+C): copy the style of the first selected element,
+    // for Ctrl+Alt+V and for the format painter (the next click applies it).
     if ((e.ctrlKey || e.metaKey) && e.altKey && key === 'c') {
       e.preventDefault();
-      const scene = history.present;
-      const selected = scene.elements.filter((el) =>
-        scene.selectedIds.has(el.id),
-      );
-      if (selected.length > 0 && selected[0]) {
-        selectTool.activateFormatPainter(selected[0]);
+      const first = selectedElements(history.present)[0];
+      if (first) {
+        copyStyle(history);
+        selectTool.activateFormatPainter(first);
       }
+      return;
+    }
+
+    // Ctrl+Alt+V (Cmd+Alt+V): paste the copied style on the selection
+    if ((e.ctrlKey || e.metaKey) && e.altKey && key === 'v') {
+      e.preventDefault();
+      selectTool.formatPainterActive = false;
+      pasteStyle(history);
       return;
     }
 
@@ -283,30 +291,14 @@ export function initShortcuts(
     // Ctrl+G — group selected elements
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && key === 'g') {
       e.preventDefault();
-      const ids = [...history.present.selectedIds];
-      if (ids.length > 1) {
-        history.dispatch({
-          type: 'GROUP_ELEMENTS',
-          ids,
-          groupId: crypto.randomUUID(),
-        });
-      }
+      groupSelection(history);
       return;
     }
 
     // Ctrl+Shift+G — ungroup
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && key === 'g') {
       e.preventDefault();
-      const scene = history.present;
-      const groupIds = new Set(
-        [...scene.selectedIds]
-          .map((id) => scene.elements.find((el) => el.id === id)?.groupId)
-          .filter((gid): gid is string => gid !== undefined),
-      );
-      for (const groupId of groupIds) {
-        history.dispatch({ type: 'UNGROUP_ELEMENTS', groupId });
-      }
-      // Clear activeGroupId on the select tool
+      ungroupSelection(history);
       selectTool.activeGroupId = null;
       return;
     }
@@ -314,17 +306,7 @@ export function initShortcuts(
     // Ctrl+Shift+L — toggle lock on selected elements (e.code = layout-independent)
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === 'KeyL') {
       e.preventDefault();
-      const scene = history.present;
-      const ids = [...scene.selectedIds];
-      if (ids.length > 0) {
-        const allLocked = ids.every(
-          (id) => scene.elements.find((el) => el.id === id)?.locked,
-        );
-        history.dispatch({
-          type: allLocked ? 'UNLOCK_ELEMENTS' : 'LOCK_ELEMENTS',
-          ids,
-        });
-      }
+      toggleSelectionLock(history);
       return;
     }
 
@@ -381,55 +363,22 @@ export function initShortcuts(
 
   document.addEventListener('copy', (e) => {
     if (window.getSelection()?.toString() || !e.clipboardData) return;
-    const scene = history.present;
-    const selected = scene.elements.filter((element) =>
-      scene.selectedIds.has(element.id),
-    );
-    if (selected.length === 0) return;
-
-    const serialized = serializeElementClipboard(selected);
-    e.clipboardData.setData(
-      'text/plain',
-      `${ELEMENT_CLIPBOARD_TEXT_PREFIX}${serialized}`,
-    );
-    try {
-      e.clipboardData.setData(ELEMENT_CLIPBOARD_MIME, serialized);
-    } catch {
-      // The text fallback keeps element paste working on restricted browsers.
-    }
-    pasteCount = 0;
-    e.preventDefault();
+    if (writeSelectionToClipboardData(history, e.clipboardData))
+      e.preventDefault();
   });
 
   document.addEventListener(
     'paste',
     (e) => {
       if (!e.clipboardData) return;
-      const customData = e.clipboardData.getData(ELEMENT_CLIPBOARD_MIME);
-      const textData = e.clipboardData.getData('text/plain');
-      const serialized =
-        customData ||
-        (textData.startsWith(ELEMENT_CLIPBOARD_TEXT_PREFIX)
-          ? textData.slice(ELEMENT_CLIPBOARD_TEXT_PREFIX.length)
-          : '');
-      if (!serialized) return;
-
-      try {
-        const payload = JSON.parse(serialized) as Record<string, unknown>;
-        if (payload.version !== 1) return;
-        const elements = validateElements(payload.elements);
-        if (!elements || elements.length === 0) return;
-
-        pasteCount += 1;
-        const offset = pasteCount * 20;
-        history.dispatch({
-          type: 'CREATE_ELEMENTS',
-          elements: cloneElementsWithOffset(elements, offset, offset),
-        });
+      const serialized = elementPayloadFrom(
+        e.clipboardData.getData(ELEMENT_CLIPBOARD_MIME),
+        e.clipboardData.getData('text/plain'),
+      );
+      // Anything else (images, Mermaid text) goes on to the other handlers.
+      if (pasteElementPayload(history, serialized)) {
         e.preventDefault();
         e.stopImmediatePropagation();
-      } catch {
-        // Ignore malformed clipboard data and let other paste handlers proceed.
       }
     },
     true,

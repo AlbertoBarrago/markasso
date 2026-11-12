@@ -1,5 +1,10 @@
 import { measureTextBounds } from '../core/text_measure';
 import { cloneElementsWithOffset } from '../elements/clone';
+import {
+  applyStyleCommand,
+  captureStyle,
+  type StyleSnapshot,
+} from '../elements/style_snapshot';
 import type { History } from '../engine/history';
 import {
   hasShapeLabel,
@@ -104,8 +109,11 @@ export function duplicateSelection(history: History): void {
     history.dispatch({ type: 'CREATE_ELEMENTS', elements: newElements });
 }
 
+/** Deletes the selection; locked elements stay, as with the Delete key. */
 export function deleteSelection(history: History): void {
-  const ids = [...history.present.selectedIds];
+  const ids = selectedElements(history.present)
+    .filter((el) => !el.locked)
+    .map((el) => el.id);
   if (ids.length > 0) history.dispatch({ type: 'DELETE_ELEMENTS', ids });
 }
 
@@ -122,4 +130,56 @@ export function toggleSelectionLock(history: History): void {
       ? { type: 'UNLOCK_ELEMENTS', ids }
       : { type: 'LOCK_ELEMENTS', ids },
   );
+}
+
+/** The style "Copy style" captured, for "Paste style". */
+let copiedStyle: StyleSnapshot | null = null;
+
+/** Captures the style of the first selected element for `pasteStyle`. */
+export function copyStyle(history: History): void {
+  const first = selectedElements(history.present)[0];
+  if (first) copiedStyle = captureStyle(first);
+}
+
+export function hasCopiedStyle(): boolean {
+  return copiedStyle !== null;
+}
+
+/** Applies the copied style to the selection, in one undo step. */
+export function pasteStyle(history: History): void {
+  if (copiedStyle === null) return;
+  if (selectedElements(history.present).length === 0) return;
+  history.dispatch(applyStyleCommand(copiedStyle));
+}
+
+/** Groups two or more selected elements. */
+export function groupSelection(history: History): void {
+  const ids = [...history.present.selectedIds];
+  if (ids.length < 2) return;
+  history.dispatch({
+    type: 'GROUP_ELEMENTS',
+    ids,
+    groupId: crypto.randomUUID(),
+  });
+}
+
+/** The ids of the groups the selection belongs to. */
+export function selectedGroupIds(history: History): Set<string> {
+  return new Set(
+    selectedElements(history.present)
+      .map((el) => el.groupId)
+      .filter((gid): gid is string => gid !== undefined),
+  );
+}
+
+/** Dissolves every group the selection belongs to. */
+export function ungroupSelection(history: History): void {
+  for (const groupId of selectedGroupIds(history)) {
+    history.dispatch({ type: 'UNGROUP_ELEMENTS', groupId });
+  }
+}
+
+export function selectAll(history: History): void {
+  const ids = history.present.elements.map((el) => el.id);
+  if (ids.length > 0) history.dispatch({ type: 'SELECT_ELEMENTS', ids });
 }
