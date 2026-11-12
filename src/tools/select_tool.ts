@@ -1107,6 +1107,14 @@ export function computeResize(
 
 // ── Hit testing ───────────────────────────────────────────────────────────────
 
+/**
+ * The element under a world point, topmost first, with one exception:
+ * outlined shapes (rectangle, ellipse, rhombus, flowchart shape) with no fill
+ * are hit on their whole area, so a connector drawn below one stays
+ * reachable: a precise hit on the connector's stroke beats a hit on the
+ * inside of such a shape, as in draw.io. Near the shape's outline the shape
+ * still wins, so a container can be grabbed by its border.
+ */
 export function hitTest(
   elements: ReadonlyArray<Element>,
   wx: number,
@@ -1114,12 +1122,71 @@ export function hitTest(
   viewport: { zoom: number },
   extraPadPx = 0,
 ): Element | null {
+  let interiorHit: Element | null = null;
   for (let i = elements.length - 1; i >= 0; i--) {
     const el = elements[i];
-    if (el && hitTestElement(el, wx, wy, viewport, elements, extraPadPx))
-      return el;
+    if (!el || !hitTestElement(el, wx, wy, viewport, elements, extraPadPx))
+      continue;
+    if (interiorHit !== null) {
+      // Only a connector below can take precedence over the interior hit.
+      if (isConnector(el)) return el;
+      continue;
+    }
+    if (!isSeeThroughInterior(el, wx, wy, viewport, extraPadPx)) return el;
+    interiorHit = el;
   }
-  return null;
+  return interiorHit;
+}
+
+function isConnector(el: Element): boolean {
+  return el.type === 'line' || el.type === 'arrow' || el.type === 'curve';
+}
+
+/** Outlined shapes whose inside, when unfilled, shows what lies below. */
+const SEE_THROUGH_TYPES: ReadonlySet<string> = new Set([
+  'rectangle',
+  'ellipse',
+  'rhombus',
+  'shape',
+]);
+
+/**
+ * True when the point falls inside an unfilled outlined shape, farther than
+ * the hit pad from its outline.
+ */
+function isSeeThroughInterior(
+  el: Element,
+  wx: number,
+  wy: number,
+  viewport: { zoom: number },
+  extraPadPx: number,
+): boolean {
+  if (!SEE_THROUGH_TYPES.has(el.type) || el.fillColor !== 'transparent')
+    return false;
+  const inset = (8 + extraPadPx) / viewport.zoom + el.strokeWidth / 2;
+  const [lx, ly] = toLocal(el, wx, wy);
+  const { x, y, w, h } = normalizeRect(
+    el as Element & { width: number; height: number },
+  );
+  const rx = w / 2 - inset;
+  const ry = h / 2 - inset;
+  if (rx <= 0 || ry <= 0) return false;
+  const nx = (lx - (x + w / 2)) / rx;
+  const ny = (ly - (y + h / 2)) / ry;
+  if (el.type === 'ellipse') return nx ** 2 + ny ** 2 < 1;
+  if (el.type === 'rhombus') return Math.abs(nx) + Math.abs(ny) < 1;
+  return Math.abs(nx) < 1 && Math.abs(ny) < 1;
+}
+
+/** The point in the element's unrotated local space. */
+function toLocal(el: Element, wx: number, wy: number): [number, number] {
+  if (!el.rotation) return [wx, wy];
+  const [cx, cy] = getElementCenter(el);
+  const cos = Math.cos(-el.rotation);
+  const sin = Math.sin(-el.rotation);
+  const dx = wx - cx;
+  const dy = wy - cy;
+  return [cx + dx * cos - dy * sin, cy + dx * sin + dy * cos];
 }
 
 function hitTestElement(
@@ -1135,17 +1202,7 @@ function hitTestElement(
   const LINE_PAD = 8 / viewport.zoom + extraPad;
 
   // For rotated elements, inverse-rotate the test point into element's local space
-  let lx = wx;
-  let ly = wy;
-  if (el.rotation) {
-    const [cx, cy] = getElementCenter(el);
-    const cos = Math.cos(-el.rotation);
-    const sin = Math.sin(-el.rotation);
-    const dx = wx - cx;
-    const dy = wy - cy;
-    lx = cx + dx * cos - dy * sin;
-    ly = cy + dx * sin + dy * cos;
-  }
+  const [lx, ly] = toLocal(el, wx, wy);
 
   if ((el.type === 'line' || el.type === 'arrow') && el.routing === 'elbow') {
     return (

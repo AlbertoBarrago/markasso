@@ -11,7 +11,6 @@ import type {
   RhombusElement,
   ShapeElement,
   StencilElement,
-  TextElement,
 } from '../elements/element';
 import {
   DEFAULT_LABEL_FONT_FAMILY,
@@ -30,7 +29,7 @@ import {
   sendLocalCursor,
   subscribeCursors,
 } from '../io/presence';
-import { distToRoute, getRoutePointAt } from '../rendering/connector_geometry';
+import { getRoutePointAt } from '../rendering/connector_geometry';
 import { getConnectorLabelBoxes } from '../rendering/connector_labels';
 import {
   contrastColor,
@@ -60,7 +59,7 @@ import { LineTool } from '../tools/line_tool';
 import { PenTool } from '../tools/pen_tool';
 import { RectangleTool } from '../tools/rectangle_tool';
 import { RomboTool } from '../tools/rombo_tool';
-import { SelectTool } from '../tools/select_tool';
+import { hitTest, SelectTool } from '../tools/select_tool';
 import { ShapeTool } from '../tools/shape_tool';
 import { StickyTool } from '../tools/sticky_tool';
 import { TextTool } from '../tools/text_tool';
@@ -251,82 +250,46 @@ export function initCanvasView(
     }
 
     const scene = history.present;
-    // Find element under cursor (topmost first)
-    for (let i = scene.elements.length - 1; i >= 0; i--) {
-      const el = scene.elements[i];
-      if (!el) continue;
+    // A connector label wins (it is drawn over everything); otherwise the
+    // same hit test as selection, so a double click edits what a click picks.
+    const hit =
+      connectorLabelAt(wx, wy, scene.elements) ??
+      hitTest(scene.elements, wx, wy, scene.viewport);
+    if (!hit) return;
 
-      if (el.type === 'text') {
-        const x = el.x,
-          y = el.y,
-          w = el.width,
-          h = el.height;
-        if (wx >= x - 4 && wx <= x + w + 4 && wy >= y - 4 && wy <= y + h + 4) {
-          (TOOLS.text as TextTool).editExisting(el as TextElement, toolCtx);
-          needsRender = true;
-          return;
-        }
-      }
-
-      if (
-        el.type === 'rectangle' ||
-        el.type === 'ellipse' ||
-        el.type === 'rhombus' ||
-        el.type === 'shape' ||
-        el.type === 'stencil'
-      ) {
-        const { x: bx, y: by, w: bw, h: bh } = normalizeRect(el);
-        if (
-          wx >= bx - 4 &&
-          wx <= bx + bw + 4 &&
-          wy >= by - 4 &&
-          wy <= by + bh + 4
-        ) {
-          const previousTool = history.present.appState.activeTool;
-          history.dispatch({ type: 'SELECT_ELEMENTS', ids: [el.id] });
-          history.dispatch({
-            type: 'SET_TOOL',
-            tool: 'text',
-            keepSelection: true,
-          });
-          openShapeLabelEditor(el, history, canvas, previousTool, (id) => {
-            editingShapeLabelId = id;
-            needsRender = true;
-          });
-          needsRender = true;
-          return;
-        }
-      }
-
-      if (el.type === 'arrow' || el.type === 'line') {
-        const line = el as LineElement;
-        const route =
-          line.routing === 'elbow'
-            ? resolveConnectorRoute(line, scene.elements)
-            : null;
-        const hitLabel = isPointInArrowLabel(wx, wy, line, scene.elements);
-        const hitShaft =
-          (route
-            ? distToRoute(wx, wy, route)
-            : distPointToSegment(wx, wy, line.x, line.y, line.x2, line.y2)) <
-          line.strokeWidth / 2 + 8;
-        if (hitLabel || hitShaft) {
-          const previousTool = history.present.appState.activeTool;
-          history.dispatch({ type: 'SELECT_ELEMENTS', ids: [line.id] });
-          history.dispatch({
-            type: 'SET_TOOL',
-            tool: 'text',
-            keepSelection: true,
-          });
-          openArrowLabelEditor(line, history, canvas, previousTool, (id) => {
-            editingShapeLabelId = id;
-            needsRender = true;
-          });
-          needsRender = true;
-          return;
-        }
-      }
+    if (hit.type === 'text') {
+      (TOOLS.text as TextTool).editExisting(hit, toolCtx);
+      needsRender = true;
+      return;
     }
+
+    const isShape =
+      hit.type === 'rectangle' ||
+      hit.type === 'ellipse' ||
+      hit.type === 'rhombus' ||
+      hit.type === 'shape' ||
+      hit.type === 'stencil';
+    const isConnector = hit.type === 'arrow' || hit.type === 'line';
+    if (!isShape && !isConnector) return;
+
+    const previousTool = history.present.appState.activeTool;
+    history.dispatch({ type: 'SELECT_ELEMENTS', ids: [hit.id] });
+    history.dispatch({ type: 'SET_TOOL', tool: 'text', keepSelection: true });
+    const onEditingChange = (id: string | null): void => {
+      editingShapeLabelId = id;
+      needsRender = true;
+    };
+    if (isConnector)
+      openArrowLabelEditor(
+        hit as LineElement,
+        history,
+        canvas,
+        previousTool,
+        onEditingChange,
+      );
+    else
+      openShapeLabelEditor(hit, history, canvas, previousTool, onEditingChange);
+    needsRender = true;
   });
 
   // ── Touch support ──────────────────────────────────────────────────────────
@@ -1275,35 +1238,26 @@ function connectorLabelCenter(
   return [x, y];
 }
 
-/** True when the point falls on the connector's drawn label box. */
-function isPointInArrowLabel(
+/** The topmost connector whose drawn label box contains the point. */
+function connectorLabelAt(
   wx: number,
   wy: number,
-  el: LineElement,
   allElements: ReadonlyArray<DrawableElement>,
-): boolean {
-  const box = el.label ? getConnectorLabelBoxes(allElements).get(el.id) : null;
-  return (
-    !!box &&
-    Math.abs(wx - box.x) <= box.w / 2 &&
-    Math.abs(wy - box.y) <= box.h / 2
-  );
-}
-
-function distPointToSegment(
-  px: number,
-  py: number,
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-): number {
-  const dx = x2 - x1,
-    dy = y2 - y1;
-  const lenSq = dx * dx + dy * dy;
-  if (lenSq === 0) return Math.hypot(px - x1, py - y1);
-  const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / lenSq));
-  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+): DrawableElement | null {
+  const boxes = getConnectorLabelBoxes(allElements);
+  for (let i = allElements.length - 1; i >= 0; i--) {
+    const el = allElements[i];
+    if (!el || (el.type !== 'line' && el.type !== 'arrow') || !el.label)
+      continue;
+    const box = boxes.get(el.id);
+    if (
+      box &&
+      Math.abs(wx - box.x) <= box.w / 2 &&
+      Math.abs(wy - box.y) <= box.h / 2
+    )
+      return el;
+  }
+  return null;
 }
 
 function openArrowLabelEditor(
