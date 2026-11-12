@@ -7,21 +7,12 @@ import {
 import type { History } from '../engine/history';
 import { t } from '../i18n';
 import { getLiveName, setLiveName } from '../io/realtime';
-import { buildShareUrl } from '../io/share';
 import { hasEndHead, hasStartHead } from '../rendering/connector_geometry';
 import {
   ARROW_HEAD_STYLE_LABEL_KEYS,
   arrowHeadStyleIcon,
 } from './arrow_head_icons';
 import type { HistoryActions } from './canvas_gesture';
-import {
-  CLOUD_ACTIONS,
-  CLOUD_GROUPS,
-  cloudAction,
-  cloudActionAvailable,
-  cloudLicenseStored,
-  cloudSeparators,
-} from './cloud_boards';
 import {
   bindUndoTransaction,
   createColorPicker,
@@ -31,8 +22,6 @@ import {
   updateCustomColorButton,
 } from './color_picker';
 import { onLiveHide, onLiveReveal } from './live_name';
-import { initPeopleList } from './people_list';
-import { copyToClipboard, showShareToast } from './share_actions';
 import { hasFillStyle, hasStrokeStyle, styleTypeOf } from './style_type';
 
 const STROKE_PRESETS = [
@@ -136,73 +125,6 @@ export function initMobileActionBar(
       </div>
     </div>
   `;
-
-  // ── Bottom sheet (share panel) ───────────────────────────────────────────────
-  const shareSheet = document.createElement('div');
-  shareSheet.id = 'mobile-share-sheet';
-  shareSheet.className = 'mobile-sheet';
-  workspace.appendChild(shareSheet);
-
-  shareSheet.innerHTML = `
-    <div class="mss-handle"></div>
-    <button class="mss-share-btn" id="mss-share-copylink">${IC_LINK}<span>${t('shareCopyLink')}</span></button>
-    <div class="pp-mobile" id="mss-people"></div>
-  `;
-  if (CLOUD_ACTIONS.length) {
-    // Same layout and rules as the Cloud submenu (settings.ts): a note until a
-    // licence is stored, the CLOUD_GROUPS split by dividers, and only the
-    // actions that can be used right now.
-    const note = document.createElement('p');
-    note.className = 'mss-cloud-note';
-    note.textContent = t('cloudMenuNote');
-    shareSheet.append(note);
-    const groups = CLOUD_GROUPS.map((group, i) => {
-      const divider = i === 0 ? null : document.createElement('div');
-      if (divider) {
-        divider.className = 'mss-divider';
-        divider.setAttribute('role', 'separator');
-        shareSheet.append(divider);
-      }
-      const buttons = group.map((action) => {
-        const button = document.createElement('button');
-        button.className = 'mss-share-btn';
-        button.textContent = t(action);
-        button.addEventListener('click', () => {
-          shareSheet.classList.remove('open');
-          cloudAction(history, action);
-        });
-        shareSheet.append(button);
-        return { action, button };
-      });
-      return { divider, buttons };
-    });
-    const sync = (): void => {
-      note.hidden = cloudLicenseStored(history);
-      const shown = groups.map(({ buttons }) => {
-        for (const { action, button } of buttons)
-          button.hidden = !cloudActionAvailable(history, action);
-        return buttons.some(({ button }) => !button.hidden);
-      });
-      const separators = cloudSeparators(shown);
-      groups.forEach(({ divider }, i) => {
-        if (divider) divider.hidden = !separators[i];
-      });
-    };
-    document.addEventListener('markasso-cloud-change', sync);
-    sync();
-  }
-  initPeopleList(shareSheet.querySelector<HTMLElement>('#mss-people')!);
-
-  const shareCopyLinkBtn = shareSheet.querySelector<HTMLButtonElement>(
-    '#mss-share-copylink',
-  )!;
-  shareCopyLinkBtn.addEventListener('click', async () => {
-    const url = await buildShareUrl(history.present.elements);
-    const ok = await copyToClipboard(url);
-    showShareToast(ok, url);
-    shareSheet.classList.remove('open');
-    shareBtn.classList.remove('active');
-  });
 
   // ── Custom color state ──────────────────────────────────────────────────────
   let customStroke: string | null = loadCustomColor('stroke');
@@ -473,7 +395,6 @@ export function initMobileActionBar(
 
   const undoBtn = mkBtn(IC_UNDO, t('undoLabel'));
   const redoBtn = mkBtn(IC_REDO, t('redoLabel'));
-  const shareBtn = mkBtn(IC_SHARE, t('shareLink'));
   const sep = document.createElement('span');
   sep.className = 'mobile-action-sep';
   const propsBtn = mkBtn(IC_PROPS, t('style'));
@@ -538,16 +459,10 @@ export function initMobileActionBar(
     input.addEventListener('blur', commit);
   });
 
-  bar.append(nameChip, undoBtn, redoBtn, shareBtn, sep, propsBtn, deleteBtn);
+  bar.append(nameChip, undoBtn, redoBtn, sep, propsBtn, deleteBtn);
 
   undoBtn.addEventListener('click', () => historyActions.undo());
   redoBtn.addEventListener('click', () => historyActions.redo());
-
-  shareBtn.addEventListener('click', () => {
-    if (history.present.elements.length === 0) return;
-    const open = shareSheet.classList.toggle('open');
-    shareBtn.classList.toggle('active', open);
-  });
 
   propsBtn.addEventListener('click', () => {
     const open = sheet.classList.toggle('open');
@@ -564,14 +479,6 @@ export function initMobileActionBar(
     'pointerdown',
     (e) => {
       const target = e.target as Node;
-      if (
-        shareSheet.classList.contains('open') &&
-        !shareSheet.contains(target) &&
-        target !== shareBtn
-      ) {
-        shareSheet.classList.remove('open');
-        shareBtn.classList.remove('active');
-      }
       if (
         sheet.classList.contains('open') &&
         !sheet.contains(target) &&
@@ -641,7 +548,6 @@ export function initMobileActionBar(
 
     undoBtn.disabled = !history.canUndo();
     redoBtn.disabled = !history.canRedo();
-    shareBtn.disabled = false;
 
     sep.style.display = hasSelection ? 'block' : 'none';
     propsBtn.style.display = 'flex';
@@ -877,8 +783,6 @@ const IC_UNDO = `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" str
 const IC_REDO = `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8H7a4 4 0 000 8h5"/><path d="M13 5l3 3-3 3"/></svg>`;
 const IC_PROPS = `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><line x1="4" y1="6" x2="16" y2="6"/><line x1="4" y1="10" x2="16" y2="10"/><line x1="4" y1="14" x2="16" y2="14"/><circle cx="7" cy="6" r="1.8" fill="currentColor" stroke="none"/><circle cx="13" cy="10" r="1.8" fill="currentColor" stroke="none"/><circle cx="9" cy="14" r="1.8" fill="currentColor" stroke="none"/></svg>`;
 const IC_DELETE = `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h12M8 6V4h4v2M7 9v6M10 9v6M13 9v6M5 6l1 10h8l1-10"/></svg>`;
-const IC_SHARE = `<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="15" cy="5" r="2"/><circle cx="5" cy="10" r="2"/><circle cx="15" cy="15" r="2"/><path d="M7 9l6-3M7 11l6 3"/></svg>`;
-const IC_LINK = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
 
 function mkBtn(icon: string, title: string): HTMLButtonElement {
   const b = document.createElement('button');

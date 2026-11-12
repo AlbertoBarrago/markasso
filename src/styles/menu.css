@@ -249,10 +249,9 @@
     left: 12px;
   }
 
-  /* The live name and people live in the bottom action bar's share sheet on
-     touch; dropping the duplicates keeps the top islands from overlapping. */
-  .tb-live-name-island,
-  .tb-people-island {
+  /* The live name chip lives in the bottom action bar on touch; dropping the
+     duplicate keeps the top islands from overlapping. */
+  .tb-live-name-island {
     display: none !important;
   }
 

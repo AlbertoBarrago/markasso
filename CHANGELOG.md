@@ -19,6 +19,7 @@ All notable changes to this project will be documented here.
 
 ### Removed
 - **Share to X, Reddit and Bluesky.** The Share menu entry now copies the board's link directly, like the Command Palette; the social compose shortcuts are gone.
+- **Mobile share button.** The share button in the bottom bar on phones and tablets is gone: copying the link and the Cloud actions are in the main menu, and during a live session the people list now sits in the top-right corner, as on desktop.
 
 ---
 
