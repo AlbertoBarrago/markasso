@@ -19,6 +19,10 @@ import {
 import { dialog } from './dialog';
 import { showImportError } from './import_error';
 import { copyToClipboard, showShareToast } from './share_actions';
+import {
+  type StyleControlsMode,
+  setStyleControlsMode,
+} from './style_controls_mode';
 
 // ── Theme ─────────────────────────────────────────────────────────────────
 export type ThemeMode = 'light' | 'dark' | 'device';
@@ -50,6 +54,8 @@ export interface UISettings {
   showMinimap: boolean;
   showZoomControls: boolean;
   showTips: boolean;
+  /** Where selection and tool styles live (desktop only). */
+  styleControls: StyleControlsMode;
 }
 
 const STORAGE_KEY = 'markasso-ui-settings';
@@ -65,11 +71,19 @@ export function loadSettings(): UISettings {
     // Zoom and undo/redo stay in sight by default, as in Excalidraw.
     showZoomControls: true,
     showTips: true,
+    styleControls: 'panel',
   };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw)
-      return { ...defaults, ...(JSON.parse(raw) as Partial<UISettings>) };
+    if (raw) {
+      const stored = {
+        ...defaults,
+        ...(JSON.parse(raw) as Partial<UISettings>),
+      };
+      // Unknown values from older or edited storage fall back to the panel.
+      if (stored.styleControls !== 'floating') stored.styleControls = 'panel';
+      return stored;
+    }
   } catch {
     /* ignore */
   }
@@ -88,7 +102,13 @@ export function applySettings(appEl: HTMLElement, s: UISettings): void {
   appEl.classList.toggle('minimap-hidden', !s.showMinimap);
   appEl.classList.toggle('show-zoom-controls', s.showZoomControls);
   appEl.classList.toggle('tips-hidden', !s.showTips);
+  setStyleControlsMode(s.styleControls);
 }
+
+const STYLE_CONTROLS: { mode: StyleControlsMode; labelKey: string }[] = [
+  { mode: 'panel', labelKey: 'styleControlsPanel' },
+  { mode: 'floating', labelKey: 'styleControlsFloating' },
+];
 
 const GRID_TYPES: { type: GridType; label: string; desc: string }[] = [
   { type: 'dot', label: '•', desc: t('dotGrid') },
@@ -402,7 +422,16 @@ export function initSettings(
               'menuitemcheckbox',
               'id="sp-zoom-controls"',
               t('showZoomControls'),
-            )
+            ) +
+            separator +
+            `<li role="none"><ul role="group" aria-label="${t('styleControls')}">${STYLE_CONTROLS.map(
+              (c) =>
+                checkItem(
+                  'menuitemradio',
+                  `data-style-controls="${c.mode}"`,
+                  t(c.labelKey),
+                ),
+            ).join('')}</ul></li>`
           }</ul></li>` +
           separator +
           item('sp-fit-to-content', ICONS.fit, t('fitToContent')) +
@@ -718,6 +747,11 @@ export function initSettings(
       current.showZoomControls,
     );
     setChecked(panel.querySelector('#sp-tips-visible')!, current.showTips);
+    panel
+      .querySelectorAll<HTMLElement>('[data-style-controls]')
+      .forEach((b) => {
+        setChecked(b, b.dataset.styleControls === current.styleControls);
+      });
     setChecked(panel.querySelector('#sp-grid-visible')!, gridVisible);
     const gridTypes = panel.querySelector<HTMLElement>('#sp-grid-types')!;
     if (!gridVisible && gridTypes.contains(document.activeElement)) {
@@ -872,6 +906,17 @@ export function initSettings(
       syncPanel();
     });
   }
+  panel.querySelectorAll<HTMLElement>('[data-style-controls]').forEach((b) => {
+    b.addEventListener('click', () => {
+      current = {
+        ...current,
+        styleControls: b.dataset.styleControls as StyleControlsMode,
+      };
+      saveSettings(current);
+      applySettings(appEl, current);
+      syncPanel();
+    });
+  });
   minimapToggle = () => {
     current = { ...current, showMinimap: !current.showMinimap };
     saveSettings(current);

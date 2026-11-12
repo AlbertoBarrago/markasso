@@ -12,6 +12,7 @@ import { initCloudBoards } from './src/ui/cloud_boards';
 import { initCommandPalette } from './src/ui/command_palette';
 import { initContextPanel } from './src/ui/context_panel';
 import { initElementSearch } from './src/ui/element_search';
+import { initFloatingStyleBar } from './src/ui/floating_style_bar';
 import { initGuide } from './src/ui/guide';
 import { initHintBar } from './src/ui/hint_bar';
 import { initIdleTips } from './src/ui/idle_tips';
@@ -130,9 +131,10 @@ async function bootstrap(): Promise<void> {
     () => mcpSetup.open(),
   );
   const { selectTool, historyActions } = initCanvasView(canvas, hist);
-  initContextPanel(workspace, hist, (source) =>
+  const contextPanel = initContextPanel(workspace, hist, (source) =>
     selectTool.activateFormatPainter(source),
   );
+  initFloatingStyleBar(workspace, hist, canvas, contextPanel);
   initMobileActionBar(workspace, hist, historyActions);
   initShortcuts(hist, selectTool, openPreferences, openFile, historyActions);
   initCommandPalette(
