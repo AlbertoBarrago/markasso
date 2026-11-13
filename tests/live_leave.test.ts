@@ -131,6 +131,21 @@ describe('leaveLiveSession', () => {
     expect(history.present.elements.map((e) => e.id)).toEqual(['a']);
   });
 
+  it('sends the edits still waiting to be paced out before leaving', () => {
+    const history = new History(createScene());
+    joinLiveSession(history, { roomId: 'room-123' });
+    const socket = FakeSocket.all[0]!;
+    socket.open();
+    history.dispatch({ type: 'CREATE_ELEMENT', element: rect });
+    // Within the pacing interval: waits in the outbox.
+    history.dispatch({ type: 'DELETE_ELEMENTS', ids: ['a'] });
+    leaveLiveSession();
+    const sent = socket.sent
+      .filter((m) => (m as { type: string }).type === 'command')
+      .map((m) => (m as { command: { type: string } }).command.type);
+    expect(sent).toEqual(['CREATE_ELEMENT', 'DELETE_ELEMENTS']);
+  });
+
   it.each([
     ['another tab of the same browser joins', 1000, 'replaced', 'replaced'],
     ['the room is full', 1013, 'Room full', 'full'],

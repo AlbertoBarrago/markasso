@@ -3,6 +3,7 @@ import { createScene, type Scene } from '../core/scene';
 import { reducer } from '../engine/reducer';
 import { isValidSessionCommand } from '../io/command_validation';
 import { isValidElement } from '../io/element_validation';
+import { createCommands } from '../io/live_outbox';
 
 /**
  * The command log of one live room, with the scene it builds.
@@ -43,10 +44,6 @@ const MAX_ROOM_CHARS = 24_000_000;
  * string with two bytes per character: half of it leaves room for both.
  */
 const CHUNK_CHARS = 700_000;
-/** Elements per snapshot command, well under the validation limit. */
-const SNAPSHOT_ELEMENTS = 1_000;
-/** Size of one snapshot command, under the size of a message a peer may send. */
-const SNAPSHOT_CHARS = 400_000;
 /** Keys per storage call: `put` and `delete` take at most 128, atomically. */
 const MAX_KEYS_PER_CALL = 128;
 
@@ -126,26 +123,8 @@ export class RoomLog {
     this.logChars = 0;
     this.appendedCommands = 0;
     this.appendedChars = 0;
-    let piece: Scene['elements'][number][] = [];
-    let pieceChars = 0;
-    const flush = (): void => {
-      if (piece.length === 0) return;
-      const command: WireCommand = { type: 'CREATE_ELEMENTS', elements: piece };
+    for (const command of createCommands(this.scene.elements))
       this.push(command, JSON.stringify(command).length);
-      piece = [];
-      pieceChars = 0;
-    };
-    for (const element of this.scene.elements) {
-      const chars = JSON.stringify(element).length;
-      if (
-        piece.length >= SNAPSHOT_ELEMENTS ||
-        (piece.length > 0 && pieceChars + chars > SNAPSHOT_CHARS)
-      )
-        flush();
-      piece.push(element);
-      pieceChars += chars;
-    }
-    flush();
     this.snapshotChars = this.logChars;
     for (let index = 0; index < this.chunks.length; index++)
       this.dirty.add(index);
