@@ -15,6 +15,7 @@ import type {
 } from './agent_requests_protocol';
 import { randomAnimalName } from './animal_names';
 import { LICENSE_KEY } from './cloud';
+import { isValidSessionCommand } from './command_validation';
 import {
   clearCursors,
   setLocalCursorSender,
@@ -397,7 +398,9 @@ export function joinLiveSession(
           // reconnect this also re-syncs anything missed while offline, at
           // the cost of any local edit made purely during the outage (never
           // reached the room log, so it isn't replayed).
-          history.resetForLiveReplay(msg.commands);
+          history.resetForLiveReplay(
+            msg.commands.filter(isValidSessionCommand),
+          );
         } else if (!isSeeder || seedElements.length === 0) {
           // Fresh/empty room and we have nothing to seed: start clean.
           history.resetForLiveReplay([]);
@@ -422,7 +425,16 @@ export function joinLiveSession(
         applyPeers(msg.peers);
       } else if (msg.type === 'apply') {
         // Bare UNDO/REDO from an outdated client: see isSessionCommand.
-        if (isSessionCommand(msg.command)) history.applyRemote(msg.command);
+        if (
+          isSessionCommand(msg.command) &&
+          isValidSessionCommand(msg.command)
+        ) {
+          try {
+            history.applyRemote(msg.command);
+          } catch (error) {
+            console.error('Skipped a live command that failed to apply', error);
+          }
+        }
       } else if (msg.type === 'cursor') {
         upsertRemoteCursor(msg.from, {
           x: msg.x,

@@ -4,6 +4,7 @@ import {
   type AgentRequestMsg,
   MAX_AGENT_REPLY_CHARS,
 } from '../../src/io/agent_requests_protocol';
+import { isValidSessionCommand } from '../../src/io/command_validation';
 import type { Diagram } from './diagram';
 import { markassoBaseUrl } from './storage';
 
@@ -250,7 +251,9 @@ export class LiveLink {
           if (msg.commands.length > 0) {
             // The room is authoritative, as in the app.
             discarded = local.length;
-            history.resetForLiveReplay(msg.commands);
+            history.resetForLiveReplay(
+              msg.commands.filter(isValidSessionCommand),
+            );
           } else if (local.length > 0) {
             // Empty room: publish what the agent already drew.
             this.send({
@@ -268,7 +271,20 @@ export class LiveLink {
           resolve({ seeded, discarded });
         } else if (msg.type === 'apply') {
           // Bare UNDO/REDO from an outdated client: see isSessionCommand.
-          if (isSessionCommand(msg.command)) history.applyRemote(msg.command);
+          if (
+            isSessionCommand(msg.command) &&
+            isValidSessionCommand(msg.command)
+          ) {
+            // An exception in a socket listener would end the process.
+            try {
+              history.applyRemote(msg.command);
+            } catch (error) {
+              console.error(
+                'Skipped a live command that failed to apply',
+                error,
+              );
+            }
+          }
         } else if (msg.type === 'presence') {
           this.peers = msg.peers;
         } else if (msg.type === 'request') {
