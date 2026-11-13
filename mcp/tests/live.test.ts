@@ -134,6 +134,19 @@ describe('LiveLink', () => {
     expect(diagram.elements.map((el) => el.id)).toContain('peer');
   });
 
+  it('skips malformed commands in the room log and from peers', async () => {
+    const diagram = new Diagram();
+    const { socket } = await join(diagram, [
+      { type: 'CREATE_ELEMENTS' },
+      { type: 'CREATE_ELEMENT', element: rect('room', 'From room') },
+      { type: 'FROM_A_NEWER_CLIENT' },
+    ]);
+    expect(diagram.elements.map((el) => el.id)).toEqual(['room']);
+    socket.receive({ type: 'apply', command: { type: 'CREATE_ELEMENTS' } });
+    socket.receive({ type: 'apply', command: { type: 'DELETE_ELEMENTS' } });
+    expect(diagram.elements.map((el) => el.id)).toEqual(['room']);
+  });
+
   it('ignores a bare UNDO from an outdated client', async () => {
     const diagram = new Diagram();
     const { socket } = await join(diagram, []);

@@ -146,7 +146,7 @@ function hasShapeLabelFields(el: Record<string, unknown>): boolean {
   );
 }
 
-function isValidStencilSource(value: unknown): boolean {
+export function isValidStencilSource(value: unknown): boolean {
   if (!isRecord(value)) return false;
   if (value.kind === 'builtin') {
     return isString(value.ref, 128) && isValidStencilRef(value.ref);
@@ -199,7 +199,7 @@ function hasPointFields(el: Record<string, unknown>): boolean {
   );
 }
 
-function isImageSource(value: unknown): value is string {
+export function isImageSource(value: unknown): value is string {
   return (
     isString(value, 10_000_000) &&
     /^data:image\/(?:png|jpe?g|gif|webp|svg\+xml);base64,/i.test(value)

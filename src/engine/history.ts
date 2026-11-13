@@ -173,7 +173,15 @@ export class History {
     this.drag = null;
     this._present = createScene();
     if (keepViewport) this._present = { ...this._present, viewport };
-    for (const command of commands) this.applyRemote(command);
+    for (const command of commands) {
+      // One command the reducer cannot apply must not cost the rest of the
+      // board: skip it and keep replaying.
+      try {
+        this.applyRemote(command);
+      } catch (error) {
+        console.error('Skipped a live command that failed to apply', error);
+      }
+    }
   }
 
   dispatch(command: Command): void {

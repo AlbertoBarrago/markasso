@@ -10,6 +10,7 @@ import {
   type RequestStatusMsg,
 } from './io/agent_requests_protocol';
 import { randomAnimalName } from './io/animal_names';
+import { isValidSessionCommand } from './io/command_validation';
 import { validateElements } from './io/element_validation';
 import {
   buildIssueBody,
@@ -133,7 +134,10 @@ export class SessionRoom {
     if (this.loaded) return;
     this.loaded = true;
     const stored = await this.state.storage.get<WireCommand[]>(LOG_KEY);
-    if (Array.isArray(stored)) this.commands.push(...stored);
+    // Logs written before commands were validated may hold one that breaks
+    // the replay for everyone who joins: drop those while loading.
+    if (Array.isArray(stored))
+      this.commands.push(...stored.filter(isValidSessionCommand));
     const last = await this.state.storage.get<number>(LAST_ACTIVITY_KEY);
     if (typeof last === 'number') this.lastActivity = last;
   }
@@ -333,6 +337,9 @@ export class SessionRoom {
       const command = m.command as WireCommand;
       // Also drops bare UNDO/REDO from outdated clients (see isSessionCommand).
       if (!isSessionCommand(command)) return;
+      // Relayed to every peer and replayed to every joiner: a malformed
+      // command must stop here.
+      if (!isValidSessionCommand(command)) return;
       if (!this.allowCommand(clientId)) return;
       this.touch();
       this.broadcast(
