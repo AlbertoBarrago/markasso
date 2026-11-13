@@ -507,6 +507,28 @@ function scripts(fam: Family): void {
     h.undo();
   });
 
+  trace(fam, "resetForLiveReplay keeps this user's appState", () => {
+    const h = new History(makeScene([sample('rect')], ['r']));
+    h.dispatch({ type: 'SET_TOOL', tool: 'rectangle' });
+    h.dispatch({ type: 'APPLY_STYLE', strokeColor: '#ff0000', opacity: 0.5 });
+    h.dispatch({ type: 'SET_TOOL_LOCK', locked: true });
+    h.dispatch({ type: 'TOGGLE_GRID' });
+    h.dispatch({ type: 'SET_TEXT_MODE', mode: 'code' });
+    h.dispatch({
+      type: 'CREATE_ELEMENT',
+      element: sample('ellipse'),
+      select: false,
+    });
+    h.resetForLiveReplay([
+      { type: 'CREATE_ELEMENT', element: sample('note') },
+      {
+        type: 'LOAD_SCENE',
+        elements: [sample('curve')],
+        viewport: { offsetX: 90, offsetY: 90, zoom: 0.2 },
+      },
+    ]);
+  });
+
   trace(fam, 'resetForLiveReplay with a fresh viewport', () => {
     const h = new History(
       makeScene([sample('rect')], [], {}, { offsetX: 7, offsetY: 8, zoom: 3 }),
