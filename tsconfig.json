@@ -20,6 +20,7 @@
     "tests/boards.test.ts",
     "tests/license.test.ts",
     "tests/live_commands.test.ts",
+    "tests/room_log.test.ts",
     "tests/live_gate.test.ts",
     "tests/live_requests.test.ts",
     "tests/mac_download.test.ts",
