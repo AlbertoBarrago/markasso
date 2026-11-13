@@ -803,6 +803,14 @@ function selectCases(): Array<[string, CaseSpec]> {
       up(250, 120, { shift: true }),
     ],
   });
+  // Almost a full turn already: the drag stays within half a turn.
+  sel('rotate past a full turn wraps around', {
+    elements: scene.map((el) =>
+      el.id === 'r' ? { ...el, rotation: 2 * Math.PI - 0.001 } : el,
+    ),
+    selected: ['r'],
+    events: [down(160, 66), move(200, 70), move(260, 130), up(260, 130)],
+  });
   sel('rotate multi selection does nothing', {
     elements: scene,
     selected: ['r', 'e'],
