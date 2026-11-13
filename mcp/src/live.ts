@@ -5,6 +5,7 @@ import {
   MAX_AGENT_REPLY_CHARS,
 } from '../../src/io/agent_requests_protocol';
 import { isValidSessionCommand } from '../../src/io/command_validation';
+import { createCommands, LiveOutbox } from '../../src/io/live_outbox';
 import type { Diagram } from './diagram';
 import { markassoBaseUrl } from './storage';
 
@@ -204,6 +205,11 @@ export class LiveLink {
     this.wakeWaiters();
   }
 
+  /** Scene commands, paced to the room's quota (see LiveOutbox). */
+  private readonly outbox = new LiveOutbox({
+    send: (command) => this.send({ type: 'command', command }),
+  });
+
   private send(message: unknown): void {
     if (this.socket?.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify(message));
@@ -255,16 +261,15 @@ export class LiveLink {
               msg.commands.filter(isValidSessionCommand),
             );
           } else if (local.length > 0) {
-            // Empty room: publish what the agent already drew.
-            this.send({
-              type: 'command',
-              command: { type: 'CREATE_ELEMENTS', elements: local },
-            });
+            // Empty room: publish what the agent already drew, in pieces
+            // the room accepts.
+            for (const command of createCommands(local, { validOnly: true }))
+              this.outbox.push(command);
             seeded = true;
           }
           history.setOnCommand((command) => {
             if (this.open && isSessionCommand(command)) {
-              this.send({ type: 'command', command });
+              this.outbox.push(command);
             }
           });
           this.open = true;
@@ -313,6 +318,7 @@ export class LiveLink {
             ),
           );
         this.open = false;
+        this.outbox.clear();
         history.setOnCommand(undefined);
         this.wakeWaiters();
       });
@@ -331,6 +337,8 @@ export class LiveLink {
   }
 
   leave(): void {
+    // Edits already applied here still reach the peers before the close.
+    this.outbox.drain();
     this.open = false;
     this.wakeWaiters();
     this.diagram.history.setOnCommand(undefined);

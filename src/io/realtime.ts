@@ -16,6 +16,7 @@ import type {
 import { randomAnimalName } from './animal_names';
 import { LICENSE_KEY } from './cloud';
 import { isValidSessionCommand } from './command_validation';
+import { createCommands, LiveOutbox } from './live_outbox';
 import {
   clearCursors,
   setLocalCursorSender,
@@ -280,6 +281,10 @@ export function joinLiveSession(
   function send(msg: unknown): void {
     if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
   }
+  // Scene commands go through the outbox, paced to the room's quota.
+  const outbox = new LiveOutbox({
+    send: (command) => send({ type: 'command', command }),
+  });
 
   const emitPeers = (): void => {
     const others = [...peers.values()];
@@ -309,6 +314,8 @@ export function joinLiveSession(
   document.addEventListener('markasso-cloud-change', onLicenseChange);
 
   function leave(): void {
+    // Edits already applied here still reach the peers, socket permitting.
+    outbox.drain();
     left = true;
     ready = false;
     document.removeEventListener('markasso-cloud-change', onLicenseChange);
@@ -355,7 +362,7 @@ export function joinLiveSession(
 
   history.setOnCommand((command) => {
     if (!ready || !isSessionCommand(command)) return;
-    send({ type: 'command', command });
+    outbox.push(command);
   });
 
   function applyPeers(list: PeerInfo[]): void {
@@ -424,16 +431,10 @@ export function joinLiveSession(
         // current elements so later joiners see them. Echo is suppressed by the
         // server, so the creator keeps the view they already had.
         if (isSeeder && msg.commands.length === 0) {
-          for (const element of seedElements) {
-            send({
-              type: 'command',
-              command: {
-                type: 'CREATE_ELEMENT',
-                element,
-                select: false,
-              },
-            });
-          }
+          for (const command of createCommands(seedElements, {
+            validOnly: true,
+          }))
+            outbox.push(command);
         }
 
         applyPeers(msg.peers);
@@ -468,6 +469,8 @@ export function joinLiveSession(
 
     socket.onclose = (event) => {
       ready = false;
+      // Not sent: the room's log replaces this board when it reconnects.
+      outbox.clear();
       revokeAgentRequestAccess();
       clearCursors();
       const ended: LiveEndReason | null =

@@ -163,6 +163,8 @@ describe('LiveLink', () => {
     await diagram.addNodes([{ key: 'api' }]);
     diagram.history.undo();
     expect(diagram.elements).toHaveLength(0);
+    // Paced: a command right after another leaves on the next interval.
+    await new Promise((resolve) => setTimeout(resolve, 80));
     expect(socket.sent.at(-1)).toMatchObject({
       type: 'command',
       command: { type: 'PATCH_ELEMENTS', delete: [expect.any(String)] },
