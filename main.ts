@@ -3,8 +3,13 @@ import type { Scene } from './src/core/scene';
 import { createScene } from './src/core/scene';
 import { fitToElements } from './src/core/viewport';
 import { History } from './src/engine/history';
+import { t } from './src/i18n';
 import { parseBoardUrl } from './src/io/cloud';
-import { getLiveRoomId, joinLiveSession } from './src/io/realtime';
+import {
+  getActiveLiveRoomId,
+  getLiveRoomId,
+  joinLiveSession,
+} from './src/io/realtime';
 import { initSession, loadSession } from './src/io/session';
 import { decodeScene, isShareHash } from './src/io/share';
 import { initCanvasView } from './src/ui/canvas_view';
@@ -12,6 +17,7 @@ import { initCloudBoards } from './src/ui/cloud_boards';
 import { initCommandPalette } from './src/ui/command_palette';
 import { initContextMenu } from './src/ui/context_menu';
 import { initContextPanel } from './src/ui/context_panel';
+import { confirmDialog } from './src/ui/dialog';
 import { initElementSearch } from './src/ui/element_search';
 import { initFloatingStyleBar } from './src/ui/floating_style_bar';
 import { initGuide } from './src/ui/guide';
@@ -58,6 +64,16 @@ function printConsoleGreeting(): void {
   );
 }
 
+/** Asks before a link replaces the drawing saved in this browser. */
+function confirmOpenLink(): Promise<boolean> {
+  return confirmDialog({
+    title: t('openLinkTitle'),
+    message: t('openLinkMessage'),
+    confirmKey: 'openLinkConfirm',
+    danger: true,
+  });
+}
+
 async function bootstrap(): Promise<void> {
   printConsoleGreeting();
   const appEl = document.getElementById('app') as HTMLElement;
@@ -77,13 +93,25 @@ async function bootstrap(): Promise<void> {
   let sharedElements: Awaited<ReturnType<typeof decodeScene>> = null;
   if (!cloudRoute && isShareHash(location.hash)) {
     sharedElements = await decodeScene(location.hash);
-    if (sharedElements) {
-      // Remove hash from URL without reloading to keep the URL clean after load
-      history.replaceState(null, '', location.pathname + location.search);
-    }
   }
 
   const session = loadSession();
+  // A shared or live link replaces the drawing saved in this browser, which
+  // autosave would then overwrite: ask first. Cancelling opens that drawing
+  // and leaves the link in the address, so a reload offers it again once the
+  // drawing is safe. Rejoining the room the drawing already comes from needs
+  // no question.
+  if (session && sharedElements && !(await confirmOpenLink())) {
+    sharedElements = null;
+  }
+  if (sharedElements) {
+    // Remove hash from URL without reloading to keep the URL clean after load
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+  const liveRoom = cloudRoute ? null : getLiveRoomId();
+  const joinLive =
+    liveRoom !== null &&
+    (!session || session.liveRoom === liveRoom || (await confirmOpenLink()));
   let baseScene: Scene;
   if (sharedElements) {
     const vp = fitToElements(
@@ -152,11 +180,16 @@ async function bootstrap(): Promise<void> {
   initShortcutsHelp(appEl);
   initHintBar(appEl, hist);
   initIdleTips(appEl, hist);
-  initSession(hist);
+  initSession(hist, {
+    // A cloud board is saved in the cloud: keep it out of the local session,
+    // which holds the drawing of this browser.
+    paused: () =>
+      CLOUD_ENABLED && parseBoardUrl(new URL(location.href)) !== null,
+    liveRoom: getActiveLiveRoomId,
+  });
   // People arriving through a shared or live link see the board first; the
   // notice stays unseen and shows on their next plain visit.
-  const invited =
-    !!cloudRoute || sharedElements !== null || getLiveRoomId() !== null;
+  const invited = !!cloudRoute || sharedElements !== null || joinLive;
   const showedWhatsNew = !invited && initWhatsNew(appEl);
   const showedWelcome =
     !invited && !showedWhatsNew && !session && !sharedElements;
@@ -167,7 +200,7 @@ async function bootstrap(): Promise<void> {
   initUpdateBanner();
 
   // Join a live session if the URL points to one (…?live=roomId)
-  if (!cloudRoute && getLiveRoomId()) {
+  if (joinLive) {
     joinLiveSession(hist, {
       onStatus: (connected) => {
         setLiveUI(connected);
