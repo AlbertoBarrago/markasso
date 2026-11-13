@@ -179,6 +179,49 @@ describe('LiveLink', () => {
     }
   });
 
+  it('never sends the licence to another host', async () => {
+    process.env.MARKASSO_LICENSE = 'MKC-AAAAA-BBBBB-CCCCC-DDDDD-EEEEE';
+    try {
+      const pending = LiveLink.join(
+        new Diagram([]),
+        'https://evil.example/?live=room-123',
+        'Claude',
+      );
+      await new Promise((r) => setTimeout(r, 0));
+      const socket = FakeSocket.last!;
+      expect(socket.url).toMatch(/^wss:\/\/evil\.example\//);
+      expect(socket.sent).toHaveLength(1);
+      expect(socket.sent[0]).toMatchObject({ type: 'presence' });
+      expect(JSON.stringify(socket.sent)).not.toContain('MKC-');
+      socket.receive({ type: 'error', error: 'licence required' });
+      await expect(pending).rejects.toThrow(
+        /not sent because the link points to https:\/\/evil\.example/,
+      );
+    } finally {
+      delete process.env.MARKASSO_LICENSE;
+    }
+  });
+
+  it('sends the licence to the instance set in MARKASSO_URL', async () => {
+    process.env.MARKASSO_LICENSE = 'MKC-AAAAA-BBBBB-CCCCC-DDDDD-EEEEE';
+    process.env.MARKASSO_URL = 'http://localhost:8787/';
+    try {
+      const pending = LiveLink.join(
+        new Diagram([]),
+        'http://localhost:8787/?live=room-123',
+        'Claude',
+      );
+      await new Promise((r) => setTimeout(r, 0));
+      const socket = FakeSocket.last!;
+      expect(socket.sent[0]).toMatchObject({ type: 'auth' });
+      socket.receive({ type: 'init', self: 'me', commands: [], peers: [] });
+      (await pending).link.leave();
+    } finally {
+      delete process.env.MARKASSO_LICENSE;
+      delete process.env.MARKASSO_URL;
+    }
+  });
+
   it('explains a missing licence when the room refuses the agent', async () => {
     const pending = LiveLink.join(
       new Diagram([]),

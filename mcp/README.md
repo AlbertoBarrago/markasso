@@ -57,7 +57,7 @@ args = ["-y", "@markasso/mcp@latest"]
 
 **Drawing live with people:** `live_join` puts the agent in a live session next to you. This needs a [Markasso Cloud](https://markasso.it/cloud) licence: set `MARKASSO_LICENSE` to your key in the server's environment, e.g. `"env": { "MARKASSO_LICENSE": "MKC-…" }` in the entry above. Everything else in this server is free.
 
-**Another Markasso instance:** set `MARKASSO_URL` (default `https://markasso.it`) in the server's environment.
+**Another Markasso instance:** set `MARKASSO_URL` (default `https://markasso.it`) in the server's environment. The licence key is only ever sent to this instance: a live link to any other host is joined without it.
 
 ## Build from source
 
