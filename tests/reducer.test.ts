@@ -1003,6 +1003,60 @@ describe('reducer', () => {
     expect((next.elements[0] as TextElement).height).toBe(30);
   });
 
+  it('SET_FONT_SIZE resizes each text to its own measured box', () => {
+    const base = {
+      type: 'text' as const,
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 30,
+      content: 'hi',
+      fontSize: 16,
+      fontFamily: 'sans-serif',
+      strokeColor: '#000',
+      fillColor: 'transparent',
+      strokeWidth: 0,
+      opacity: 1,
+      roughness: 0,
+    };
+    const scene: Scene = {
+      ...createScene(),
+      elements: [
+        { ...base, id: 'a' },
+        { ...base, id: 'b' },
+        { ...base, id: 'c' },
+      ],
+      selectedIds: new Set(['c']),
+    };
+    const next = reducer(scene, {
+      type: 'SET_FONT_SIZE',
+      size: 30,
+      ids: ['a', 'b'],
+      bounds: [
+        { id: 'a', width: 50, height: 40 },
+        { id: 'b', width: 300, height: 40 },
+      ],
+    });
+    const sizes = next.elements.map((el) =>
+      el.type === 'text' ? [el.fontSize, el.width] : [],
+    );
+    // Explicit ids win over the local selection ('c').
+    expect(sizes).toEqual([
+      [30, 50],
+      [30, 300],
+      [16, 100],
+    ]);
+  });
+
+  it('a remote SET_TEXT_MODE keeps the local text tool mode', () => {
+    const next = reducer(
+      createScene(),
+      { type: 'SET_TEXT_MODE', mode: 'code', ids: [] },
+      true,
+    );
+    expect(next.appState.textMode).toBe('text');
+  });
+
   it('SET_TEXT_MODE sets isCode on selected text elements', () => {
     const text: TextElement = {
       id: 'txt1',

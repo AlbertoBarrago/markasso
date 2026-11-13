@@ -199,9 +199,18 @@ const CHECKS: Record<string, (c: Fields) => boolean> = {
     isString(c.label) &&
     optionalNumber(c.labelFontSize) &&
     optionalString(c.labelFontFamily),
-  SET_FONT_FAMILY: (c) => isString(c.family),
+  SET_FONT_FAMILY: (c) => isString(c.family) && optionalIdList(c.ids),
   SET_FONT_SIZE: (c) =>
-    isNumber(c.size) && optionalNumber(c.width) && optionalNumber(c.height),
+    isNumber(c.size) &&
+    optionalIdList(c.ids) &&
+    optional((bounds) =>
+      isListOf(
+        bounds,
+        (box) => isId(box.id) && isNumber(box.width) && isNumber(box.height),
+      ),
+    )(c.bounds) &&
+    optionalNumber(c.width) &&
+    optionalNumber(c.height),
   SET_ROTATION: (c) => isId(c.id) && isNumber(c.rotation),
   SET_STROKE_STYLE: (c) => STROKE_STYLES.has(c.style as string),
   REORDER_ELEMENTS: (c) => isIdList(c.ids) && isNumber(c.targetIndex),
@@ -213,7 +222,8 @@ const CHECKS: Record<string, (c: Fields) => boolean> = {
   UNGROUP_ELEMENTS: (c) => isId(c.groupId),
   LOCK_ELEMENTS: (c) => isIdList(c.ids),
   UNLOCK_ELEMENTS: (c) => isIdList(c.ids),
-  SET_TEXT_MODE: (c) => TEXT_MODES.has(c.mode as string),
+  SET_TEXT_MODE: (c) =>
+    TEXT_MODES.has(c.mode as string) && optionalIdList(c.ids),
   ALIGN_ELEMENTS: (c) =>
     isListOf(
       c.moves,
