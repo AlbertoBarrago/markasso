@@ -562,7 +562,9 @@ export function reducer(
         ...scene,
         elements: command.elements,
         selectedIds: new Set(),
-        viewport: command.viewport,
+        // The viewport fits the scene to the sender's window: a peer keeps
+        // its own.
+        viewport: isRemote ? scene.viewport : command.viewport,
       };
 
     case 'GROUP_ELEMENTS': {

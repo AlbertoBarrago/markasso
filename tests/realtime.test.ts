@@ -159,4 +159,51 @@ describe('History.resetForLiveReplay', () => {
     expect(ids).toEqual(['r1', 'r2']);
     expect(h.canUndo()).toBe(false);
   });
+
+  it("keeps this user's tool, style defaults and grid", () => {
+    const h = new History(createScene());
+    h.dispatch({ type: 'SET_TOOL', tool: 'rectangle' });
+    h.dispatch({ type: 'APPLY_STYLE', strokeColor: '#ff0000' });
+    h.dispatch({ type: 'SET_TOOL_LOCK', locked: true });
+    h.dispatch({ type: 'TOGGLE_GRID' });
+    h.dispatch({
+      type: 'CREATE_ELEMENT',
+      element: rect('mine'),
+      select: false,
+    });
+    const before = h.present.appState;
+    h.resetForLiveReplay([{ type: 'CREATE_ELEMENT', element: rect('r1') }]);
+    expect(h.present.appState).toEqual({
+      ...before,
+      // It pointed at an element of the board that was replaced.
+      lastCreatedId: null,
+    });
+  });
+
+  it('notifies once, also for an empty room', () => {
+    const h = new History(createScene());
+    h.dispatch({ type: 'CREATE_ELEMENT', element: rect('mine') });
+    const listener = vi.fn();
+    h.subscribe(listener);
+    h.resetForLiveReplay([]);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener.mock.calls[0]?.[0].elements).toEqual([]);
+    h.resetForLiveReplay([
+      { type: 'CREATE_ELEMENT', element: rect('r1') },
+      { type: 'CREATE_ELEMENT', element: rect('r2') },
+    ]);
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the viewport when a peer loads a scene', () => {
+    const h = new History(createScene());
+    h.dispatch({ type: 'SET_VIEWPORT', offsetX: 5, offsetY: 6, zoom: 2 });
+    h.applyRemote({
+      type: 'LOAD_SCENE',
+      elements: [rect('theirs')],
+      viewport: { offsetX: 900, offsetY: 900, zoom: 0.2 },
+    });
+    expect(h.present.viewport).toEqual({ offsetX: 5, offsetY: 6, zoom: 2 });
+    expect(h.present.elements.map((e) => e.id)).toEqual(['theirs']);
+  });
 });

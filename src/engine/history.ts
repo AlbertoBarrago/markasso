@@ -174,25 +174,38 @@ export class History {
     this.notify();
   }
 
-  /** Reset the scene to a fresh board, then replay a list of commands (used when
-   *  joining a live room: the room's log is authoritative). Does not touch undo. */
+  /**
+   * Replaces the board with the room's (used when joining or rejoining a live
+   * room: the room's log is authoritative), then notifies once. Clears undo.
+   *
+   * Only the board is replaced: the tool, the default style and the grid are
+   * this user's own and survive a join or a reconnect. The viewport survives
+   * too unless `keepViewport` is false.
+   */
   resetForLiveReplay(commands: readonly Command[], keepViewport = true): void {
     if (this.readOnly) return;
-    const viewport = this._present.viewport;
+    const { viewport, appState } = this._present;
     this.past = [];
     this.future = [];
     this.drag = null;
-    this._present = createScene();
-    if (keepViewport) this._present = { ...this._present, viewport };
+    const fresh = createScene();
+    let scene: Scene = {
+      ...fresh,
+      // These two point at elements of the board being replaced.
+      appState: { ...appState, lastCreatedId: null, justCreatedText: false },
+      viewport: keepViewport ? viewport : fresh.viewport,
+    };
     for (const command of commands) {
       // One command the reducer cannot apply must not cost the rest of the
       // board: skip it and keep replaying.
       try {
-        this.applyRemote(command);
+        scene = reducer(scene, command, true);
       } catch (error) {
         console.error('Skipped a live command that failed to apply', error);
       }
     }
+    this._present = scene;
+    this.notify();
   }
 
   dispatch(command: Command): void {
