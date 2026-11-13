@@ -59,6 +59,8 @@
   "startLiveSession": "ライブセッションを開始",
   "leaveLiveSession": "ライブセッションを退出",
   "liveLeft": "ライブセッションを退出しました。ボードはコピーとしてここに残ります。",
+  "liveReplaced": "このライブセッションは、このブラウザの別のタブで開かれています。ボードはコピーとしてここに残ります。",
+  "liveFull": "このライブセッションは満員です。ボードはコピーとしてここに残ります。",
   "inviteAiAgent": "AIエージェントを招待",
   "inviteAiAgentLocked": "Markasso Cloudで利用可能",
   "mcpInviteCopied": "プロンプトをコピーしました：AIエージェントに貼り付けてください",

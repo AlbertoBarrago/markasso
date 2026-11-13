@@ -59,6 +59,8 @@
   "startLiveSession": "Avvia sessione live",
   "leaveLiveSession": "Esci dalla sessione live",
   "liveLeft": "Hai lasciato la sessione live. La lavagna resta qui come copia.",
+  "liveReplaced": "Questa sessione live è aperta in un'altra scheda di questo browser. La lavagna resta qui come copia.",
+  "liveFull": "Questa sessione live è al completo. La lavagna resta qui come copia.",
   "inviteAiAgent": "Invita agente AI",
   "inviteAiAgentLocked": "Con Markasso Cloud",
   "mcpInviteCopied": "Prompt copiato: incollalo nel tuo agente AI",

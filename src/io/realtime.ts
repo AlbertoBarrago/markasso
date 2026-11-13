@@ -39,7 +39,16 @@ export interface LiveOptions {
   seedElements?: readonly Element[];
   onPeers?: (peers: PeerInfo[]) => void;
   onStatus?: (connected: boolean) => void;
+  /** The room ended the session for this tab; it will not reconnect. */
+  onEnded?: (reason: LiveEndReason) => void;
 }
+
+/**
+ * Why a room closed the session for good: the same browser joined it from
+ * another tab (a room holds one connection per client), or it has no place
+ * left. Reconnecting would only repeat the refusal, or evict the other tab.
+ */
+export type LiveEndReason = 'replaced' | 'full';
 
 interface InitMsg {
   type: 'init';
@@ -242,6 +251,9 @@ export function setLiveName(name: string): void {
  */
 const RECONNECT_BASE_MS = 1000;
 const RECONNECT_MAX_MS = 10000;
+/** Close codes the room uses (src/worker.ts) when it ends a session. */
+const CLOSE_REPLACED = 1000;
+const CLOSE_ROOM_FULL = 1013;
 
 export function joinLiveSession(
   history: History,
@@ -375,7 +387,6 @@ export function joinLiveSession(
     ws = socket;
 
     socket.onopen = () => {
-      reconnectAttempt = 0;
       opts.onStatus?.(true);
       send({ type: 'presence', name: self.name, color: self.color });
       // The room forgets licences on disconnect: prove it on every connect.
@@ -390,6 +401,9 @@ export function joinLiveSession(
         return;
       }
       if (msg.type === 'init') {
+        // Only now is the peer in the room: a socket the room opens and then
+        // refuses must not reset the backoff.
+        reconnectAttempt = 0;
         ready = true;
         self.id = msg.self;
 
@@ -452,10 +466,21 @@ export function joinLiveSession(
       }
     };
 
-    socket.onclose = () => {
+    socket.onclose = (event) => {
       ready = false;
       revokeAgentRequestAccess();
       clearCursors();
+      const ended: LiveEndReason | null =
+        event.code === CLOSE_REPLACED && event.reason === 'replaced'
+          ? 'replaced'
+          : event.code === CLOSE_ROOM_FULL
+            ? 'full'
+            : null;
+      if (ended) {
+        leave();
+        opts.onEnded?.(ended);
+        return;
+      }
       opts.onStatus?.(false);
       scheduleReconnect();
     };

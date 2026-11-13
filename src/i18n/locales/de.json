@@ -59,6 +59,8 @@
   "startLiveSession": "Live-Sitzung starten",
   "leaveLiveSession": "Live-Sitzung verlassen",
   "liveLeft": "Du hast die Live-Sitzung verlassen. Das Board bleibt hier als Kopie.",
+  "liveReplaced": "Diese Live-Sitzung ist in einem anderen Tab dieses Browsers geöffnet. Das Board bleibt hier als Kopie.",
+  "liveFull": "Diese Live-Sitzung ist voll. Das Board bleibt hier als Kopie.",
   "inviteAiAgent": "KI-Agent einladen",
   "inviteAiAgentLocked": "Mit Markasso Cloud",
   "mcpInviteCopied": "Prompt kopiert: füge ihn in deinen KI-Agenten ein",
