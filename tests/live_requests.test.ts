@@ -58,8 +58,14 @@ async function room() {
   await instance.admit(alice, 'alice-client', 'browser');
   await instance.admit(bob, 'bob-client', 'browser');
   await instance.admit(agent, 'agent-client', 'agent');
+  agentId = idOf(agent);
   return { instance, alice, bob, agent };
 }
+
+/** The id the room gave a peer: what the other peers know it by. */
+const idOf = (peer: FakeServerSocket): string =>
+  peer.ofType('init')[0]?.self as string;
+let agentId = '';
 
 async function authorize(peer: FakeServerSocket, license: string) {
   peer.receive({ type: 'auth', license });
@@ -70,7 +76,7 @@ async function authorize(peer: FakeServerSocket, license: string) {
 }
 
 const ask = (peer: FakeServerSocket, text = 'Add a cache', ref = 'r1') =>
-  peer.receive({ type: 'request', ref, to: 'agent-client', text });
+  peer.receive({ type: 'request', ref, to: agentId, text });
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -78,12 +84,46 @@ afterEach(() => {
 
 describe('live agent requests', () => {
   it('lists each peer with its kind', async () => {
-    const { alice } = await room();
+    const { alice, bob, agent } = await room();
     expect(alice.ofType('presence').at(-1)?.peers).toEqual([
-      expect.objectContaining({ id: 'alice-client', kind: 'browser' }),
-      expect.objectContaining({ id: 'bob-client', kind: 'browser' }),
-      expect.objectContaining({ id: 'agent-client', kind: 'agent' }),
+      expect.objectContaining({ id: idOf(alice), kind: 'browser' }),
+      expect.objectContaining({ id: idOf(bob), kind: 'browser' }),
+      expect.objectContaining({ id: idOf(agent), kind: 'agent' }),
     ]);
+  });
+
+  it('never tells a peer the client id of another', async () => {
+    const { instance, alice, bob, agent } = await room();
+    await authorize(alice, KEY);
+    ask(alice);
+    alice.receive({ type: 'cursor', x: 1, y: 2 });
+    alice.receive({
+      type: 'command',
+      command: { type: 'DELETE_ELEMENTS', ids: ['x'] },
+    });
+    const heard = JSON.stringify([bob.sent, agent.sent]);
+    expect(heard).toContain(idOf(alice));
+    expect(heard).not.toContain('alice-client');
+    expect(new Set([idOf(alice), idOf(bob), idOf(agent)]).size).toBe(3);
+
+    // Joining with the id peers can see does not take over that peer.
+    const mallory = new FakeServerSocket();
+    await instance.admit(mallory, idOf(alice), 'browser');
+    expect(idOf(mallory)).not.toBe(idOf(alice));
+    ask(mallory, 'as alice', 'r9');
+    expect(mallory.ofType('request_status').at(-1)).toMatchObject({
+      status: 'rejected',
+      reason: 'unauthorized',
+    });
+    ask(alice, 'still me', 'r2');
+    expect(agent.ofType('request')).toHaveLength(2);
+  });
+
+  it('keeps the same id for a peer that reconnects', async () => {
+    const { instance, alice } = await room();
+    const again = new FakeServerSocket();
+    await instance.admit(again, 'alice-client', 'browser');
+    expect(idOf(again)).toBe(idOf(alice));
   });
 
   it('tells only the licensed peer it may send requests', async () => {
@@ -103,7 +143,7 @@ describe('live agent requests', () => {
     ask(alice);
     const [request] = agent.ofType('request');
     expect(request).toMatchObject({
-      from: 'alice-client',
+      from: idOf(alice),
       text: 'Add a cache',
     });
     expect(alice.ofType('request_status')).toEqual([
@@ -146,14 +186,14 @@ describe('live agent requests', () => {
   it('never lets an agent send requests', async () => {
     const { agent } = await room();
     await authorize(agent, KEY).catch(() => undefined);
-    agent.receive({ type: 'request', to: 'agent-client', text: 'loop' });
+    agent.receive({ type: 'request', to: agentId, text: 'loop' });
     expect(agent.ofType('request')).toEqual([]);
   });
 
   it('rejects requests to a peer that is not a connected agent', async () => {
-    const { alice, agent } = await room();
+    const { alice, bob, agent } = await room();
     await authorize(alice, KEY);
-    alice.receive({ type: 'request', ref: 'r1', to: 'bob-client', text: 'hi' });
+    alice.receive({ type: 'request', ref: 'r1', to: idOf(bob), text: 'hi' });
     agent.close();
     ask(alice, 'hi', 'r2');
     expect(

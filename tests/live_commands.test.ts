@@ -14,7 +14,10 @@ class FakeServerSocket {
   send(data: string): void {
     this.sent.push(JSON.parse(data) as Record<string, unknown>);
   }
-  close(): void {}
+  closed: string | null = null;
+  close(_code?: number, reason?: string): void {
+    this.closed = reason ?? '';
+  }
   receive(message: unknown): void {
     for (const cb of this.listeners.get('message') ?? [])
       cb({ data: JSON.stringify(message) });
@@ -73,7 +76,7 @@ describe('live room commands', () => {
     const { instance, alice, bob } = await room();
     alice.receive({ type: 'command', command: create });
     expect(bob.ofType('apply')).toEqual([
-      { type: 'apply', command: create, from: 'alice-client' },
+      { type: 'apply', command: create, from: alice.ofType('init')[0]?.self },
     ]);
     const carol = new FakeServerSocket();
     await instance.admit(carol, 'carol-client', 'browser');
@@ -103,5 +106,18 @@ describe('live room commands', () => {
       create,
       { type: 'DELETE_ELEMENTS', ids: ['zzz'] },
     ]);
+  });
+
+  it('replaces the first of two tabs with the same client id that join at once', async () => {
+    const { instance } = await room();
+    const first = new FakeServerSocket();
+    const second = new FakeServerSocket();
+    await Promise.all([
+      instance.admit(first, 'carol-client', 'browser'),
+      instance.admit(second, 'carol-client', 'browser'),
+    ]);
+    // Both registered, they would miss each other's edits.
+    expect(first.closed).toBe('replaced');
+    expect(second.closed).toBeNull();
   });
 });

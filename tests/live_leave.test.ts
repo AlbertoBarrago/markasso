@@ -16,7 +16,7 @@ class FakeSocket {
   closed: { code?: number; reason?: string } | null = null;
   onopen: (() => void) | null = null;
   onmessage: ((event: { data: string }) => void) | null = null;
-  onclose: (() => void) | null = null;
+  onclose: ((event: { code?: number; reason?: string }) => void) | null = null;
   onerror: (() => void) | null = null;
   constructor(readonly url: string) {
     FakeSocket.all.push(this);
@@ -39,7 +39,7 @@ class FakeSocket {
   close(code?: number, reason?: string): void {
     this.readyState = 3;
     this.closed = { code, reason } as { code?: number; reason?: string };
-    this.onclose?.();
+    this.onclose?.(this.closed);
   }
 }
 
@@ -129,6 +129,43 @@ describe('leaveLiveSession', () => {
     expect(FakeSocket.all).toHaveLength(1);
     // The board stays as a local copy.
     expect(history.present.elements.map((e) => e.id)).toEqual(['a']);
+  });
+
+  it.each([
+    ['another tab of the same browser joins', 1000, 'replaced', 'replaced'],
+    ['the room is full', 1013, 'Room full', 'full'],
+  ])('ends the session without reconnecting when %s', (_, code, reason, expected) => {
+    const history = new History(createScene());
+    const ended: string[] = [];
+    const status: boolean[] = [];
+    joinLiveSession(history, {
+      roomId: 'room-123',
+      onEnded: (why) => ended.push(why),
+      onStatus: (connected) => status.push(connected),
+    });
+    FakeSocket.all[0]!.open();
+    FakeSocket.all[0]!.close(code, reason);
+    vi.advanceTimersByTime(60_000);
+    expect(FakeSocket.all).toHaveLength(1);
+    expect(ended).toEqual([expected]);
+    // No "reconnecting" status: the session is over.
+    expect(status).toEqual([true]);
+    expect(leaveLiveSession()).toBe(false);
+  });
+
+  it('backs off while the room keeps refusing before the first init', () => {
+    const history = new History(createScene());
+    joinLiveSession(history, { roomId: 'room-123' });
+    // Sockets that open and drop without ever receiving the room state.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const socket = FakeSocket.all.at(-1)!;
+      socket.onopen?.();
+      socket.close(1006);
+      vi.advanceTimersByTime(1000);
+    }
+    // 1 s, then 2 s, then 4 s: after three 1 s steps only two retries ran.
+    expect(FakeSocket.all).toHaveLength(3);
+    leaveLiveSession();
   });
 
   it('can leave while reconnecting after a dropped connection', () => {

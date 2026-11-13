@@ -26,7 +26,10 @@ import { initMinimap } from './src/ui/minimap';
 import { initMobileActionBar } from './src/ui/mobile_action_bar';
 import { initReportForm } from './src/ui/report_form';
 import { applySettings, initSettings, loadSettings } from './src/ui/settings';
-import { showLiveStatusToast } from './src/ui/share_actions';
+import {
+  showLiveEndedToast,
+  showLiveStatusToast,
+} from './src/ui/share_actions';
 import { initShortcuts } from './src/ui/shortcuts';
 import { initShortcutsHelp } from './src/ui/shortcuts_help';
 import { initStarCta } from './src/ui/star_cta';
@@ -172,6 +175,10 @@ async function bootstrap(): Promise<void> {
       onStatus: (connected) => {
         setLiveUI(connected);
         showLiveStatusToast(connected);
+      },
+      onEnded: (reason) => {
+        setLiveUI(false);
+        showLiveEndedToast(reason);
       },
     });
   }

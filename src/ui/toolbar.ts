@@ -22,6 +22,7 @@ import { buildLiveInvitePrompt } from './mcp_clients';
 import { initPeopleList } from './people_list';
 import {
   copyToClipboard,
+  showLiveEndedToast,
   showLiveStatusToast,
   showShareToast,
 } from './share_actions';
@@ -371,6 +372,10 @@ export function initToolbar(
       onStatus: (connected) => {
         setLiveUI(connected);
         showLiveStatusToast(connected);
+      },
+      onEnded: (reason) => {
+        setLiveUI(false);
+        showLiveEndedToast(reason);
       },
     });
     liveStartBtn.disabled = false;

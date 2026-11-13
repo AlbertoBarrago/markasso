@@ -1,4 +1,5 @@
 import { t } from '../i18n';
+import type { LiveEndReason } from '../io/realtime';
 
 /** Copy text to clipboard reliably: modern API first, textarea fallback second. */
 export async function copyToClipboard(text: string): Promise<boolean> {
@@ -79,6 +80,12 @@ export function showLiveStatusToast(connected: boolean): void {
   toast.textContent = t('liveReconnected');
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 3000);
+}
+
+/** Tells why the room ended the live session (see LiveEndReason). */
+export function showLiveEndedToast(reason: LiveEndReason): void {
+  document.getElementById('live-status-toast')?.remove();
+  showNoticeToast(t(reason === 'full' ? 'liveFull' : 'liveReplaced'), true);
 }
 
 /** A short notice toast; `warn` for something that did not work. */

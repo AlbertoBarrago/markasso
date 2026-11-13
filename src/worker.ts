@@ -110,6 +110,19 @@ export class SessionRoom {
   private readonly commands: WireCommand[] = [];
   private readonly sockets = new Map<WebSocket, string>(); // ws -> clientId
   private readonly peers = new Map<string, Omit<PeerInfo, 'id'>>(); // clientId -> props
+  /**
+   * clientId -> the id other peers see. The clientId is the secret a peer
+   * reconnects with (it replaces the socket that holds it and keeps its name
+   * and licence), so it never leaves the room: every message names peers by
+   * this derived id instead.
+   */
+  private readonly publicIds = new Map<string, string>();
+  /**
+   * The hash being computed for a clientId. Shared, so connections with the
+   * same clientId resume in the order they arrived and the latest one is
+   * the one that stays (see admit).
+   */
+  private readonly publicIdTasks = new Map<string, Promise<string>>();
   private readonly cmdCounts = new Map<string, number>();
   /** Browser peers that proved a valid licence: they may message agents. */
   private readonly licensed = new Set<string>();
@@ -159,6 +172,42 @@ export class SessionRoom {
    */
   private resolveClientId(raw: string | null): string {
     return raw && CLIENT_ID_RE.test(raw) ? raw : crypto.randomUUID();
+  }
+
+  /**
+   * The id other peers see for `clientId`: stable across reconnects, so
+   * cursors and the people list keep following the same peer, different in
+   * every room, and not reversible to the clientId.
+   */
+  private async publicId(clientId: string): Promise<string> {
+    const known = this.publicIds.get(clientId);
+    if (known) return known;
+    let task = this.publicIdTasks.get(clientId);
+    if (!task) {
+      task = crypto.subtle
+        .digest(
+          'SHA-256',
+          new TextEncoder().encode(`${this.roomId()}:${clientId}`),
+        )
+        .then((digest) => {
+          const id = Array.from(
+            new Uint8Array(digest).subarray(0, 16),
+            (byte) => byte.toString(16).padStart(2, '0'),
+          ).join('');
+          this.publicIds.set(clientId, id);
+          this.publicIdTasks.delete(clientId);
+          return id;
+        });
+      this.publicIdTasks.set(clientId, task);
+    }
+    return task;
+  }
+
+  /** The connected peer other peers know as `publicId`, if any. */
+  private clientIdOf(publicId: string): string | undefined {
+    for (const clientId of this.sockets.values())
+      if (this.publicIds.get(clientId) === publicId) return clientId;
+    return undefined;
   }
 
   /** Record this room in the KV index so the daily cron can find it. */
@@ -282,6 +331,10 @@ export class SessionRoom {
     clientId: string,
     kind: PeerKind,
   ): Promise<void> {
+    // Resolved first: the replacement below and the registration must not be
+    // split by an await, or two tabs with the same clientId admitted at once
+    // would both stay registered and miss each other's edits.
+    const self = await this.publicId(clientId);
     // A reconnect with the same clientId replaces any stale live socket so a
     // peer never ends up with two identities in the same room.
     for (const [sock, id] of this.sockets) {
@@ -311,7 +364,7 @@ export class SessionRoom {
     server.send(
       JSON.stringify({
         type: 'init',
-        self: clientId,
+        self,
         commands: this.commands,
         peers: this.peerList(),
       }),
@@ -343,7 +396,7 @@ export class SessionRoom {
       if (!this.allowCommand(clientId)) return;
       this.touch();
       this.broadcast(
-        { type: 'apply', command, from: clientId },
+        { type: 'apply', command, from: this.publicIds.get(clientId) },
         /* except */ clientId,
       );
       if (this.commands.length >= MAX_LOG_LENGTH) this.commands.shift();
@@ -360,7 +413,7 @@ export class SessionRoom {
       this.broadcast(
         {
           type: 'cursor',
-          from: clientId,
+          from: this.publicIds.get(clientId),
           x,
           y,
           name: peer?.name ?? randomAnimalName(),
@@ -469,7 +522,8 @@ export class SessionRoom {
         : undefined;
     const sender = this.peers.get(clientId);
     const text = typeof m.text === 'string' ? m.text.trim() : '';
-    const to = typeof m.to === 'string' ? m.to : '';
+    // Peers name each other by public id: resolve the target's own.
+    const to = (typeof m.to === 'string' && this.clientIdOf(m.to)) || '';
     let rejection: AgentRequestRejection | null = null;
     if (sender?.kind !== 'browser' || !this.licensed.has(clientId))
       rejection = 'unauthorized';
@@ -500,7 +554,7 @@ export class SessionRoom {
     this.sendTo(to, {
       type: 'request',
       id,
-      from: clientId,
+      from: this.publicIds.get(clientId) ?? '',
       fromName: sender.name,
       text,
     });
@@ -605,7 +659,7 @@ export class SessionRoom {
     const connected = new Set(this.sockets.values());
     return [...this.peers.entries()]
       .filter(([id]) => connected.has(id))
-      .map(([id, p]) => ({ id, ...p }));
+      .map(([id, p]) => ({ id: this.publicIds.get(id) ?? '', ...p }));
   }
 
   private broadcast(msg: unknown, exceptPeerId?: string): void {
