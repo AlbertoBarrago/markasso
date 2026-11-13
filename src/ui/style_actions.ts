@@ -44,32 +44,26 @@ export function applyStrokeOrLabelColor(history: History, color: string): void {
 }
 
 /**
- * Sets the font size; a selected text element is resized to fit it. Sizes
- * outside 6 to 400 are ignored.
+ * Sets the font size; each selected text element is resized to fit its own
+ * content at that size. Sizes outside 6 to 400 are ignored.
  */
 export function applyFontSize(history: History, size: number): void {
   if (Number.isNaN(size) || size < 6 || size > 400) return;
-  const scene = history.present;
-  const selectedText = scene.elements.find(
-    (el) => scene.selectedIds.has(el.id) && el.type === 'text',
-  );
-  const bounds =
-    selectedText?.type === 'text'
-      ? measureTextBounds(
-          selectedText.content,
-          size,
-          selectedText.fontFamily,
-          selectedText.bold,
-          selectedText.padding,
-        )
-      : undefined;
+  const bounds = selectedElements(history.present).flatMap((el) => {
+    if (el.type !== 'text') return [];
+    const box = measureTextBounds(
+      el.content,
+      size,
+      el.fontFamily,
+      el.bold,
+      el.padding,
+    );
+    return [{ id: el.id, width: box.width, height: box.height }];
+  });
   history.dispatch({
     type: 'SET_FONT_SIZE',
     size,
-    ...(bounds !== undefined && {
-      width: bounds.width,
-      height: bounds.height,
-    }),
+    ...(bounds.length > 0 && { bounds }),
   });
 }
 

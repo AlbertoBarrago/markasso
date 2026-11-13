@@ -67,8 +67,20 @@ export type Command =
   | { type: 'SET_STROKE_COLOR'; color: string } // appState only (default for next shape)
   | { type: 'SET_FILL_COLOR'; color: string } // appState only
   | { type: 'SET_STROKE_WIDTH'; width: number } // appState only
-  | { type: 'SET_FONT_FAMILY'; family: string } // appState + selected text
-  | { type: 'SET_FONT_SIZE'; size: number; width?: number; height?: number } // appState + selected text
+  /** Font of the target texts (`ids`, else the local selection) and the
+   *  local default. History bakes `ids` in, like for APPLY_STYLE. */
+  | { type: 'SET_FONT_FAMILY'; family: string; ids?: string[] }
+  /** Size of the target texts and the local default. `bounds` gives each
+   *  text the box measured for it; `width`/`height`, from older clients,
+   *  apply one box to every target. */
+  | {
+      type: 'SET_FONT_SIZE';
+      size: number;
+      ids?: string[];
+      bounds?: Array<{ id: string; width: number; height: number }>;
+      width?: number;
+      height?: number;
+    }
   | { type: 'TOGGLE_GRID' }
   | { type: 'SET_GRID_TYPE'; gridType: GridType }
   | { type: 'SET_ROTATION'; id: string; rotation: number }
@@ -84,7 +96,7 @@ export type Command =
   | { type: 'CLEAR_JUST_CREATED_TEXT' }
   | { type: 'SET_JUST_CREATED_TEXT' }
   | { type: 'SET_TOOL_LOCK'; locked: boolean }
-  | { type: 'SET_TEXT_MODE'; mode: 'text' | 'code' }
+  | { type: 'SET_TEXT_MODE'; mode: 'text' | 'code'; ids?: string[] }
   /** Aligns selected elements spatially. Positions are pre-computed by the caller. Undoable. */
   | {
       type: 'ALIGN_ELEMENTS';
