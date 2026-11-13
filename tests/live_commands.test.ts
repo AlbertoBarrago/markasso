@@ -102,9 +102,9 @@ describe('live room commands', () => {
       { type: 'CREATE_ELEMENTS' },
       { type: 'DELETE_ELEMENTS', ids: ['zzz'] },
     ]);
+    // Loaded, then compacted to the board it builds.
     expect(alice.ofType('init')[0]?.commands).toEqual([
-      create,
-      { type: 'DELETE_ELEMENTS', ids: ['zzz'] },
+      { type: 'CREATE_ELEMENTS', elements: [element] },
     ]);
   });
 

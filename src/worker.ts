@@ -10,7 +10,6 @@ import {
   type RequestStatusMsg,
 } from './io/agent_requests_protocol';
 import { randomAnimalName } from './io/animal_names';
-import { isValidSessionCommand } from './io/command_validation';
 import { validateElements } from './io/element_validation';
 import {
   buildIssueBody,
@@ -20,6 +19,7 @@ import {
 import { boardRequest, purgeBoards } from './worker/boards';
 import { licenseCheck, licenseKeyValid } from './worker/license';
 import { macDownload } from './worker/mac_download';
+import { RoomLog } from './worker/room_log';
 
 const ID_LENGTH = 8;
 const ID_CHARS =
@@ -46,8 +46,6 @@ interface PeerInfo {
   kind: PeerKind;
 }
 
-const MAX_LOG_LENGTH = 5000;
-const LOG_KEY = 'commands';
 const LAST_ACTIVITY_KEY = 'lastActivity';
 const ROOM_ID_RE = /^[a-zA-Z0-9_-]{3,64}$/;
 const CLIENT_ID_RE = /^[a-zA-Z0-9_-]{8,64}$/;
@@ -91,10 +89,6 @@ export function isRoomInactive(
   return connectedPeers === 0 && now - lastActivity > thresholdMs;
 }
 
-/** A command as serialized over the wire. Kept structural so the Worker does
- *  not need to type-check browser-dependent element/app_state modules. */
-type WireCommand = { type: string; [k: string]: unknown };
-
 ///**
 /**
  * One live editing room. A single serialization point: it appends commands to
@@ -107,7 +101,8 @@ type WireCommand = { type: string; [k: string]: unknown };
 export class SessionRoom {
   private readonly state: DurableObjectState;
   private readonly env: Env;
-  private readonly commands: WireCommand[] = [];
+  /** The room's content: see RoomLog. */
+  private readonly log = new RoomLog();
   private readonly sockets = new Map<WebSocket, string>(); // ws -> clientId
   private readonly peers = new Map<string, Omit<PeerInfo, 'id'>>(); // clientId -> props
   /**
@@ -146,11 +141,7 @@ export class SessionRoom {
   private async initialize(): Promise<void> {
     if (this.loaded) return;
     this.loaded = true;
-    const stored = await this.state.storage.get<WireCommand[]>(LOG_KEY);
-    // Logs written before commands were validated may hold one that breaks
-    // the replay for everyone who joins: drop those while loading.
-    if (Array.isArray(stored))
-      this.commands.push(...stored.filter(isValidSessionCommand));
+    await this.log.load(this.state.storage);
     const last = await this.state.storage.get<number>(LAST_ACTIVITY_KEY);
     if (typeof last === 'number') this.lastActivity = last;
   }
@@ -365,7 +356,7 @@ export class SessionRoom {
       JSON.stringify({
         type: 'init',
         self,
-        commands: this.commands,
+        commands: this.log.commands,
         peers: this.peerList(),
       }),
     );
@@ -387,20 +378,19 @@ export class SessionRoom {
     const m = msg as Record<string, unknown>;
 
     if (m.type === 'command' && m.command) {
-      const command = m.command as WireCommand;
+      const command = m.command as { type?: string };
       // Also drops bare UNDO/REDO from outdated clients (see isSessionCommand).
       if (!isSessionCommand(command)) return;
-      // Relayed to every peer and replayed to every joiner: a malformed
-      // command must stop here.
-      if (!isValidSessionCommand(command)) return;
       if (!this.allowCommand(clientId)) return;
+      // Relayed to every peer and replayed to every joiner: a command the
+      // room cannot apply (malformed, refused by the reducer, too large for
+      // the room) must stop here.
+      if (!this.log.append(command)) return;
       this.touch();
       this.broadcast(
         { type: 'apply', command, from: this.publicIds.get(clientId) },
         /* except */ clientId,
       );
-      if (this.commands.length >= MAX_LOG_LENGTH) this.commands.shift();
-      this.commands.push(command);
       this.schedulePersist();
       return;
     }
@@ -678,10 +668,14 @@ export class SessionRoom {
     if (this.persistTimer) return;
     this.persistTimer = setTimeout(async () => {
       this.persistTimer = null;
-      await this.state.storage.put({
-        [LOG_KEY]: this.commands.slice(),
-        [LAST_ACTIVITY_KEY]: this.lastActivity,
-      });
+      try {
+        await this.log.save(this.state.storage, {
+          [LAST_ACTIVITY_KEY]: this.lastActivity,
+        });
+      } catch (error) {
+        // The changes stay pending: the next command saves them again.
+        console.log('[live] could not save the room log', error);
+      }
     }, 800);
   }
 
@@ -700,7 +694,7 @@ export class SessionRoom {
     if (!inactive) return Response.json({ deleted: false });
 
     await this.state.storage.deleteAll();
-    this.commands.length = 0;
+    this.log.reset();
     this.peers.clear();
     try {
       await this.env.SHARE_LINKS.delete(ROOM_INDEX_PREFIX + this.roomId());
