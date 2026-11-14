@@ -1063,6 +1063,13 @@ export function drawSelection(
   ctx.strokeRect(sx - 1, sy - 1, ex - sx + 2, ey - sy + 2);
   ctx.setLineDash([]);
 
+  // A locked element cannot be resized, rotated or reshaped: only the
+  // outline shows it is selected (the select tool offers no handle either).
+  if (elements.some((el) => el.locked)) {
+    ctx.restore();
+    return;
+  }
+
   // Resize handles
   const handles = getHandlePositions(sx, sy, ex, ey);
   ctx.fillStyle = handleFill();
@@ -1493,6 +1500,7 @@ function getHandlePositions(
 export function getSelectionHandles(
   elements: ReadonlyArray<Element>,
   viewport: Viewport,
+  allElements?: ReadonlyArray<Element>,
 ): Handle[] {
   if (elements.length === 0) return [];
   let minX = Infinity,
@@ -1500,7 +1508,7 @@ export function getSelectionHandles(
     maxX = -Infinity,
     maxY = -Infinity;
   for (const el of elements) {
-    const { x, y, w, h } = getElementBounds(el);
+    const { x, y, w, h } = getElementBounds(el, allElements);
     minX = Math.min(minX, x);
     minY = Math.min(minY, y);
     maxX = Math.max(maxX, x + w);
