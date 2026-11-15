@@ -67,6 +67,8 @@ export class RoomLog {
   /** The storage still has the single-value log of older versions. */
   private legacyStored = false;
   private appendedCommands = 0;
+  /** Why the last refused append was refused. */
+  refusal: 'invalid' | 'full' = 'invalid';
   private appendedChars = 0;
   /** Size of the log (sum of the chunks). */
   private logChars = 0;
@@ -85,6 +87,7 @@ export class RoomLog {
    * would grow the room past its size limit.
    */
   append(command: unknown): command is WireCommand {
+    this.refusal = 'invalid';
     if (!isValidSessionCommand(command)) return false;
     const wire = command as WireCommand;
     const chars = JSON.stringify(wire).length;
@@ -95,7 +98,10 @@ export class RoomLog {
       // compacted it would rebuild the whole board again for nothing, on
       // every command a full room refuses.
       if (this.appendedCommands > 0) this.compact();
-      if (this.size() + chars > MAX_ROOM_CHARS) return false;
+      if (this.size() + chars > MAX_ROOM_CHARS) {
+        this.refusal = 'full';
+        return false;
+      }
     }
     let next: Scene;
     try {

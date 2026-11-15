@@ -2,6 +2,8 @@ import type { ImageElement } from '../elements/element';
 import type { History } from '../engine/history';
 import { importMarkasso } from '../io/markasso';
 import { importMermaid, importMermaidText } from '../io/mermaid';
+import { getLiveSessionUrl } from '../io/realtime';
+import { shrinkForLive } from './image_shrink';
 import { showImportError } from './import_error';
 import { pasteBelongsToBoard } from './keyboard_utils';
 
@@ -97,10 +99,17 @@ export function initImageImport(
   function loadFile(file: File): void {
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const src = ev.target?.result as string;
-      if (!src) return;
+      const original = ev.target?.result as string;
+      if (!original) return;
       const img = new Image();
       img.onload = () => {
+        // In a live session, an image too large for one room message is
+        // shrunk so the others get it; a local drawing keeps the original.
+        const shrunk =
+          getLiveSessionUrl() !== null ? shrinkForLive(img, original) : null;
+        const src = shrunk?.src ?? original;
+        const naturalWidth = shrunk?.width ?? img.naturalWidth;
+        const naturalHeight = shrunk?.height ?? img.naturalHeight;
         const viewport = history.present.viewport;
         const vw = window.innerWidth;
         const vh = window.innerHeight;
@@ -127,8 +136,8 @@ export function initImageImport(
           y: worldCY - h / 2,
           width: w,
           height: h,
-          naturalWidth: img.naturalWidth,
-          naturalHeight: img.naturalHeight,
+          naturalWidth,
+          naturalHeight,
           strokeColor: 'transparent',
           fillColor: 'transparent',
           strokeWidth: 0,
@@ -138,7 +147,7 @@ export function initImageImport(
 
         history.dispatch({ type: 'CREATE_ELEMENT', element });
       };
-      img.src = src;
+      img.src = original;
     };
     reader.readAsDataURL(file);
   }

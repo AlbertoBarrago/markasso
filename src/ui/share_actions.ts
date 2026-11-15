@@ -1,5 +1,5 @@
 import { t } from '../i18n';
-import type { LiveEndReason } from '../io/realtime';
+import type { LiveEndReason, LiveRejectReason } from '../io/realtime';
 
 /** Copy text to clipboard reliably: modern API first, textarea fallback second. */
 export async function copyToClipboard(text: string): Promise<boolean> {
@@ -86,6 +86,24 @@ export function showLiveStatusToast(connected: boolean): void {
 export function showLiveEndedToast(reason: LiveEndReason): void {
   document.getElementById('live-status-toast')?.remove();
   showNoticeToast(t(reason === 'full' ? 'liveFull' : 'liveReplaced'), true);
+}
+
+const REJECT_KEYS: Record<LiveRejectReason, string> = {
+  too_large: 'liveRejectedTooLarge',
+  rate: 'liveRejectedRate',
+  full: 'liveRejectedFull',
+  invalid: 'liveRejectedInvalid',
+};
+
+/**
+ * Says that the room refused an edit, so the others did not get it. The
+ * room sends one notice per refused command (one per pointer move in a
+ * refused gesture): while the same notice is on screen, it stays as it is.
+ */
+export function showLiveRejectedToast(reason: LiveRejectReason): void {
+  const message = t(REJECT_KEYS[reason]);
+  if (document.getElementById('share-toast')?.textContent === message) return;
+  showNoticeToast(message, true);
 }
 
 /** A short notice toast; `warn` for something that did not work. */
