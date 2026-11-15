@@ -11,6 +11,8 @@ interface Env {
   readonly BOARDS_DB: D1Database;
   readonly BOARDS_BUCKET: R2Bucket;
   readonly BOARD_RATE_LIMITER: RateLimit;
+  /** Opening live session WebSockets, per client (see clientKey). */
+  readonly SESSION_RATE_LIMITER: RateLimit;
   readonly CLOUD_ENABLED?: string;
   readonly CLOUD_REQUIRES_LICENSE: string;
   readonly POLAR_ORGANIZATION_ID?: string;

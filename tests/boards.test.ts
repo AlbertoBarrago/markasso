@@ -12,6 +12,10 @@ function setup() {
     BOARD_RATE_LIMITER: { limit: vi.fn(async () => ({ success: true })) },
     BOARDS_DB: {
       prepare: (sql: string) => ({
+        // Unbound reads: every scene in use (purgeBoards).
+        all: async () => ({
+          results: [...rows.values()].map((r) => ({ scene_key: r.scene_key })),
+        }),
         bind: (...args: unknown[]) => ({
           first: async () =>
             structuredClone(

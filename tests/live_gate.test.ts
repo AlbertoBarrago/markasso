@@ -118,6 +118,7 @@ describe('live peer classification', () => {
   async function forward(headers: Record<string, string>) {
     const seen: Request[] = [];
     const env = {
+      SESSION_RATE_LIMITER: { limit: async () => ({ success: true }) },
       SESSION_ROOMS: {
         idFromName: (name: string) => name,
         get: () => ({
@@ -134,6 +135,27 @@ describe('live peer classification', () => {
     );
     return seen[0]!.headers.get('X-Markasso-Peer');
   }
+
+  it('limits how fast one client opens sessions, by IPv6 /64', async () => {
+    const limit = vi.fn(async () => ({ success: false }));
+    const fetch = vi.fn();
+    const env = {
+      SESSION_RATE_LIMITER: { limit },
+      SESSION_ROOMS: {
+        idFromName: (name: string) => name,
+        get: () => ({ fetch }),
+      },
+    } as unknown as Env;
+    const response = await worker.fetch(
+      new Request('https://markasso.it/session/ws?room=room-123', {
+        headers: { 'CF-Connecting-IP': '2001:db8:0:1:aaaa::5' },
+      }),
+      env,
+    );
+    expect(response.status).toBe(429);
+    expect(limit).toHaveBeenCalledWith({ key: 'session:2001:db8:0:1::/64' });
+    expect(fetch).not.toHaveBeenCalled();
+  });
 
   it('tags same-origin peers as browsers and everything else as agents', async () => {
     expect(await forward({ Origin: 'https://markasso.it' })).toBe('browser');

@@ -17,8 +17,10 @@ import {
   validateReport,
 } from './io/report_validation';
 import { boardRequest, purgeBoards } from './worker/boards';
+import { clientKey } from './worker/client_key';
 import { licenseCheck, licenseKeyValid } from './worker/license';
 import { macDownload } from './worker/mac_download';
+import { purgeReportQuotas, takeReportSlot } from './worker/report_quota';
 import { RoomLog } from './worker/room_log';
 
 const ID_LENGTH = 8;
@@ -26,11 +28,6 @@ const ID_CHARS =
   'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 const TTL_SECONDS = 60 * 60 * 24 * 90;
 const MAX_REQUEST_BYTES = 1_000_000;
-
-// The REPORT_RATE_LIMITER binding only bounds bursts (its `period` is capped
-// at 60s by the Workers runtime); this is the actual per-IP quota window.
-const REPORT_QUOTA_LIMIT = 3;
-const REPORT_QUOTA_WINDOW_SECONDS = 600;
 
 function generateId(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(ID_LENGTH));
@@ -73,6 +70,14 @@ const CLOSE_LICENCE_REQUIRED = 4402;
 const INACTIVE_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 /** KV prefix used to enumerate live rooms for the daily cleanup cron. */
 const ROOM_INDEX_PREFIX = 'room:';
+/**
+ * Rooms the daily cleanup checks per run, one subrequest each: the rest wait
+ * for the next run, which resumes from the cursor saved under
+ * ROOM_CLEANUP_CURSOR_KEY. Rooms are reclaimed after 7 idle days, so a sweep
+ * spread over a few days is fine.
+ */
+const ROOMS_PER_CLEANUP = 400;
+const ROOM_CLEANUP_CURSOR_KEY = 'cron:room-cleanup-cursor';
 const ROOM_INDEX_TTL = 90 * 24 * 60 * 60; // 90 days
 
 /**
@@ -851,10 +856,8 @@ const worker = {
     }
 
     if (request.method === 'POST' && url.pathname === '/api/share') {
-      const clientAddress =
-        request.headers.get('CF-Connecting-IP') ?? 'unknown';
       const rateLimit = await env.SHARE_RATE_LIMITER.limit({
-        key: `share:${clientAddress}`,
+        key: `share:${clientKey(request)}`,
       });
       if (!rateLimit.success) {
         const response = jsonResponse(
@@ -888,11 +891,11 @@ const worker = {
     }
 
     if (request.method === 'POST' && url.pathname === '/api/report') {
-      const clientAddress =
-        request.headers.get('CF-Connecting-IP') ?? 'unknown';
-
+      const client = clientKey(request);
+      // The binding only bounds bursts (its `period` is capped at 60 s); the
+      // quota windows live in D1 (see report_quota.ts).
       const burst = await env.REPORT_RATE_LIMITER.limit({
-        key: `report:${clientAddress}`,
+        key: `report:${client}`,
       });
       if (!burst.success) {
         const response = jsonResponse(
@@ -905,22 +908,6 @@ const worker = {
         return response;
       }
 
-      const quotaKey = `report-quota:${clientAddress}`;
-      const quotaUsed = Number((await env.SHARE_LINKS.get(quotaKey)) ?? '0');
-      if (quotaUsed >= REPORT_QUOTA_LIMIT) {
-        const response = jsonResponse(
-          request,
-          url,
-          { error: 'Too many requests' },
-          429,
-        );
-        response.headers.set(
-          'Retry-After',
-          String(REPORT_QUOTA_WINDOW_SECONDS),
-        );
-        return response;
-      }
-
       const body = await readJsonBody(request);
       if (!body.ok) {
         return jsonResponse(request, url, { error: body.error }, body.status);
@@ -930,9 +917,34 @@ const worker = {
         return jsonResponse(request, url, { error: 'Invalid report' }, 400);
       }
 
-      const githubResponse = await fetch(
-        `https://api.github.com/repos/${env.REPORT_REPO}/issues`,
-        {
+      // Taken atomically, so parallel requests cannot all pass the quota.
+      // Without the quota store (a migration not applied, D1 down) no report
+      // goes out: the repository token is never left unguarded.
+      let slot: Awaited<ReturnType<typeof takeReportSlot>>;
+      try {
+        slot = await takeReportSlot(env.BOARDS_DB, client);
+      } catch (error) {
+        console.error('Report quota unavailable', error);
+        return jsonResponse(
+          request,
+          url,
+          { error: 'Report service unavailable' },
+          503,
+        );
+      }
+      if (!slot.ok) {
+        const response = jsonResponse(
+          request,
+          url,
+          { error: 'Too many requests' },
+          429,
+        );
+        response.headers.set('Retry-After', String(slot.retryAfter));
+        return response;
+      }
+
+      const fileIssue = () =>
+        fetch(`https://api.github.com/repos/${env.REPORT_REPO}/issues`, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${env.GITHUB_TOKEN}`,
@@ -946,10 +958,16 @@ const worker = {
             body: buildIssueBody(report),
             labels: ['user-report'],
           }),
-        },
-      );
-
-      if (!githubResponse.ok) {
+        });
+      let githubResponse: Response;
+      try {
+        githubResponse = await fileIssue();
+      } catch (error) {
+        // No answer from GitHub (network, DNS): almost certainly nothing was
+        // filed, and a lost reply after a filed issue costs one extra report
+        // at most, so the slot is given back.
+        console.error('Report not sent to GitHub', error);
+        await slot.release();
         return jsonResponse(
           request,
           url,
@@ -958,9 +976,16 @@ const worker = {
         );
       }
 
-      await env.SHARE_LINKS.put(quotaKey, String(quotaUsed + 1), {
-        expirationTtl: REPORT_QUOTA_WINDOW_SECONDS,
-      });
+      if (!githubResponse.ok) {
+        // Nothing was filed: the slot is given back.
+        await slot.release();
+        return jsonResponse(
+          request,
+          url,
+          { error: 'Failed to submit report' },
+          502,
+        );
+      }
 
       const issue = (await githubResponse.json()) as { html_url: string };
       return jsonResponse(request, url, { url: issue.html_url }, 201);
@@ -986,6 +1011,21 @@ const worker = {
       if (!room || !ROOM_ID_RE.test(room)) {
         return jsonResponse(request, url, { error: 'Invalid room' }, 400);
       }
+      // Every connection can cost a Durable Object and, for an agent, a
+      // licence lookup: bound how fast one client opens them.
+      const limited = await env.SESSION_RATE_LIMITER.limit({
+        key: `session:${clientKey(request)}`,
+      });
+      if (!limited.success) {
+        const response = jsonResponse(
+          request,
+          url,
+          { error: 'Too many requests' },
+          429,
+        );
+        response.headers.set('Retry-After', '60');
+        return response;
+      }
       const id = env.SESSION_ROOMS.idFromName(room);
       // Browsers always send the app's Origin on the WebSocket handshake; any
       // other peer (the MCP server, a script) is an agent and may have to
@@ -1003,9 +1043,11 @@ const worker = {
   },
 
   /**
-   * Daily cleanup of inactive live sessions (cron: `0 12 * * *`). Enumerates
-   * every room tracked in the KV index and asks each Durable Object to reclaim
-   * itself if it has been idle with no connected peers past the threshold.
+   * Daily cleanup (cron: `0 12 * * *`): expired cloud boards and their
+   * orphan objects, closed report quota windows, and inactive live sessions.
+   * Rooms come from the KV index, ROOMS_PER_CLEANUP per run; each Durable
+   * Object reclaims itself if it has been idle with no connected peers past
+   * the threshold.
    */
   async scheduled(_controller, env, _ctx): Promise<void> {
     try {
@@ -1013,19 +1055,30 @@ const worker = {
     } catch {
       console.log('[cron] board cleanup unavailable');
     }
-    const rooms: string[] = [];
-    let cursor: string | null = null;
-    do {
-      const list: Awaited<ReturnType<typeof env.SHARE_LINKS.list>> =
-        await env.SHARE_LINKS.list({
-          prefix: ROOM_INDEX_PREFIX,
-          cursor,
-        });
-      for (const key of list.keys) {
-        rooms.push(key.name.slice(ROOM_INDEX_PREFIX.length));
-      }
-      cursor = list.list_complete ? null : list.cursor;
-    } while (cursor);
+    try {
+      await purgeReportQuotas(env.BOARDS_DB);
+    } catch {
+      console.log('[cron] report quota cleanup unavailable');
+    }
+    // One page of rooms per run, resuming where the last run stopped; a
+    // cursor the store no longer accepts restarts from the first room.
+    const cursor = await env.SHARE_LINKS.get(ROOM_CLEANUP_CURSOR_KEY);
+    const page = (from: string | null) =>
+      env.SHARE_LINKS.list({
+        prefix: ROOM_INDEX_PREFIX,
+        limit: ROOMS_PER_CLEANUP,
+        ...(from ? { cursor: from } : {}),
+      });
+    let list: Awaited<ReturnType<typeof page>>;
+    try {
+      list = await page(cursor);
+    } catch (error) {
+      if (!cursor) throw error;
+      list = await page(null);
+    }
+    const rooms = list.keys.map((key) =>
+      key.name.slice(ROOM_INDEX_PREFIX.length),
+    );
 
     let checked = 0;
     let deleted = 0;
@@ -1043,6 +1096,10 @@ const worker = {
         // A room that fails to respond is left for the next run.
       }
     }
+    // Moved on only now: a run cut short checks the same page again.
+    if (list.list_complete)
+      await env.SHARE_LINKS.delete(ROOM_CLEANUP_CURSOR_KEY);
+    else await env.SHARE_LINKS.put(ROOM_CLEANUP_CURSOR_KEY, list.cursor);
     console.log(
       `[cron] session cleanup: ${checked} checked, ${deleted} deleted`,
     );
