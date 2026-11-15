@@ -4,6 +4,8 @@ import type { Element } from '../src/elements/element';
 import type { History } from '../src/engine/history';
 import { flushSession, initSession, loadSession } from '../src/io/session';
 
+vi.mock('../src/i18n', () => ({ t: (key: string) => key }));
+
 const KEY = 'markasso-session';
 
 const rect = (id: string): Element => ({

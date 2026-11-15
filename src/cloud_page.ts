@@ -4,15 +4,12 @@ import './styles/cloud-page.css';
 import { checkoutUrl } from './cloud_checkout';
 import { POLAR_LINKS } from './config/polar';
 import { t } from './i18n';
+import { readStorage } from './io/safe_storage';
 import { initSiteFx } from './site_fx';
 
 const media = window.matchMedia('(prefers-color-scheme: light)');
-let theme: string | null = null;
-try {
-  theme = localStorage.getItem('markasso-theme');
-} catch {
-  /** Use device appearance when browser storage is unavailable. */
-}
+// Device appearance when browser storage is unavailable.
+const theme = readStorage('markasso-theme');
 function applyTheme(): void {
   const light = theme === 'light' || (theme !== 'dark' && media.matches);
   document.documentElement.dataset.theme = light ? 'light' : 'dark';

@@ -15,6 +15,7 @@ import {
   leaveLiveSession,
   setLiveName,
 } from '../io/realtime';
+import { readStorage } from '../io/safe_storage';
 import { showImportError } from './import_error';
 import { toggleLibrary } from './library_panel';
 import { onLiveHide, onLiveReveal, setLiveUI } from './live_name';
@@ -319,11 +320,7 @@ export function initToolbar(
   let liveActive = false;
   function inviteAgentLocked(): boolean {
     if (!CLOUD_ENABLED) return false;
-    try {
-      return !localStorage.getItem(LICENSE_KEY);
-    } catch {
-      return true;
-    }
+    return !readStorage(LICENSE_KEY);
   }
   /**
    * Start shows while this tab is in no session (a reconnecting session still

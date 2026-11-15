@@ -23,6 +23,7 @@ import {
   syncRemotePeers,
   upsertRemoteCursor,
 } from './presence';
+import { readStorage, writeStorage } from './safe_storage';
 
 export interface PeerInfo {
   id: string;
@@ -95,42 +96,25 @@ const CLIENT_ID_RE = /^[a-zA-Z0-9_-]{8,64}$/;
  * impersonate that peer.
  */
 export function getClientId(): string {
-  try {
-    let id = localStorage.getItem(CLIENT_ID_KEY);
-    if (!id || !CLIENT_ID_RE.test(id)) {
-      id = crypto.randomUUID();
-      localStorage.setItem(CLIENT_ID_KEY, id);
-    }
-    return id;
-  } catch {
-    return crypto.randomUUID();
-  }
+  const stored = readStorage(CLIENT_ID_KEY);
+  if (stored && CLIENT_ID_RE.test(stored)) return stored;
+  // Without storage the id is new on every call.
+  const id = crypto.randomUUID();
+  writeStorage(CLIENT_ID_KEY, id);
+  return id;
 }
 
 /** The Markasso Cloud licence stored by the cloud boards flow, if any. */
 function storedLicense(): string {
-  try {
-    return localStorage.getItem(LICENSE_KEY)?.trim() ?? '';
-  } catch {
-    return '';
-  }
+  return readStorage(LICENSE_KEY)?.trim() ?? '';
 }
 
 export function getStoredName(): string {
-  try {
-    const name = localStorage.getItem(NAME_KEY);
-    return name?.trim() ? name.trim() : '';
-  } catch {
-    return '';
-  }
+  return readStorage(NAME_KEY)?.trim() ?? '';
 }
 
 export function setStoredName(name: string): void {
-  try {
-    localStorage.setItem(NAME_KEY, name.trim());
-  } catch {
-    /* ignore quota/private mode */
-  }
+  writeStorage(NAME_KEY, name.trim());
 }
 
 export function getLiveRoomId(): string | null {

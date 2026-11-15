@@ -14,6 +14,7 @@ import { listBoards, readBoardIndex, renameBoard } from '../io/cloud_index';
 import { deleteThumb, loadThumb, saveThumb } from '../io/cloud_thumbs';
 import { exportMarkasso } from '../io/markasso';
 import { getLiveSessionUrl } from '../io/realtime';
+import { browserStorage } from '../io/safe_storage';
 import { renderSceneThumbnail } from '../rendering/export';
 import { type BoardAction, openBoardsPanel } from './cloud_boards_panel';
 import { RemoteCheckSchedule, remoteDecision } from './cloud_remote_check';
@@ -161,7 +162,7 @@ function createController(history: History) {
   let creating = false;
   let opened = false;
   let openingFailed = false;
-  const client = new CloudClient(localStorage, fetch, () => {
+  const client = new CloudClient(browserStorage(), fetch, () => {
     document.dispatchEvent(new Event('markasso-cloud-change'));
     render();
     if (client.state === 'saved' && client.id) scheduleThumb(client.id);
@@ -675,7 +676,7 @@ function createController(history: History) {
           choices: [{ key: 'boardsRename', primary: true }],
         });
         if (name === null) return 'none';
-        renameBoard(localStorage, item.id, name);
+        renameBoard(browserStorage(), item.id, name);
         return 'refresh';
       }
       case 'remove': {
@@ -760,7 +761,7 @@ function createController(history: History) {
       if (action === 'cloudBoards') {
         openBoardsPanel({
           items: () =>
-            listBoards(readBoardIndex(localStorage), client.knownTokens()),
+            listBoards(readBoardIndex(browserStorage()), client.knownTokens()),
           currentId: () => (opened ? client.id : null),
           thumb: loadThumb,
           act: boardAction,

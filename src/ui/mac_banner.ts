@@ -1,4 +1,9 @@
 import { t } from '../i18n';
+import {
+  isStorageAvailable,
+  readStorage,
+  writeStorage,
+} from '../io/safe_storage';
 
 const DISMISSED_KEY = 'markasso-mac-banner-dismissed';
 
@@ -22,12 +27,8 @@ export function isMacDesktop(
  */
 export function initMacBanner(): void {
   if (!isMacDesktop(navigator)) return;
-  try {
-    if (localStorage.getItem(DISMISSED_KEY)) return;
-  } catch {
-    // Without storage the banner could not stay dismissed: do not show it.
-    return;
-  }
+  // Without storage the banner could not stay dismissed: do not show it.
+  if (!isStorageAvailable() || readStorage(DISMISSED_KEY)) return;
   const banner = document.createElement('div');
   banner.className = 'mac-banner';
   banner.setAttribute('role', 'note');
@@ -45,11 +46,8 @@ export function initMacBanner(): void {
   close.textContent = '×';
   const dismiss = (): void => {
     banner.remove();
-    try {
-      localStorage.setItem(DISMISSED_KEY, '1');
-    } catch {
-      /* best effort: it reappears next visit */
-    }
+    // Best effort: when refused, it reappears next visit.
+    writeStorage(DISMISSED_KEY, '1');
   };
   close.addEventListener('click', dismiss);
   link.addEventListener('click', dismiss);

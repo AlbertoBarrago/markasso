@@ -1,3 +1,4 @@
+import { readStorage, writeStorage } from '../io/safe_storage';
 import { detectLocale, type Locale } from './detect';
 import de from './locales/de.json';
 import en from './locales/en.json';
@@ -35,7 +36,7 @@ const dicts: Record<Locale, Record<string, string>> = {
 };
 
 const current: Locale = detectLocale(
-  localStorage.getItem(STORAGE_KEY),
+  readStorage(STORAGE_KEY),
   navigator.languages.length > 0 ? navigator.languages : [navigator.language],
 );
 document.documentElement.lang = current;
@@ -44,9 +45,15 @@ export function t(key: string): string {
   return dicts[current][key] ?? dicts.en[key] ?? key;
 }
 
-export function setLocale(locale: Locale): void {
-  localStorage.setItem(STORAGE_KEY, locale);
+/**
+ * Saves the language and reloads to apply it. Returns false, without
+ * reloading, when the browser refuses to store it: a reload would apply
+ * nothing and could lose a drawing that storage could not keep either.
+ */
+export function setLocale(locale: Locale): boolean {
+  if (!writeStorage(STORAGE_KEY, locale)) return false;
   location.reload();
+  return true;
 }
 
 export function getLocale(): Locale {

@@ -1,5 +1,6 @@
 import type { History } from '../engine/history';
 import { t } from '../i18n';
+import { readStorage, writeStorage } from '../io/safe_storage';
 import { onLiveHide, onLiveReveal } from './live_name';
 import { onMcpSetupOpen } from './mcp_setup';
 import {
@@ -42,22 +43,16 @@ const BUSY_SELECTORS = [
 
 const SHAPE_TYPES = new Set(['rectangle', 'ellipse', 'rhombus', 'shape']);
 
+/**
+ * With storage blocked (private mode, disabled site data) tips still work
+ * for this visit, they just restart on the next one.
+ */
 function loadStats(): TipStats {
-  try {
-    return parseTipStats(localStorage.getItem(STORAGE_KEY));
-  } catch {
-    // Storage blocked (private mode, disabled site data): tips still work
-    // for this visit, they just restart on the next one.
-    return {};
-  }
+  return parseTipStats(readStorage(STORAGE_KEY));
 }
 
 function saveStats(stats: TipStats): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(stats));
-  } catch {
-    /* See loadStats. */
-  }
+  writeStorage(STORAGE_KEY, JSON.stringify(stats));
 }
 
 /** True while typing, or while a menu, dialog or panel is open. */
