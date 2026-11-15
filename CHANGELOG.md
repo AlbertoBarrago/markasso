@@ -4,6 +4,17 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [1.22.4] - 2026-11-15
+
+### Fixed
+- **Edits the live room refuses ([#150](https://github.com/AlbertoBarrago/markasso/pull/150)).** When the room refuses an edit (too large, too many at once, room board full, or not applicable), you now get a notice, instead of quietly seeing a board the others do not have. Images added during a live session are scaled down so they fit and reach everyone; drawings outside a session keep the original image.
+- **Long gestures in live sessions ([#148](https://github.com/AlbertoBarrago/markasso/pull/148)).** Moving, resizing or rotating several elements no longer piles up edits that reach the others seconds late.
+- **Reconnecting to a full room ([#149](https://github.com/AlbertoBarrago/markasso/pull/149)).** A participant whose connection drops gets back into a room with 20 people, instead of being told it is full because of their own old seat.
+- **Bring forward, send backward ([#151](https://github.com/AlbertoBarrago/markasso/pull/151)).** With several elements selected, the layer actions move them as one block whatever order you selected them in. "Send backward" could move an element up.
+- **Undo after changing a default ([#152](https://github.com/AlbertoBarrago/markasso/pull/152)).** Changing the default font size, font, alignment or text mode with nothing selected is no longer an undo step, and undoing an older edit keeps the default you chose since.
+
+---
+
 ## [1.22.3] - 2026-11-15
 
 ### Fixed

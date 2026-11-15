@@ -4,6 +4,14 @@ All notable changes to `@markasso/mcp` are documented here. The MCP server is ve
 
 ---
 
+## [0.7.4] - 2026-11-15
+
+### Fixed
+- **Refused edits are reported ([#150](https://github.com/AlbertoBarrago/markasso/pull/150)).** When the live room refuses some of the agent's edits (too large, too many at once, board full, not applicable), the tool answer says so, so the agent knows the others do not see them. An answer that made edits waits for the ones the room's limit held back to go out first.
+- **Long gestures ([#148](https://github.com/AlbertoBarrago/markasso/pull/148)).** Edits waiting for the room's limit are merged per element, so a burst reaches the room sooner.
+
+---
+
 ## [0.7.3] - 2026-11-15
 
 ### Fixed
