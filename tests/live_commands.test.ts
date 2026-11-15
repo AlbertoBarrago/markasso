@@ -29,6 +29,7 @@ class FakeServerSocket {
 
 type RoomInternals = {
   initialize(): Promise<void>;
+  roomFull(clientId: string): boolean;
   admit(
     server: FakeServerSocket,
     clientId: string,
@@ -106,6 +107,16 @@ describe('live room commands', () => {
     expect(alice.ofType('init')[0]?.commands).toEqual([
       { type: 'CREATE_ELEMENTS', elements: [element] },
     ]);
+  });
+
+  it('keeps the seat of a peer reconnecting into a full room', async () => {
+    const { instance } = await room();
+    // alice and bob are in; 18 more fill the room's 20 seats.
+    for (let i = 0; i < 18; i++)
+      await instance.admit(new FakeServerSocket(), `peer-${i}`, 'browser');
+    expect(instance.roomFull('newcomer')).toBe(true);
+    // alice's old socket is still registered: her reconnect replaces it.
+    expect(instance.roomFull('alice-client')).toBe(false);
   });
 
   it('replaces the first of two tabs with the same client id that join at once', async () => {
