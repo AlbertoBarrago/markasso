@@ -260,7 +260,6 @@ function growsContent(command: WireCommand): boolean {
     case 'UPDATE_ELEMENT':
     case 'EDIT_TEXT':
     case 'SET_SHAPE_LABEL':
-    case 'RENAME_LAYER':
       return true;
     case 'RESIZE_ELEMENT':
       return command.points !== undefined;

@@ -65,8 +65,6 @@ export type Command =
       shapeKind?: ShapeKind;
     }
   | { type: 'SET_STROKE_COLOR'; color: string } // appState only (default for next shape)
-  | { type: 'SET_FILL_COLOR'; color: string } // appState only
-  | { type: 'SET_STROKE_WIDTH'; width: number } // appState only
   /** Font of the target texts (`ids`, else the local selection) and the
    *  local default. History bakes `ids` in, like for APPLY_STYLE. */
   | { type: 'SET_FONT_FAMILY'; family: string; ids?: string[] }
@@ -84,17 +82,12 @@ export type Command =
   | { type: 'TOGGLE_GRID' }
   | { type: 'SET_GRID_TYPE'; gridType: GridType }
   | { type: 'SET_ROTATION'; id: string; rotation: number }
-  | { type: 'SET_STROKE_STYLE'; style: 'solid' | 'dashed' | 'dotted' }
   | { type: 'REORDER_ELEMENTS'; ids: string[]; targetIndex: number }
-  | { type: 'TOGGLE_ELEMENT_VISIBILITY'; id: string }
-  | { type: 'RENAME_LAYER'; id: string; name: string }
   | { type: 'LOAD_SCENE'; elements: Element[]; viewport: Viewport }
   | { type: 'GROUP_ELEMENTS'; ids: string[]; groupId: string }
   | { type: 'UNGROUP_ELEMENTS'; groupId: string }
   | { type: 'LOCK_ELEMENTS'; ids: string[] }
   | { type: 'UNLOCK_ELEMENTS'; ids: string[] }
-  | { type: 'CLEAR_JUST_CREATED_TEXT' }
-  | { type: 'SET_JUST_CREATED_TEXT' }
   | { type: 'SET_TOOL_LOCK'; locked: boolean }
   | { type: 'SET_TEXT_MODE'; mode: 'text' | 'code'; ids?: string[] }
   /** Aligns selected elements spatially. Positions are pre-computed by the caller. Undoable. */

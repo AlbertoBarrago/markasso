@@ -14,13 +14,9 @@ export const EPHEMERAL_COMMANDS = new Set<string>([
   'CLEAR_SELECTION',
   'SET_TOOL',
   'SET_STROKE_COLOR', // appState default only, no element changes
-  'SET_FILL_COLOR',
-  'SET_STROKE_WIDTH',
   'TOGGLE_GRID',
   'SET_GRID_TYPE', // view setting only
   'SET_TOOL_LOCK',
-  'CLEAR_JUST_CREATED_TEXT',
-  'SET_JUST_CREATED_TEXT',
 ]);
 
 export function isEphemeralCommand(type: string): boolean {

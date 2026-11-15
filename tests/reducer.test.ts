@@ -839,19 +839,6 @@ describe('reducer', () => {
     expect(next.appState.strokeColor).toBe('#aabbcc');
   });
 
-  it('SET_FILL_COLOR updates appState.fillColor', () => {
-    const next = reducer(createScene(), {
-      type: 'SET_FILL_COLOR',
-      color: '#112233',
-    });
-    expect(next.appState.fillColor).toBe('#112233');
-  });
-
-  it('SET_STROKE_WIDTH updates appState.strokeWidth', () => {
-    const next = reducer(createScene(), { type: 'SET_STROKE_WIDTH', width: 5 });
-    expect(next.appState.strokeWidth).toBe(5);
-  });
-
   it('SET_GRID_TYPE sets gridType', () => {
     const next = reducer(createScene(), {
       type: 'SET_GRID_TYPE',
@@ -860,31 +847,12 @@ describe('reducer', () => {
     expect(next.appState.gridType).toBe('line');
   });
 
-  it('SET_STROKE_STYLE updates strokeStyle', () => {
-    const next = reducer(createScene(), {
-      type: 'SET_STROKE_STYLE',
-      style: 'dashed',
-    });
-    expect(next.appState.strokeStyle).toBe('dashed');
-  });
-
   it('SET_TOOL_LOCK sets toolLocked', () => {
     const next = reducer(createScene(), {
       type: 'SET_TOOL_LOCK',
       locked: true,
     });
     expect(next.appState.toolLocked).toBe(true);
-  });
-
-  it('SET_JUST_CREATED_TEXT sets justCreatedText', () => {
-    const next = reducer(createScene(), { type: 'SET_JUST_CREATED_TEXT' });
-    expect(next.appState.justCreatedText).toBe(true);
-  });
-
-  it('CLEAR_JUST_CREATED_TEXT clears justCreatedText', () => {
-    const scene = reducer(createScene(), { type: 'SET_JUST_CREATED_TEXT' });
-    const next = reducer(scene, { type: 'CLEAR_JUST_CREATED_TEXT' });
-    expect(next.appState.justCreatedText).toBe(false);
   });
 
   it('SET_FONT_FAMILY updates appState and selected text elements', () => {
@@ -1138,37 +1106,6 @@ describe('reducer', () => {
   });
 
   // ── TOGGLE_ELEMENT_VISIBILITY ─────────────────────────────────────────────
-
-  it('TOGGLE_ELEMENT_VISIBILITY hides a visible element', () => {
-    const scene: Scene = {
-      ...createScene(),
-      elements: [makeRect()],
-      selectedIds: new Set(),
-    };
-    const next = reducer(scene, {
-      type: 'TOGGLE_ELEMENT_VISIBILITY',
-      id: 'rect-1',
-    });
-    expect(
-      (next.elements[0] as RectangleElement & { visible?: boolean }).visible,
-    ).toBe(false);
-  });
-
-  it('TOGGLE_ELEMENT_VISIBILITY shows a hidden element', () => {
-    const hidden = { ...makeRect(), visible: false } as RectangleElement & {
-      visible: boolean;
-    };
-    const scene: Scene = {
-      ...createScene(),
-      elements: [hidden],
-      selectedIds: new Set(),
-    };
-    const next = reducer(scene, {
-      type: 'TOGGLE_ELEMENT_VISIBILITY',
-      id: 'rect-1',
-    });
-    expect((next.elements[0] as typeof hidden).visible).toBe(true);
-  });
 
   // ── LOAD_SCENE ────────────────────────────────────────────────────────────
 

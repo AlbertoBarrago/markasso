@@ -93,7 +93,7 @@ describe('History.applyRemote', () => {
     const b = new History(createScene());
     b.dispatch({ type: 'CREATE_ELEMENT', element: rect('b1') });
     b.dispatch({ type: 'SELECT_ELEMENTS', ids: ['b1'] });
-    b.dispatch({ type: 'SET_STROKE_WIDTH', width: 3 });
+    b.dispatch({ type: 'APPLY_STYLE', ids: [], strokeWidth: 3 });
 
     // B receives A's broadcast command.
     b.applyRemote(sent as never);
