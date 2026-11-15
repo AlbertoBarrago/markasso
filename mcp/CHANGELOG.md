@@ -4,6 +4,16 @@ All notable changes to `@markasso/mcp` are documented here. The MCP server is ve
 
 ---
 
+## [0.7.3] - 2026-11-15
+
+### Fixed
+- **No ghost peer after the client quits ([#146](https://github.com/AlbertoBarrago/markasso/pull/146)).** When the client closes the connection (stdin) or the process gets SIGINT or SIGTERM, the server lets running tool calls finish, sends the edits the room's limit held back, leaves the live room and exits. It used to keep running, still present in the room.
+
+### Changed
+- `@modelcontextprotocol/sdk` 1.32.2.
+
+---
+
 ## [0.7.2] - 2026-11-15
 
 Publishes the fixes of 0.7.1, whose release did not reach npm. No other change.

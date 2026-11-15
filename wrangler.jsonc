@@ -46,8 +46,15 @@
       }
     },
     {
+      // Opening live session WebSockets: each one can cost a Durable Object
+      // and, for an agent, a licence lookup.
+      "name": "SESSION_RATE_LIMITER",
+      "namespace_id": "27081504",
+      "simple": { "limit": 30, "period": 60 }
+    },
+    {
       // `period` only accepts 10 or 60, so the 10-minute quota the report
-      // form actually enforces lives in KV; this binding covers bursts.
+      // form actually enforces lives in D1; this binding covers bursts.
       "name": "REPORT_RATE_LIMITER",
       "namespace_id": "27081502",
       "simple": {

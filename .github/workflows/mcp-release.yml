@@ -44,6 +44,9 @@ jobs:
             exit 1
           fi
 
+      - name: Lint
+        run: pnpm lint:ci
+
       - name: Typecheck
         run: pnpm typecheck
 

@@ -189,7 +189,7 @@ describe('PenTool — mobile touch sequence', () => {
   it('carries appState stroke properties onto the created element', () => {
     const history = new History(createScene());
     history.dispatch({ type: 'SET_STROKE_COLOR', color: '#ff0000' });
-    history.dispatch({ type: 'SET_STROKE_WIDTH', width: 4 });
+    history.dispatch({ type: 'APPLY_STYLE', ids: [], strokeWidth: 4 });
 
     const tool = new PenTool();
     const ctx = makeCtx(history);

@@ -542,7 +542,6 @@ body.toolbar-placing * {
 /* UI hide mode (\ toggle) */
 body.ui-hidden #toolbar,
 body.ui-hidden #context-panel,
-body.ui-hidden #layers-panel,
 body.ui-hidden #mobile-actions {
   display: none !important;
 }
@@ -622,6 +621,15 @@ body.ui-hidden #mobile-actions {
 }
 #tb-more-tools {
   font-size: 24px;
+}
+
+/* The name itself, in a span so a long one ends with an ellipsis (text in a
+   flex row is clipped, not ellipsized). */
+.name-chip-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* The name chip is visible only while the live session is connected. */

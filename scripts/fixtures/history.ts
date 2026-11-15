@@ -232,7 +232,7 @@ function scripts(fam: Family): void {
     () => {
       const h = new History(threeBoxes());
       h.dispatch({ type: 'UPDATE_ELEMENT', id: 'r', props: { x: 0 } });
-      h.dispatch({ type: 'SET_STROKE_STYLE', style: 'dotted' });
+      h.dispatch({ type: 'APPLY_STYLE', ids: [], strokeStyle: 'dotted' });
       h.undo();
       h.undo();
       h.redo();
@@ -395,7 +395,13 @@ function scripts(fam: Family): void {
     const h = new History(threeBoxes());
     h.beginDrag();
     h.dispatch(MOVE_R);
-    h.applyRemote({ type: 'RENAME_LAYER', id: 'r', name: 'peer' });
+    h.applyRemote({
+      type: 'SET_SHAPE_LABEL',
+      id: 'r',
+      label: 'peer',
+      labelFontSize: 16,
+      labelFontFamily: 'Arial, sans-serif',
+    });
     h.cancelDrag();
   });
 
@@ -496,7 +502,7 @@ function scripts(fam: Family): void {
     h.dispatch({ type: 'CREATE_ELEMENT', element: sample('ellipse') });
     h.dispatch({ type: 'CREATE_ELEMENT', element: sample('line') });
     h.dispatch({ type: 'MOVE_ELEMENTS', ids: ['r', 'e', 'l'], dx: 10, dy: 10 });
-    h.dispatch({ type: 'TOGGLE_ELEMENT_VISIBILITY', id: 'e' });
+    h.dispatch({ type: 'APPLY_STYLE', ids: ['e'], opacity: 0.5 });
     for (let i = 0; i < 6; i++) h.undo();
     for (let i = 0; i < 6; i++) h.redo();
   });

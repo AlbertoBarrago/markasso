@@ -30,24 +30,17 @@ export const COMMAND_TYPES = [
   'SET_VIEWPORT',
   'SET_TOOL',
   'SET_STROKE_COLOR',
-  'SET_FILL_COLOR',
-  'SET_STROKE_WIDTH',
   'SET_FONT_FAMILY',
   'SET_FONT_SIZE',
   'TOGGLE_GRID',
   'SET_GRID_TYPE',
   'SET_ROTATION',
-  'SET_STROKE_STYLE',
   'REORDER_ELEMENTS',
-  'TOGGLE_ELEMENT_VISIBILITY',
-  'RENAME_LAYER',
   'LOAD_SCENE',
   'GROUP_ELEMENTS',
   'UNGROUP_ELEMENTS',
   'LOCK_ELEMENTS',
   'UNLOCK_ELEMENTS',
-  'CLEAR_JUST_CREATED_TEXT',
-  'SET_JUST_CREATED_TEXT',
   'SET_TOOL_LOCK',
   'SET_TEXT_MODE',
   'ALIGN_ELEMENTS',
@@ -125,7 +118,6 @@ function scenes(): Record<string, Scene> {
       gridVisible: false,
       gridType: 'line',
       toolLocked: true,
-      justCreatedText: true,
       textMode: 'code',
     }),
     zoomed: makeScene(
@@ -628,8 +620,6 @@ function variants(): Array<[string, Command, string]> {
   add('pair', { type: 'SET_TOOL', tool: 'line' }, 'no selection');
 
   add('boxes', { type: 'SET_STROKE_COLOR', color: '#ff0000' }, 'red');
-  add('boxes', { type: 'SET_FILL_COLOR', color: '#00ff0080' }, 'alpha');
-  add('boxes', { type: 'SET_STROKE_WIDTH', width: 4.5 }, 'width');
 
   add(
     'texts',
@@ -705,8 +695,6 @@ function variants(): Array<[string, Command, string]> {
     'three half turns back',
   );
 
-  add('boxes', { type: 'SET_STROKE_STYLE', style: 'dotted' }, 'dotted');
-
   add(
     'boxes',
     { type: 'REORDER_ELEMENTS', ids: ['a'], targetIndex: 0 },
@@ -743,12 +731,6 @@ function variants(): Array<[string, Command, string]> {
     { type: 'REORDER_ELEMENTS', ids: ['l', 'a', 'r'], targetIndex: 99 },
     'selection order differs from the scene order',
   );
-
-  add('boxes', { type: 'TOGGLE_ELEMENT_VISIBILITY', id: 'r' }, 'visible');
-  add('grouped', { type: 'TOGGLE_ELEMENT_VISIBILITY', id: 't' }, 'hidden');
-  add('boxes', { type: 'TOGGLE_ELEMENT_VISIBILITY', id: 'zz' }, 'unknown');
-  add('boxes', { type: 'RENAME_LAYER', id: 'e', name: 'Database' }, 'name');
-  add('grouped', { type: 'RENAME_LAYER', id: 't', name: '' }, 'empty');
 
   add(
     'boxes',
@@ -788,8 +770,6 @@ function variants(): Array<[string, Command, string]> {
     'locked and unlocked',
   );
 
-  add('textTool', { type: 'CLEAR_JUST_CREATED_TEXT' }, 'set');
-  add('boxes', { type: 'SET_JUST_CREATED_TEXT' }, 'clear');
   add('boxes', { type: 'SET_TOOL_LOCK', locked: true }, 'lock');
   add('textTool', { type: 'SET_TOOL_LOCK', locked: false }, 'unlock');
   add('texts', { type: 'SET_TEXT_MODE', mode: 'code' }, 'code');

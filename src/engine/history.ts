@@ -203,7 +203,7 @@ export class History {
     let scene: Scene = {
       ...fresh,
       // These two point at elements of the board being replaced.
-      appState: { ...appState, lastCreatedId: null, justCreatedText: false },
+      appState: { ...appState, lastCreatedId: null },
       viewport: keepViewport ? viewport : fresh.viewport,
     };
     for (const command of commands) {
@@ -220,12 +220,7 @@ export class History {
   }
 
   dispatch(command: Command): void {
-    if (
-      this.readOnly &&
-      (!isEphemeralCommand(command.type) ||
-        command.type === 'SET_JUST_CREATED_TEXT')
-    )
-      return;
+    if (this.readOnly && !isEphemeralCommand(command.type)) return;
     // Commands that target the local selection carry its ids from here on,
     // so a shared session changes the SAME elements on every client.
     const resolved = withTargets(this._present, command);
@@ -334,7 +329,6 @@ const KEPT_ON_UNDO = [
   'gridVisible',
   'gridType',
   'toolLocked',
-  'justCreatedText',
 ] as const satisfies ReadonlyArray<keyof AppState>;
 
 const KEPT_ON_UNDO_SET: ReadonlySet<string> = new Set([

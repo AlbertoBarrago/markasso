@@ -137,14 +137,6 @@
   border-color: rgba(255, 255, 255, 0.3);
 }
 
-.cp-color-picker {
-  position: absolute;
-  width: 0;
-  height: 0;
-  opacity: 0;
-  pointer-events: none;
-}
-
 /* Color picker popup */
 .cp-color-popup {
   position: fixed;
@@ -218,21 +210,6 @@
 .cp-popup-swatch.active {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-light);
-}
-
-/* Shade label overlay (⇧1 … ⇧5) */
-.cp-popup-shade-key {
-  position: absolute;
-  bottom: 3px;
-  left: 0;
-  right: 0;
-  text-align: center;
-  font-size: 9px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.65);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-  pointer-events: none;
-  letter-spacing: 0;
 }
 
 .cp-popup-hex-section {
@@ -496,16 +473,10 @@
 
 /* Layer and action buttons */
 .cp-layer-btn,
-.cp-action-btn,
-.cp-shadow-btn {
+.cp-action-btn {
   font-size: 16px;
   width: 36px;
   height: 36px;
-}
-
-/* Hide old props panel */
-#props-panel {
-  display: none !important;
 }
 
 /* 8 flowchart kinds don't fit on one row */

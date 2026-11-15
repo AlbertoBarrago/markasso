@@ -260,11 +260,6 @@
     display: none;
   }
 
-  /* ── Hide desktop props panel on touch ── */
-  #props-panel {
-    display: none !important;
-  }
-
   /* Context panel: full-width on mobile, below top-left settings */
   #context-panel {
     top: 62px;

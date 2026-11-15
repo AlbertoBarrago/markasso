@@ -449,18 +449,6 @@ export function reducer(
         appState: { ...scene.appState, strokeColor: command.color },
       };
 
-    case 'SET_FILL_COLOR':
-      return {
-        ...scene,
-        appState: { ...scene.appState, fillColor: command.color },
-      };
-
-    case 'SET_STROKE_WIDTH':
-      return {
-        ...scene,
-        appState: { ...scene.appState, strokeWidth: command.width },
-      };
-
     case 'SET_FONT_FAMILY':
       return {
         ...scene,
@@ -530,12 +518,6 @@ export function reducer(
         ),
       };
 
-    case 'SET_STROKE_STYLE':
-      return {
-        ...scene,
-        appState: { ...scene.appState, strokeStyle: command.style },
-      };
-
     case 'REORDER_ELEMENTS': {
       const idSet = new Set(command.ids);
       // In scene order, not selection order, so the moved elements keep
@@ -553,22 +535,6 @@ export function reducer(
       ];
       return { ...scene, elements: reordered };
     }
-
-    case 'TOGGLE_ELEMENT_VISIBILITY':
-      return {
-        ...scene,
-        elements: scene.elements.map((el) =>
-          el.id === command.id ? { ...el, visible: el.visible === false } : el,
-        ),
-      };
-
-    case 'RENAME_LAYER':
-      return {
-        ...scene,
-        elements: scene.elements.map((el) =>
-          el.id === command.id ? { ...el, layerName: command.name } : el,
-        ),
-      };
 
     case 'LOAD_SCENE':
       return {
@@ -622,18 +588,6 @@ export function reducer(
         ),
       };
     }
-
-    case 'CLEAR_JUST_CREATED_TEXT':
-      return {
-        ...scene,
-        appState: { ...scene.appState, justCreatedText: false },
-      };
-
-    case 'SET_JUST_CREATED_TEXT':
-      return {
-        ...scene,
-        appState: { ...scene.appState, justCreatedText: true },
-      };
 
     case 'SET_TOOL_LOCK':
       return {

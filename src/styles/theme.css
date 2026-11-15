@@ -79,8 +79,7 @@
 [data-theme="light"] .fsb-popover,
 [data-theme="light"] #mobile-actions,
 [data-theme="light"] #mobile-style-sheet,
-[data-theme="light"] .wl-card,
-[data-theme="light"] .about-modal-box {
+[data-theme="light"] .wl-card {
   background: var(--bg-island) !important;
   border-color: var(--island-border) !important;
   backdrop-filter: none !important;
@@ -208,10 +207,6 @@
 [data-theme="light"] .cp-popup-swatch.active {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px rgba(169, 1, 27, 0.25);
-}
-[data-theme="light"] .cp-popup-shade-key {
-  color: rgba(0, 0, 0, 0.5);
-  text-shadow: none;
 }
 [data-theme="light"] .cp-popup-hex-section {
   border-top-color: rgba(0, 0, 0, 0.08);

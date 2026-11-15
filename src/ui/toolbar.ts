@@ -18,7 +18,12 @@ import {
 import { readStorage } from '../io/safe_storage';
 import { showImportError } from './import_error';
 import { toggleLibrary } from './library_panel';
-import { onLiveHide, onLiveReveal, setLiveUI } from './live_name';
+import {
+  onLiveHide,
+  onLiveReveal,
+  setLiveUI,
+  setNameChipText,
+} from './live_name';
 import { buildLiveInvitePrompt } from './mcp_clients';
 import { initPeopleList } from './people_list';
 import {
@@ -742,7 +747,7 @@ export function initToolbar(
   const showNameChip = (): void => {
     nameIsland.style.display = '';
     nameChip.style.display = '';
-    nameChip.textContent = getLiveName();
+    setNameChipText(nameChip, getLiveName());
   };
   const hideNameChip = (): void => {
     nameIsland.style.display = 'none';

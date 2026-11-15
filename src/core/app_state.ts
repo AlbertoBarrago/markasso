@@ -32,7 +32,6 @@ export interface AppState {
   readonly gridSize: number;
   readonly gridType: GridType;
   readonly strokeStyle: 'solid' | 'dashed' | 'dotted';
-  readonly justCreatedText: boolean;
   readonly toolLocked: boolean;
   /** Flowchart symbol drawn by the `shape` tool. */
   readonly shapeKind: ShapeKind;
@@ -71,7 +70,6 @@ export function createAppState(): AppState {
     gridSize: 20,
     gridType: 'dot',
     strokeStyle: 'solid',
-    justCreatedText: false,
     toolLocked: false,
     shapeKind: 'terminator',
     lineRouting: 'straight',

@@ -180,6 +180,18 @@ describe('LiveLink', () => {
     expect(socket.sent).toHaveLength(sentBefore);
   });
 
+  it('waits for the socket to close when leaving before an exit', async () => {
+    const diagram = new Diagram();
+    const { result, socket } = await join(diagram, []);
+    await diagram.addNodes([{ key: 'api' }]);
+    const start = Date.now();
+    await result.link.leaveAndWait(5_000);
+    // Closed, with the last edit sent, well before the time limit.
+    expect(socket.readyState).toBe(3);
+    expect(socket.sent.at(-1)).toMatchObject({ type: 'command' });
+    expect(Date.now() - start).toBeLessThan(1_000);
+  });
+
   it('authenticates first when MARKASSO_LICENSE is set', async () => {
     process.env.MARKASSO_LICENSE = ' MKC-AAAAA-BBBBB-CCCCC-DDDDD-EEEEE ';
     try {

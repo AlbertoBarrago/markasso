@@ -17,22 +17,71 @@ const validScene = [
   },
 ];
 
+/**
+ * The report_quota table in memory, running the statements report_quota.ts
+ * sends. Each call completes before the next starts, like one SQL statement,
+ * so parallel requests see the same atomic upserts D1 runs.
+ */
+function quotaDb(
+  prefill: { client?: number | undefined; global?: number | undefined } = {},
+) {
+  const rows = new Map<string, { window_start: number; count: number }>();
+  const now = Math.floor(Date.now() / 1000);
+  const db = {
+    rows,
+    /** A client row starts at `prefill.client` the first time it is seen. */
+    prepare: (sql: string) => ({
+      bind: (...args: unknown[]) => ({
+        first: async () => {
+          const [key, at, threshold] = args as [string, number, number];
+          let row = rows.get(key);
+          if (!row && key.startsWith('client:') && prefill.client)
+            row = { window_start: now, count: prefill.client };
+          if (!row && key === 'global' && prefill.global)
+            row = { window_start: now, count: prefill.global };
+          const next =
+            !row || row.window_start <= threshold
+              ? { window_start: at, count: 1 }
+              : { window_start: row.window_start, count: row.count + 1 };
+          rows.set(key, next);
+          return { ...next };
+        },
+        run: async () => {
+          if (sql.startsWith('UPDATE')) {
+            const row = rows.get(args[0] as string);
+            // As the SQL reads: the window must match only when it is named.
+            const sameWindow =
+              !sql.includes('window_start =') || row?.window_start === args[1];
+            if (row && sameWindow && row.count > 0) row.count--;
+          } else if (sql.startsWith('DELETE')) {
+            for (const [key, row] of rows)
+              if (row.window_start < (args[0] as number)) rows.delete(key);
+          }
+          return { meta: { changes: 1 } };
+        },
+      }),
+    }),
+  };
+  return db;
+}
+
 function createEnv(
   options: {
     rateLimitSuccess?: boolean;
     reportRateLimitSuccess?: boolean;
     quotaUsed?: number;
+    dailyUsed?: number;
   } = {},
 ): Env {
   return {
     SHARE_LINKS: {
-      get: vi
-        .fn()
-        .mockResolvedValue(
-          options.quotaUsed === undefined ? null : String(options.quotaUsed),
-        ),
+      get: vi.fn().mockResolvedValue(null),
       put: vi.fn(),
     },
+    BOARDS_DB: quotaDb({
+      client: options.quotaUsed,
+      global: options.dailyUsed,
+    }),
     SHARE_RATE_LIMITER: {
       limit: vi
         .fn()
@@ -158,13 +207,79 @@ describe('report worker', () => {
       'https://api.github.com/repos/AlbertoBarrago/markasso/issues',
       expect.objectContaining({ method: 'POST' }),
     );
-    expect(env.SHARE_LINKS.put).toHaveBeenCalledWith(
-      expect.stringMatching(/^report-quota:/),
-      '1',
-      expect.objectContaining({ expirationTtl: 600 }),
-    );
+    // One slot of the client's quota and one of the day's.
+    const { rows } = env.BOARDS_DB as unknown as ReturnType<typeof quotaDb>;
+    expect([...rows.values()].map((row) => row.count)).toEqual([1, 1]);
+    // The client row holds a hash, never the address.
+    expect([...rows.keys()][0]).toMatch(/^client:[0-9a-f]{64}$/);
 
     fetchSpy.mockRestore();
+  });
+
+  it('lets only the quota through when requests arrive in parallel', async () => {
+    const env = createEnv();
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ html_url: 'https://x/1' }), {
+          status: 201,
+        }),
+    );
+    const statuses = await Promise.all(
+      Array.from({ length: 6 }, () =>
+        worker
+          .fetch(postReport(JSON.stringify(validReport)), env)
+          .then((response) => response.status),
+      ),
+    );
+    expect(statuses.filter((status) => status === 201)).toHaveLength(3);
+    expect(statuses.filter((status) => status === 429)).toHaveLength(3);
+    fetchSpy.mockRestore();
+  });
+
+  it('gives the slot back when GitHub cannot be reached', async () => {
+    const env = createEnv();
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockRejectedValue(new TypeError('network'));
+    const response = await worker.fetch(
+      postReport(JSON.stringify(validReport)),
+      env,
+    );
+    expect(response.status).toBe(502);
+    const { rows } = env.BOARDS_DB as unknown as ReturnType<typeof quotaDb>;
+    expect([...rows.values()].map((row) => row.count)).toEqual([0, 0]);
+    fetchSpy.mockRestore();
+  });
+
+  it('files no report without its quota store', async () => {
+    const env = createEnv();
+    (env as { BOARDS_DB: unknown }).BOARDS_DB = {
+      prepare: () => {
+        throw new Error('no such table: report_quota');
+      },
+    };
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const response = await worker.fetch(
+      postReport(JSON.stringify(validReport)),
+      env,
+    );
+    expect(response.status).toBe(503);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it('caps the reports of the whole site per day', async () => {
+    const env = createEnv({ dailyUsed: 50 });
+    const response = await worker.fetch(
+      postReport(JSON.stringify(validReport)),
+      env,
+    );
+    expect(response.status).toBe(429);
+    // The client slot taken before the daily check is given back.
+    const { rows } = env.BOARDS_DB as unknown as ReturnType<typeof quotaDb>;
+    expect(
+      [...rows.entries()].find(([key]) => key.startsWith('client:'))?.[1].count,
+    ).toBe(0);
   });
 
   it('rejects cross-origin writes before rate limiting', async () => {
@@ -208,7 +323,8 @@ describe('report worker', () => {
       env,
     );
     expect(response.status).toBe(429);
-    expect(response.headers.get('Retry-After')).toBe('600');
+    // Until the 10-minute window closes.
+    expect(Number(response.headers.get('Retry-After'))).toBeGreaterThan(590);
   });
 
   it('returns a gateway error when GitHub rejects the issue', async () => {
@@ -222,7 +338,9 @@ describe('report worker', () => {
       env,
     );
     expect(response.status).toBe(502);
-    expect(env.SHARE_LINKS.put).not.toHaveBeenCalled();
+    // Nothing was filed: both slots are given back.
+    const { rows } = env.BOARDS_DB as unknown as ReturnType<typeof quotaDb>;
+    expect([...rows.values()].map((row) => row.count)).toEqual([0, 0]);
 
     fetchSpy.mockRestore();
   });
@@ -257,13 +375,11 @@ describe('scheduled cleanup', () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ deleted: true })))
       .mockResolvedValueOnce(new Response(JSON.stringify({ deleted: false })));
     const env = {
-      BOARDS_DB: {
-        prepare: () => ({
-          bind: () => ({ all: async () => ({ results: [] }) }),
-        }),
-      },
+      BOARDS_DB: quotaDb(),
       BOARDS_BUCKET: { list: async () => ({ objects: [], truncated: false }) },
       SHARE_LINKS: {
+        get: vi.fn().mockResolvedValue(null),
+        put: vi.fn(),
         list: vi.fn().mockResolvedValue({
           keys: [{ name: 'room:abc123' }, { name: 'room:xyz789' }],
           list_complete: true,
@@ -289,6 +405,53 @@ describe('scheduled cleanup', () => {
     expect(cleanup).toHaveBeenCalledTimes(2);
     expect(env.SESSION_ROOMS.idFromName).toHaveBeenCalledWith('abc123');
     expect(env.SESSION_ROOMS.idFromName).toHaveBeenCalledWith('xyz789');
+    // The sweep is complete: no cursor is kept for the next run.
+    expect(env.SHARE_LINKS.delete).toHaveBeenCalledWith(
+      'cron:room-cleanup-cursor',
+    );
+  });
+
+  it('checks one page of rooms per run and resumes from the saved cursor', async () => {
+    const cleanup = vi.fn(
+      async () => new Response(JSON.stringify({ deleted: false })),
+    );
+    const list = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('cursor expired'))
+      .mockResolvedValueOnce({
+        keys: [{ name: 'room:abc123' }],
+        list_complete: false,
+        cursor: 'next-page',
+      });
+    const env = {
+      BOARDS_DB: quotaDb(),
+      SHARE_LINKS: {
+        get: vi.fn().mockResolvedValue('stale-cursor'),
+        put: vi.fn(),
+        delete: vi.fn(),
+        list,
+      },
+      SESSION_ROOMS: {
+        idFromName: vi.fn((name: string) => ({ name })),
+        get: vi.fn(() => ({ fetch: cleanup })),
+      },
+    } as unknown as Env;
+    await worker.scheduled(
+      { cron: '0 12 * * *' } as unknown as ScheduledController,
+      env,
+      {} as unknown as ExecutionContext,
+    );
+    // A stale cursor restarts from the first room.
+    expect(list).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ cursor: 'stale-cursor', limit: 400 }),
+    );
+    expect(list.mock.calls[1]![0]).not.toHaveProperty('cursor');
+    expect(cleanup).toHaveBeenCalledTimes(1);
+    expect(env.SHARE_LINKS.put).toHaveBeenCalledWith(
+      'cron:room-cleanup-cursor',
+      'next-page',
+    );
   });
 });
 
@@ -325,5 +488,26 @@ describe('cloud feature gate', () => {
         expect(await response.json()).toEqual({ error: 'Not found' });
       }
     }
+  });
+});
+
+describe('report quota windows', () => {
+  it('gives a slot back only to the window it was taken in', async () => {
+    const { takeReportSlot } = await import('../src/worker/report_quota');
+    const db = quotaDb();
+    const start = 1_000_000;
+    const first = await takeReportSlot(db as unknown as D1Database, 'c', start);
+    expect(first.ok).toBe(true);
+    // The window restarts before the first report gives its slot back.
+    const later = start + 601;
+    for (let i = 0; i < 3; i++)
+      expect(
+        (await takeReportSlot(db as unknown as D1Database, 'c', later)).ok,
+      ).toBe(true);
+    if (first.ok) await first.release();
+    // The new window keeps its three: a fourth is still refused.
+    expect(
+      (await takeReportSlot(db as unknown as D1Database, 'c', later)).ok,
+    ).toBe(false);
   });
 });

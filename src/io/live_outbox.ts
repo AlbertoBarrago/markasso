@@ -101,6 +101,17 @@ export class LiveOutbox {
     this.clear();
   }
 
+  /**
+   * Resolves once everything waiting has been sent, or after `timeoutMs`:
+   * for a leave that can wait, so an editing burst held back by the quota
+   * still reaches the room.
+   */
+  async idle(timeoutMs: number): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    while (this.pending && Date.now() < deadline)
+      await new Promise((resolve) => setTimeout(resolve, this.intervalMs));
+  }
+
   /** Drops what is waiting, e.g. when the connection is gone. */
   clear(): void {
     if (this.timer !== null) clearTimeout(this.timer);
