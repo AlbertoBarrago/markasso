@@ -78,6 +78,13 @@ export class CloudClient {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private retryNotBefore = 0;
   private busy = false;
+  /**
+   * Token saved in this browser while the board is open through a link that
+   * carries a different one. Reads need no token, so the link's token is
+   * unproven until a write succeeds: only then does it replace the saved one.
+   * A stale or mistyped edit link must not cost the owner their access.
+   */
+  private storedToken: string | undefined;
   private checking = false;
   private generation = 0;
   constructor(
@@ -138,7 +145,12 @@ export class CloudClient {
   }
   /** Edit tokens of the boards this browser created or opened with an edit link. */
   knownTokens(): Record<string, string> {
-    return this.tokens();
+    // The open board answers with the token in use, which a link may have
+    // brought and no write has stored yet (see storedToken).
+    return {
+      ...this.tokens(),
+      ...(this.id && this.token ? { [this.id]: this.token } : {}),
+    };
   }
   /**
    * Removes a board from this browser only: its edit token and its entry in
@@ -163,17 +175,33 @@ export class CloudClient {
    * the open board is the caller's job to follow up (detach, new URL).
    */
   async deleteBoard(id: string): Promise<void> {
-    const token = this.tokens()[id];
-    if (!token) throw new CloudError(401);
-    try {
-      await this.send(`/api/board/${id}`, {
-        method: 'DELETE',
-        headers: { ...this.headers(), Authorization: `Bearer ${token}` },
-      });
-    } catch (error) {
-      if (!(error instanceof CloudError && error.status === 404)) throw error;
+    // For the open board the token in use comes first; the saved one is the
+    // fallback when a link brought a token the board does not accept.
+    const tokens = [
+      ...new Set(
+        [id === this.id ? this.token : undefined, this.tokens()[id]].filter(
+          (token): token is string => !!token,
+        ),
+      ),
+    ];
+    let refused: unknown = new CloudError(401);
+    for (const token of tokens) {
+      try {
+        await this.send(`/api/board/${id}`, {
+          method: 'DELETE',
+          headers: { ...this.headers(), Authorization: `Bearer ${token}` },
+        });
+      } catch (error) {
+        if (error instanceof CloudError && error.status === 401) {
+          refused = error;
+          continue;
+        }
+        if (!(error instanceof CloudError && error.status === 404)) throw error;
+      }
+      this.forget(id);
+      return;
     }
-    this.forget(id);
+    throw refused;
   }
   private tokens(): Record<string, string> {
     try {
@@ -314,9 +342,12 @@ export class CloudClient {
     if (!route) throw new CloudError(404);
     this.detach();
     this.id = route.id;
-    this.token = route.token ?? this.tokens()[route.id];
+    const stored = this.tokens()[route.id];
+    this.token = route.token ?? stored;
+    this.storedToken =
+      route.token && stored && stored !== route.token ? stored : undefined;
     const scene = await this.read();
-    if (this.token) this.remember();
+    if (this.token && !this.storedToken) this.remember();
     touchBoard(this.storage, route.id, scene.elements, 'opened');
     this.notify('saved');
     return scene;
@@ -418,6 +449,7 @@ export class CloudClient {
     this.busy = true;
     const scene = this.pending;
     const generation = this.generation;
+    let retryWithStoredToken = false;
     this.notify('saving');
     try {
       const data =
@@ -441,10 +473,26 @@ export class CloudClient {
       )
         throw new CloudError(503);
       this.version = data.version as number;
+      this.proveToken();
       this.saved(scene);
     } catch (error) {
       if (generation === this.generation) {
         let recovered = false;
+        if (
+          error instanceof CloudError &&
+          error.status === 401 &&
+          this.storedToken
+        ) {
+          // The link's token is not the board's: go back to the saved one.
+          this.token = this.storedToken;
+          this.storedToken = undefined;
+          retryWithStoredToken = true;
+          recovered = true;
+        }
+        // The worker checks the token before the version and the licence, so
+        // these answers prove it as much as a successful write does.
+        if (error instanceof CloudError && [402, 409].includes(error.status))
+          this.proveToken();
         if (error instanceof CloudError && error.status === 409) {
           try {
             const board = parseBoard(await this.send(`/api/board/${this.id}`));
@@ -471,10 +519,17 @@ export class CloudClient {
     } finally {
       this.busy = false;
     }
+    if (retryWithStoredToken) return this.flush(keepalive);
     if (this.pending && this.state === 'saving')
       this.timer = setTimeout(() => {
         void this.flush();
       }, 2000);
+  }
+  /** The board accepted the token in use: it replaces the saved one. */
+  private proveToken(): void {
+    if (!this.storedToken) return;
+    this.storedToken = undefined;
+    this.remember();
   }
   private saved(scene: CloudScene): void {
     this.retryNotBefore = 0;
@@ -541,6 +596,7 @@ export class CloudClient {
     this.pending = null;
     this.id = null;
     this.token = undefined;
+    this.storedToken = undefined;
     this.version = 0;
   }
 }
