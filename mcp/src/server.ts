@@ -143,7 +143,14 @@ function formatRequests(requests: ReadonlyArray<LiveRequest>): string {
   ].join('\n');
 }
 
-/** Runs a tool body and turns thrown errors into MCP tool errors. */
+/**
+ * How long an answer waits for the room to refuse the edits it sent, after
+ * the ones held back by the quota go out (at most QUEUE_WAIT_MS, a bit over
+ * one quota window).
+ */
+const REFUSAL_WAIT_MS = 250;
+const QUEUE_WAIT_MS = 6_000;
+
 /** Tool calls still running; shutting down waits for them. */
 let inFlight = 0;
 const onIdle: Array<() => void> = [];
@@ -173,8 +180,13 @@ function callsDone(timeoutMs: number): Promise<void> {
   });
 }
 
+/** Runs a tool body and turns thrown errors into MCP tool errors. */
 function guarded<A>(run: (args: A) => Promise<string> | string) {
   return tracked(async (args: A) => {
+    // The link of the call's start: the call may leave or switch rooms, and
+    // what that room refused must still be reported.
+    const before = live;
+    const editsBefore = before?.editCount ?? 0;
     let result: ReturnType<typeof text> | ReturnType<typeof failure>;
     try {
       result = text(await run(args));
@@ -184,10 +196,18 @@ function guarded<A>(run: (args: A) => Promise<string> | string) {
     // Requests ride along on every answer, so the agent sees them while it
     // works, not only when it waits for them.
     const requests = live?.pendingRequests ? live.takeRequests() : [];
-    if (requests.length > 0) {
-      const first = result.content[0];
-      if (first) first.text += `\n${formatRequests(requests)}`;
-    }
+    const first = result.content[0];
+    if (requests.length > 0 && first)
+      first.text += `\n${formatRequests(requests)}`;
+    // Edits the room refused, so the model knows the others miss them. The
+    // room answers a refusal right away: when this call made edits, send
+    // what the quota holds back and give the answer a moment to arrive.
+    if (live && live.editCount > (live === before ? editsBefore : 0))
+      await live.settle(QUEUE_WAIT_MS, REFUSAL_WAIT_MS);
+    const refused = [before, live !== before ? live : null]
+      .map((link) => link?.takeRejections() ?? '')
+      .filter(Boolean);
+    if (refused.length > 0 && first) first.text += `\n${refused.join('\n')}`;
     return result;
   });
 }

@@ -29,6 +29,8 @@ type ServerMsg =
   | { type: 'presence'; peers: PeerInfo[] }
   | { type: 'cursor' }
   | { type: 'error'; error: string }
+  /** The room refused one of the agent's edits. */
+  | { type: 'rejected'; reason: unknown }
   | AgentRequestMsg;
 
 /** A request a person in the room sent to this agent. */
@@ -111,6 +113,15 @@ export interface JoinResult {
   readonly discarded: number;
 }
 
+/** What each refusal reason of the room means, for the model. */
+const REJECTION_TEXT: Record<string, string> = {
+  too_large:
+    'one edit was too large for a single message, usually a large image',
+  rate: 'too many edits in a short time',
+  full: 'the room reached its size limit',
+  invalid: 'an edit could not be applied',
+};
+
 export class LiveLink {
   readonly room: string;
   readonly url: string;
@@ -152,6 +163,36 @@ export class LiveLink {
   /** Other people currently in the room. */
   get otherPeers(): ReadonlyArray<PeerInfo> {
     return this.peers.filter((p) => p.id !== this.selfId);
+  }
+
+  /** Edits handed to the room so far, sent or waiting (see guarded in server.ts). */
+  editCount = 0;
+
+  /** Reasons the room gave for refusing edits since the last answer. */
+  private rejections: string[] = [];
+
+  /**
+   * Why the room refused some of the agent's edits since the last call, as
+   * a note for the model: the board it sees here then differs from the
+   * room's. Empty when nothing was refused.
+   */
+  takeRejections(): string {
+    if (this.rejections.length === 0) return '';
+    const reasons = this.rejections.map(
+      (reason) => REJECTION_TEXT[reason] ?? reason,
+    );
+    this.rejections = [];
+    return `The live room refused some of your edits (${reasons.join('; ')}): the other people do not see them.`;
+  }
+
+  /**
+   * Resolves once the edits held back by the room's quota are sent (at
+   * most `timeoutMs`), then after `graceMs` more, so a refusal of the last
+   * ones has time to arrive.
+   */
+  async settle(timeoutMs: number, graceMs: number): Promise<void> {
+    await this.outbox.idle(timeoutMs);
+    await new Promise((resolve) => setTimeout(resolve, graceMs));
   }
 
   /** Requests received and not yet handed to the model. */
@@ -231,6 +272,12 @@ export class LiveLink {
     send: (command) => this.send({ type: 'command', command }),
   });
 
+  /** Queues a scene command for the room, counting it (see editCount). */
+  private publish(command: Command): void {
+    this.editCount++;
+    this.outbox.push(command);
+  }
+
   private send(message: unknown): void {
     if (this.socket?.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify(message));
@@ -286,12 +333,12 @@ export class LiveLink {
             // Empty room: publish what the agent already drew, in pieces
             // the room accepts.
             for (const command of createCommands(local, { validOnly: true }))
-              this.outbox.push(command);
+              this.publish(command);
             seeded = true;
           }
           history.setOnCommand((command) => {
             if (this.open && isSessionCommand(command)) {
-              this.outbox.push(command);
+              this.publish(command);
             }
           });
           this.open = true;
@@ -316,6 +363,10 @@ export class LiveLink {
           this.peers = msg.peers;
         } else if (msg.type === 'request') {
           this.receiveRequest(msg);
+        } else if (msg.type === 'rejected' && typeof msg.reason === 'string') {
+          // Reported with the next tool answer (see takeRejections).
+          if (!this.rejections.includes(msg.reason))
+            this.rejections.push(msg.reason);
         } else if (msg.type === 'error' && !this.open) {
           clearTimeout(timer);
           reject(

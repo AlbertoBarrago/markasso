@@ -108,6 +108,37 @@ describe('live room commands', () => {
     ]);
   });
 
+  it('tells the sender when the room refuses each of its commands', async () => {
+    const { alice, bob } = await room();
+    // Too large for one message: an image data URL of about 600k chars.
+    alice.receive({
+      type: 'command',
+      command: {
+        type: 'CREATE_ELEMENT',
+        element: {
+          ...element,
+          id: 'img',
+          type: 'image',
+          src: `data:image/png;base64,${'A'.repeat(600_000)}`,
+        },
+      },
+    });
+    expect(alice.ofType('rejected')).toEqual([
+      { type: 'rejected', reason: 'too_large' },
+    ]);
+    // Not applicable, twice in a row: a notice each, so a retry that is
+    // refused again is reported too.
+    alice.receive({ type: 'command', command: { type: 'CREATE_ELEMENTS' } });
+    alice.receive({ type: 'command', command: { type: 'CREATE_ELEMENTS' } });
+    expect(alice.ofType('rejected')).toEqual([
+      { type: 'rejected', reason: 'too_large' },
+      { type: 'rejected', reason: 'invalid' },
+      { type: 'rejected', reason: 'invalid' },
+    ]);
+    // Only the sender hears about it.
+    expect(bob.ofType('rejected')).toEqual([]);
+  });
+
   it('replaces the first of two tabs with the same client id that join at once', async () => {
     const { instance } = await room();
     const first = new FakeServerSocket();

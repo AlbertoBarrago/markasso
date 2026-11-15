@@ -34,6 +34,7 @@ import { initReportForm } from './src/ui/report_form';
 import { applySettings, initSettings, loadSettings } from './src/ui/settings';
 import {
   showLiveEndedToast,
+  showLiveRejectedToast,
   showLiveStatusToast,
 } from './src/ui/share_actions';
 import { initShortcuts } from './src/ui/shortcuts';
@@ -213,6 +214,7 @@ async function bootstrap(): Promise<void> {
         setLiveUI(false);
         showLiveEndedToast(reason);
       },
+      onRejected: showLiveRejectedToast,
     });
   }
 }

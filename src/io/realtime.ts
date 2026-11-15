@@ -43,7 +43,21 @@ export interface LiveOptions {
   onStatus?: (connected: boolean) => void;
   /** The room ended the session for this tab; it will not reconnect. */
   onEnded?: (reason: LiveEndReason) => void;
+  /** The room refused an edit of this tab: the others did not get it. */
+  onRejected?: (reason: LiveRejectReason) => void;
 }
+
+/**
+ * Why a room refused an edit: too large for one message (a big image), too
+ * many edits at once, the room at its size limit, or not applicable.
+ */
+export type LiveRejectReason = 'too_large' | 'rate' | 'full' | 'invalid';
+const REJECT_REASONS: ReadonlySet<string> = new Set([
+  'too_large',
+  'rate',
+  'full',
+  'invalid',
+]);
 
 /**
  * Why a room closed the session for good: the same browser joined it from
@@ -81,7 +95,14 @@ type ServerMsg =
   | PresenceMsg
   | CursorMsg
   | RequestAccessMsg
-  | RequestStatusMsg;
+  | RequestStatusMsg
+  | RejectedMsg;
+
+/** The room refused one of this tab's edits (see LiveRejectReason). */
+interface RejectedMsg {
+  type: 'rejected';
+  reason: unknown;
+}
 
 const LIVE_PARAM = 'live';
 const NAME_KEY = 'markasso-live-name';
@@ -453,6 +474,12 @@ export function joinLiveSession(
         handleRequestAccess(msg);
       } else if (msg.type === 'request_status') {
         handleRequestStatus(msg);
+      } else if (
+        msg.type === 'rejected' &&
+        typeof msg.reason === 'string' &&
+        REJECT_REASONS.has(msg.reason)
+      ) {
+        opts.onRejected?.(msg.reason as LiveRejectReason);
       }
     };
 
