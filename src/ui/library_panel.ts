@@ -18,6 +18,8 @@ import type { History } from '../engine/history';
 import { t } from '../i18n';
 import type { ImportedIcon, ImportedPack } from '../io/icon_pack';
 import { deleteIconPack, listIconPacks } from '../io/icon_pack_store';
+// Without storage the library simply starts closed and without recents.
+import { readStorage, writeStorage } from '../io/safe_storage';
 import { confirmDialog } from './dialog';
 import { insertShape, insertStencil } from './library_insert';
 import { SHAPE_KIND_LABEL_KEYS, shapeKindIcon } from './shape_icons';
@@ -168,24 +170,6 @@ function buildSections(
       imported: pack,
     })),
   ];
-}
-
-function readStorage(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    // Storage can be unavailable (private mode, blocked site data): the
-    // library then simply starts closed and without recents.
-    return null;
-  }
-}
-
-function writeStorage(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // Same as readStorage: persistence is a convenience only.
-  }
 }
 
 function readRecent(): string[] {

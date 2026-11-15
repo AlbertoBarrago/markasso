@@ -2,7 +2,9 @@ import type { GridType } from '../core/app_state';
 import type { Viewport } from '../core/viewport';
 import type { Element } from '../elements/element';
 import type { History } from '../engine/history';
+import { t } from '../i18n';
 import { validateElements, validateViewport } from './element_validation';
+import { removeStorage } from './safe_storage';
 
 const STORAGE_KEY = 'markasso-session';
 const DEBOUNCE_MS = 500;
@@ -66,7 +68,7 @@ export function initSession(history: History): void {
     if (pendingTimer !== null) clearTimeout(pendingTimer);
     pendingSave = () => {
       if (scene.elements.length === 0) {
-        localStorage.removeItem(STORAGE_KEY);
+        removeStorage(STORAGE_KEY);
         return;
       }
       try {
@@ -87,7 +89,11 @@ export function initSession(history: History): void {
           (e.name === 'QuotaExceededError' ||
             e.name === 'NS_ERROR_DOM_QUOTA_REACHED')
         ) {
-          showQuotaWarning();
+          showStorageWarning(t('sessionQuotaFull'), true);
+        } else {
+          // Storage blocked by the browser: nothing will survive a reload,
+          // so the warning stays until dismissed.
+          showStorageWarning(t('sessionStorageBlocked'), false);
         }
       }
     };
@@ -95,17 +101,21 @@ export function initSession(history: History): void {
   });
 }
 
-// ── Quota warning toast ─────────────────────────────────────────────────────
+// ── Storage warning toast ───────────────────────────────────────────────────
 
-function showQuotaWarning(): void {
+/** Tells the user the session is not being kept, once per page. */
+function showStorageWarning(message: string, autoDismiss: boolean): void {
   if (document.getElementById('markasso-quota-toast')) return;
   const toast = document.createElement('div');
   toast.id = 'markasso-quota-toast';
   toast.className = 'quota-toast';
-  toast.innerHTML = `
-    <span>Session not saved — storage quota exceeded. Use <strong>Save .markasso</strong> to keep your work.</span>
-    <button class="quota-toast-close" title="Dismiss">✕</button>
-  `;
+  const text = document.createElement('span');
+  text.textContent = message;
+  const close = document.createElement('button');
+  close.className = 'quota-toast-close';
+  close.title = t('close');
+  close.textContent = '✕';
+  toast.append(text, close);
   document.body.appendChild(toast);
   requestAnimationFrame(() => toast.classList.add('visible'));
   const dismiss = (): void => {
@@ -114,6 +124,6 @@ function showQuotaWarning(): void {
       once: true,
     });
   };
-  toast.querySelector('.quota-toast-close')?.addEventListener('click', dismiss);
-  setTimeout(dismiss, 8000);
+  close.addEventListener('click', dismiss);
+  if (autoDismiss) setTimeout(dismiss, 8000);
 }

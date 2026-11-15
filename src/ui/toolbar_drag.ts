@@ -1,4 +1,5 @@
 import { t } from '../i18n';
+import { readStorage, writeStorage } from '../io/safe_storage';
 import {
   type DockId,
   nearestDock,
@@ -19,9 +20,7 @@ export function initToolbarDrag(
   let anchor: DockId = 'bottom-center';
   let legacy: { x: number; y: number } | undefined;
   try {
-    const saved: unknown = JSON.parse(
-      localStorage.getItem(STORAGE_KEY) ?? 'null',
-    );
+    const saved: unknown = JSON.parse(readStorage(STORAGE_KEY) ?? 'null');
     if (
       typeof saved === 'string' &&
       /^(top|bottom)-(left|center|right)$/.test(saved)
@@ -39,7 +38,7 @@ export function initToolbarDrag(
     )
       legacy = { x: saved.x, y: saved.y };
   } catch {
-    /* Storage may be unavailable. */
+    /* An unreadable saved position: keep the default. */
   }
   let docks: ToolbarDock[] = [];
   let placing = false;
@@ -63,11 +62,7 @@ export function initToolbarDrag(
   document.body.append(preview, magnets, guide);
 
   function save(): void {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(anchor));
-    } catch {
-      /* ignore */
-    }
+    writeStorage(STORAGE_KEY, JSON.stringify(anchor));
   }
   function showTarget(dock: ToolbarDock | undefined): void {
     target = dock;
