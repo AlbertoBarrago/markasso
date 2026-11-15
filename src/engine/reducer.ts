@@ -504,9 +504,9 @@ export function reducer(
 
     case 'REORDER_ELEMENTS': {
       const idSet = new Set(command.ids);
-      const moving = command.ids
-        .map((id) => scene.elements.find((el) => el.id === id))
-        .filter((el): el is Element => el !== undefined);
+      // In scene order, not selection order, so the moved elements keep
+      // their stacking among themselves.
+      const moving = scene.elements.filter((el) => idSet.has(el.id));
       const rest = scene.elements.filter((el) => !idSet.has(el.id));
       const clampedIdx = Math.max(
         0,

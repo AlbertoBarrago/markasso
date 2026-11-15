@@ -695,6 +695,11 @@ function variants(): Array<[string, Command, string]> {
     'duplicate id',
   );
   add('boxes', { type: 'REORDER_ELEMENTS', ids: [], targetIndex: 0 }, 'none');
+  add(
+    'boxes',
+    { type: 'REORDER_ELEMENTS', ids: ['l', 'a', 'r'], targetIndex: 99 },
+    'selection order differs from the scene order',
+  );
 
   add('boxes', { type: 'TOGGLE_ELEMENT_VISIBILITY', id: 'r' }, 'visible');
   add('grouped', { type: 'TOGGLE_ELEMENT_VISIBILITY', id: 't' }, 'hidden');
