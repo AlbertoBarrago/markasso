@@ -158,6 +158,7 @@ export class History {
     this.revert(
       drag.change,
       'undo',
+      this._present.appState,
       drag.appStateBefore,
       drag.selectedIdsBefore,
     );
@@ -229,9 +230,10 @@ export class History {
 
     if (!isEphemeralCommand(resolved.type)) {
       const step = diffScenes(this._present, next);
-      // A command that changes nothing undo would bring back (no element, no
-      // order, only appState fields undo keeps as they are) is no step: it
-      // would make Ctrl+Z look dead and drop the redo stack.
+      // A command that changes no element and no order (a default style,
+      // the tool, the view) is no step: Ctrl+Z would look dead, or undo a
+      // choice the user does not see as an edit, and it would drop the redo
+      // stack.
       const undoable = isUndoableChange(step, this._present, next);
       if (this.drag) {
         composeChange(this.drag.change, step);
@@ -260,7 +262,12 @@ export class History {
     const entry = this.past.pop();
     if (!entry) return;
     this.future.push(entry);
-    this.revert(entry.change, 'undo', entry.appStateBefore);
+    this.revert(
+      entry.change,
+      'undo',
+      entry.appStateAfter,
+      entry.appStateBefore,
+    );
   }
 
   redo(): void {
@@ -272,7 +279,12 @@ export class History {
     const entry = this.future.pop();
     if (!entry) return;
     this.past.push(entry);
-    this.revert(entry.change, 'redo', entry.appStateAfter);
+    this.revert(
+      entry.change,
+      'redo',
+      entry.appStateBefore,
+      entry.appStateAfter,
+    );
   }
 
   canUndo(): boolean {
@@ -293,17 +305,19 @@ export class History {
     for (const l of this.listeners) l(this._present);
   }
 
-  /** Move the scene across `change` (see buildRevertPatch), restore the local
-   *  appState of that side, and broadcast the element patch. */
+  /** Move the scene across `change` (see buildRevertPatch), move the local
+   *  appState fields the step changed from `from` back to `to`, and broadcast
+   *  the element patch. */
   private revert(
     change: SceneChange,
     direction: 'undo' | 'redo',
-    appState: AppState,
+    from: AppState,
+    to: AppState,
     selectedIds?: ReadonlySet<string>,
   ): void {
     const patch = buildRevertPatch(change, this._present, direction);
     const patched = patch ? reducer(this._present, patch) : this._present;
-    this._present = restoreLocalState(patched, appState, selectedIds);
+    this._present = restoreLocalState(patched, from, to, selectedIds);
     if (patch) this.onCommand?.(patch);
     this.notify();
   }
@@ -338,8 +352,8 @@ const KEPT_ON_UNDO_SET: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Whether a change is worth an undo step: it touches elements or their order,
- * or an appState field that undo restores. An element change the diff leaves
+ * Whether a change is worth an undo step: it touches elements or their order.
+ * An element change the diff leaves
  * out (a type-only change: the type is identity there) still counts, so the
  * board is never changed without a step.
  */
@@ -349,12 +363,7 @@ function isUndoableChange(
   next: Scene,
 ): boolean {
   if (change.elements.size > 0 || change.order) return true;
-  if (!sameElements(prev.elements, next.elements)) return true;
-  const before = prev.appState;
-  const after = next.appState;
-  return (Object.keys(after) as Array<keyof AppState>).some(
-    (key) => !KEPT_ON_UNDO_SET.has(key) && after[key] !== before[key],
-  );
+  return !sameElements(prev.elements, next.elements);
 }
 
 /** Same elements in the same order, by value (unchanged ones keep identity). */
@@ -365,32 +374,41 @@ function sameElements(a: Scene['elements'], b: Scene['elements']): boolean {
 }
 
 /**
- * Restore the per-user appState recorded with an undo step (e.g. the font size
- * default a command changed), keeping the fields in KEPT_ON_UNDO as they are
- * now. The selection stays as-is unless `selectedIds` is given (cancelled
- * drag); either way it is limited to elements that still exist.
+ * Restore the per-user appState fields a step changed (e.g. the font size
+ * default a SET_FONT_SIZE on a selection also set): each field that differs
+ * between `from` and `to` goes back to its `to` value, except those in
+ * KEPT_ON_UNDO, as long as it still holds the `from` value. Fields the step
+ * did not change, or that changed since without a step (a default set with
+ * nothing selected), stay as they are now.
+ * The selection stays as-is unless `selectedIds` is given (cancelled drag);
+ * either way it is limited to elements that still exist.
  */
 function restoreLocalState(
   scene: Scene,
-  appState: AppState,
+  from: AppState,
+  to: AppState,
   selectedIds: ReadonlySet<string> = scene.selectedIds,
 ): Scene {
   const elementIds = new Set(scene.elements.map((element) => element.id));
-  const current = scene.appState;
-  const kept: Partial<Record<keyof AppState, unknown>> = {};
-  for (const key of KEPT_ON_UNDO) kept[key] = current[key];
-  const currentLastCreatedId = current.lastCreatedId;
-
+  const restored: Partial<AppState> = {};
+  for (const key of Object.keys(to) as Array<keyof AppState>) {
+    const changed = from[key] !== to[key];
+    if (
+      !KEPT_ON_UNDO_SET.has(key) &&
+      changed &&
+      scene.appState[key] === from[key]
+    )
+      Object.assign(restored, { [key]: to[key] });
+  }
+  const lastCreatedId = scene.appState.lastCreatedId;
   return {
     ...scene,
     selectedIds: new Set([...selectedIds].filter((id) => elementIds.has(id))),
     appState: {
-      ...appState,
-      ...(kept as Partial<AppState>),
+      ...scene.appState,
+      ...restored,
       lastCreatedId:
-        currentLastCreatedId && elementIds.has(currentLastCreatedId)
-          ? currentLastCreatedId
-          : null,
+        lastCreatedId && elementIds.has(lastCreatedId) ? lastCreatedId : null,
     },
   };
 }

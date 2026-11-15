@@ -19,6 +19,21 @@ function rect(id: string, x = 0): RectangleElement {
   return { ...style, id, type: 'rectangle', x, y: 0, width: 10, height: 10 };
 }
 
+function text(id: string): TextElement {
+  return {
+    ...style,
+    id,
+    type: 'text',
+    x: 0,
+    y: 0,
+    width: 100,
+    height: 24,
+    content: 'Label',
+    fontSize: 20,
+    fontFamily: 'sans-serif',
+  };
+}
+
 afterEach(() => vi.unstubAllGlobals());
 
 describe('undo steps', () => {
@@ -57,12 +72,47 @@ describe('undo steps', () => {
     expect(history.canUndo()).toBe(true);
   });
 
-  it('still records a text default change, and undoes it', () => {
+  it('records no step for a text default change alone', () => {
     const history = new History(createScene());
+    history.dispatch({ type: 'CREATE_ELEMENT', element: rect('a') });
+    history.undo();
+    history.dispatch({ type: 'SET_FONT_SIZE', size: 48 });
+    expect(history.present.appState.fontSize).toBe(48);
+    // No step, so the redo stack survives too.
+    expect(history.canUndo()).toBe(false);
+    expect(history.canRedo()).toBe(true);
+  });
+
+  it('keeps a default changed without a step when undoing an older step', () => {
+    const history = new History(createScene());
+    history.dispatch({ type: 'CREATE_ELEMENT', element: rect('a') });
+    history.dispatch({ type: 'SET_FONT_SIZE', size: 48 });
+    history.undo();
+    expect(history.present.elements).toHaveLength(0);
+    expect(history.present.appState.fontSize).toBe(48);
+  });
+
+  it('keeps a later default for the same field the undone step set', () => {
+    const history = new History(createScene());
+    history.dispatch({ type: 'CREATE_ELEMENT', element: text('t') });
+    history.dispatch({ type: 'SET_FONT_SIZE', size: 48 });
+    history.dispatch({ type: 'SELECT_ELEMENTS', ids: [] });
+    history.dispatch({ type: 'SET_FONT_SIZE', size: 32 });
+    history.undo();
+    expect(history.present.appState.fontSize).toBe(32);
+    history.redo();
+    expect(history.present.appState.fontSize).toBe(32);
+  });
+
+  it('undoes the default a selection change also set', () => {
+    const history = new History(createScene());
+    history.dispatch({ type: 'CREATE_ELEMENT', element: text('t') });
     history.dispatch({ type: 'SET_FONT_SIZE', size: 48 });
     expect(history.present.appState.fontSize).toBe(48);
     history.undo();
     expect(history.present.appState.fontSize).toBe(20);
+    history.redo();
+    expect(history.present.appState.fontSize).toBe(48);
   });
 });
 
