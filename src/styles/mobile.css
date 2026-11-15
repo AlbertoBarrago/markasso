@@ -70,7 +70,9 @@
 .mobile-name-chip {
   display: flex;
   align-items: center;
-  max-width: 96px;
+  /* Room for a longer name, but never pushing the bar over the tools button
+     on a narrow phone. */
+  max-width: min(140px, 34vw);
   height: 30px;
   padding: 0 10px;
   margin-right: 2px;

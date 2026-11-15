@@ -21,7 +21,7 @@ import {
   strokeSwatchPreview,
   updateCustomColorButton,
 } from './color_picker';
-import { onLiveHide, onLiveReveal } from './live_name';
+import { onLiveHide, onLiveReveal, setNameChipText } from './live_name';
 import { deleteSelection } from './style_actions';
 import { hasFillStyle, hasStrokeStyle, styleTypeOf } from './style_type';
 
@@ -411,7 +411,7 @@ export function initMobileActionBar(
   nameChip.setAttribute('aria-label', t('liveName'));
   const showNameChip = (): void => {
     nameChip.style.display = '';
-    nameChip.textContent = getLiveName();
+    setNameChipText(nameChip, getLiveName());
   };
   const hideNameChip = (): void => {
     nameChip.style.display = 'none';
