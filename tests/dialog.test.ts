@@ -115,6 +115,29 @@ describe('dialog', () => {
     button('store').dispatchEvent(new Event('click'));
     expect(await result).toBe('MKC-KEY');
   });
+
+  it('confirms an editable field on Enter, but not while composing', async () => {
+    const result = dialog({
+      title: 'Rename',
+      message: 'M',
+      choices: [{ key: 'rename', primary: true }],
+      field: { label: 'Name' },
+    });
+    const input = all(modal()).find((n) => n.className === 'cd-input')!;
+    const key = (props: Record<string, unknown>) => {
+      const event = new Event('keydown', { cancelable: true });
+      Object.assign(event, { key: 'Enter', isComposing: false, ...props });
+      input.dispatchEvent(event);
+      return event;
+    };
+    input.value = 'ボード';
+    // Enter committing an input method's characters does not confirm.
+    key({ isComposing: true });
+    expect(modal().close).not.toHaveBeenCalled();
+    const enter = key({});
+    expect(enter.defaultPrevented).toBe(true);
+    expect(await result).toBe('ボード');
+  });
 });
 
 describe('clear canvas', () => {

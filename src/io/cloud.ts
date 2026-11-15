@@ -534,6 +534,15 @@ export class CloudClient {
       download();
     }
   }
+  /**
+   * Back to the state before any board: no board, no error. For a first
+   * save that failed, which leaves nothing to retry: saving again starts
+   * over.
+   */
+  reset(): void {
+    this.detach();
+    this.notify('saved');
+  }
   detach(): void {
     if (this.timer) clearTimeout(this.timer);
     this.retryNotBefore = 0;

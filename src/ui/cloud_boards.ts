@@ -14,6 +14,7 @@ import { listBoards, readBoardIndex, renameBoard } from '../io/cloud_index';
 import { deleteThumb, loadThumb, saveThumb } from '../io/cloud_thumbs';
 import { exportMarkasso } from '../io/markasso';
 import { getLiveSessionUrl } from '../io/realtime';
+import { loadSession } from '../io/session';
 import { renderSceneThumbnail } from '../rendering/export';
 import { type BoardAction, openBoardsPanel } from './cloud_boards_panel';
 import { RemoteCheckSchedule, remoteDecision } from './cloud_remote_check';
@@ -103,6 +104,9 @@ function dialog(options: DialogOptions): Promise<string | null> {
   });
 }
 /** Title and explanation for a failed request, matching the status icon's wording. */
+/** Failures that may clear up on their own: no connection, busy, unavailable. */
+const RETRYABLE_STATUSES: readonly number[] = [0, 429, 503];
+
 function errorDialog(status: number): DialogOptions {
   const [title, message] = (
     {
@@ -203,7 +207,7 @@ function createController(history: History) {
     cloudStatus(
       openingFailed
         ? {
-            state: [0, 429, 503].includes(openError) ? 'offline' : 'error',
+            state: RETRYABLE_STATUSES.includes(openError) ? 'offline' : 'error',
             error: openError,
             inFlight: client.inFlight,
             readOnly: false,
@@ -483,6 +487,9 @@ function createController(history: History) {
         await dialog(
           errorDialog(error instanceof CloudError ? error.status : 503),
         );
+        // No board was created, so there is nothing for Retry to resend:
+        // clear the failure and let Save to cloud start over.
+        if (!client.id) client.reset();
       }
     } finally {
       creating = false;
@@ -616,14 +623,45 @@ function createController(history: History) {
       render();
       if (history.readOnly) showCloudToast(t('cloudReadOnly'));
     } catch (error) {
-      openingFailed = true;
-      openError = error instanceof CloudError ? error.status : 503;
+      const status = error instanceof CloudError ? error.status : 503;
       stopRemoteChecks();
       client.detach();
+      if (status === 404) {
+        // The board is gone (or the link is not one): Retry cannot help.
+        // Back to the local drawing at the root URL, editable.
+        openingFailed = false;
+        openError = 0;
+        backToLocalDrawing();
+      } else {
+        // Offline, busy or a server error: the board may open later, so it
+        // stays read-only with Retry, and its URL (with any edit token) stays.
+        openingFailed = true;
+        openError = status;
+      }
       render();
-      await dialog(errorDialog(openError));
+      // Not awaited: the app finishes starting while the notice is shown.
+      void dialog(errorDialog(status));
     }
     document.dispatchEvent(new Event('markasso-cloud-change'));
+  }
+  /** The local drawing this browser keeps, on the root URL, editable. */
+  function backToLocalDrawing(): void {
+    history.readOnly = false;
+    const session = loadSession();
+    history.replaceScene(
+      session?.elements ?? [],
+      session?.viewport ?? history.present.viewport,
+    );
+    // The grid the drawing was saved with, as a local start restores it
+    // (its size is fixed, so visibility and type are all there is).
+    if (session) {
+      if (session.gridVisible !== history.present.appState.gridVisible)
+        history.dispatch({ type: 'TOGGLE_GRID' });
+      if (session.gridType !== history.present.appState.gridType)
+        history.dispatch({ type: 'SET_GRID_TYPE', gridType: session.gridType });
+    }
+    previousElements = history.present.elements;
+    window.history.replaceState(null, '', '/');
   }
   /**
    * Turns the open cloud board into a local drawing: the scene stays on the
