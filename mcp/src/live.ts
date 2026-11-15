@@ -53,6 +53,27 @@ export class LiveError extends Error {
   override name = 'LiveError';
 }
 
+/**
+ * Whether a live link points at the Markasso instance this server is set up
+ * for (`MARKASSO_URL`, default markasso.it). The licence key is a paid
+ * credential and the link is untrusted input (it can come from a document, a
+ * label or a live request), so the key is only ever sent to that instance.
+ */
+function isConfiguredInstance(origin: string): boolean {
+  try {
+    return new URL(origin).origin === new URL(markassoBaseUrl()).origin;
+  } catch {
+    return false;
+  }
+}
+
+function licenceMessage(origin: string): string {
+  if (process.env.MARKASSO_LICENSE?.trim() && !isConfiguredInstance(origin)) {
+    return `This room needs a Markasso Cloud licence, and the key in MARKASSO_LICENSE was not sent because the link points to ${origin}, not to ${markassoBaseUrl()}. If that is your own Markasso instance, set MARKASSO_URL to it in this MCP server's environment.`;
+  }
+  return LICENCE_MESSAGE;
+}
+
 /** Room id and app origin from a live link (`...?live=<room>`) or a bare id. */
 export function parseLiveLink(link: string): { room: string; origin: string } {
   const trimmed = link.trim();
@@ -229,7 +250,8 @@ export class LiveLink {
         // Must be the first message: rooms that require a licence for agents
         // admit the peer only after checking it, and ignore it otherwise.
         const license = process.env.MARKASSO_LICENSE?.trim();
-        if (license) this.send({ type: 'auth', license });
+        if (license && isConfiguredInstance(origin))
+          this.send({ type: 'auth', license });
         this.send({ type: 'presence', name: this.name, color: AGENT_COLOR });
       });
 
@@ -278,7 +300,7 @@ export class LiveLink {
           reject(
             new LiveError(
               msg.error === 'licence required'
-                ? LICENCE_MESSAGE
+                ? licenceMessage(origin)
                 : `The live room refused to join: ${msg.error}.`,
             ),
           );
@@ -292,7 +314,7 @@ export class LiveLink {
           reject(
             new LiveError(
               event.code === CLOSE_LICENCE_REQUIRED
-                ? LICENCE_MESSAGE
+                ? licenceMessage(origin)
                 : 'The live room closed the connection.',
             ),
           );
