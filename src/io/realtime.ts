@@ -209,6 +209,11 @@ export function getLiveName(): string {
   return activeSession?.self.name ?? getStoredName();
 }
 
+/** Room of the live session this tab is in, or null outside one. */
+export function getActiveLiveRoomId(): string | null {
+  return activeSession?.roomId ?? null;
+}
+
 /**
  * Link to the live session this tab is in, or null outside one. Rebuilt from
  * the room id because a session started from the toolbar never puts it in
