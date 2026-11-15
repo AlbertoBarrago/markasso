@@ -4,6 +4,17 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [1.22.3] - 2026-11-15
+
+### Fixed
+- **Your name in a live session ([#142](https://github.com/AlbertoBarrago/markasso/pull/142)).** A long name ends with an ellipsis instead of being cut off mid-letter, and on phones the chip has room for a longer one.
+- **Server limits ([#144](https://github.com/AlbertoBarrago/markasso/pull/144)).** Rate limits count an IPv6 connection by its /64, so rotating addresses no longer gets around them. The report form's quota can no longer be exceeded by sending reports in parallel, and the site caps reports per day. Opening live sessions is rate limited per client. The daily cleanup checks cloud boards with a single query and live rooms a page at a time.
+
+### Changed
+- **Cleanup ([#143](https://github.com/AlbertoBarrago/markasso/pull/143), [#145](https://github.com/AlbertoBarrago/markasso/pull/145)).** Unused commands, app state and styles are gone, and releases fail on a lint issue instead of fixing it on the build machine.
+
+---
+
 ## [1.22.2] - 2026-11-15
 
 Completes 1.22.1, which was deployed but never got a published release: it carries all of its fixes.
