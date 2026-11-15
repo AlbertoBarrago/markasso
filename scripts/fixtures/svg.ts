@@ -305,6 +305,22 @@ function variants(): Array<[string, Element[]]> {
     label: 'Decision?',
   });
   one('rhombus rotated', { ...rhombus, rotation: Math.PI / 4 });
+  one('rhombus rounded corners', { ...rhombus, cornerRadius: 12 });
+  one('rhombus rounded corners wide', {
+    ...rhombus,
+    width: 260,
+    cornerRadius: 30,
+  });
+  one('rhombus label rotated', {
+    ...rhombus,
+    label: 'Turned with it',
+    rotation: 0.5,
+  });
+  one('rectangle label rotated', {
+    ...rect,
+    label: 'Turned with it',
+    rotation: -0.4,
+  });
   for (const kind of SHAPE_KINDS) {
     one(`shape ${kind}`, {
       ...BASE,
@@ -487,6 +503,22 @@ function variants(): Array<[string, Element[]]> {
   one('text center', { ...text, textAlign: 'center' });
   one('text right', { ...text, textAlign: 'right' });
   one('text bold italic', { ...text, bold: true, italic: true });
+  one('text underline', { ...text, underline: true });
+  const code = {
+    ...text,
+    content: 'function f() {\n    return  1;\n}',
+    isCode: true,
+    fontFamily: '"Courier New", monospace',
+    width: 220,
+    height: 82,
+  };
+  one('code block', code);
+  one('code block centered rotated', {
+    ...code,
+    textAlign: 'center',
+    rotation: 0.3,
+  });
+  one('code block right', { ...code, textAlign: 'right' });
   one('text underline strikethrough', {
     ...text,
     underline: true,
@@ -629,6 +661,31 @@ function variants(): Array<[string, Element[]]> {
     strokeStyle: 'dotted',
   });
   one('polygon one point', polygon([[0, 0]], true));
+  // The element's own caps and joins, as on the canvas; dotted keeps round caps.
+  one('polygon butt cap miter join', {
+    ...polygon(
+      [
+        [0, 0],
+        [80, 0],
+        [40, 60],
+      ],
+      false,
+    ),
+    lineCap: 'butt',
+    lineJoin: 'miter',
+  });
+  one('polygon dotted square cap', {
+    ...polygon(
+      [
+        [0, 0],
+        [80, 0],
+        [40, 60],
+      ],
+      false,
+    ),
+    strokeStyle: 'dotted',
+    lineCap: 'square',
+  });
   one('polygon rotated a quarter turn', {
     ...polygon(
       [
@@ -973,6 +1030,123 @@ export async function buildSvg(): Promise<Family> {
     canvasColor: '#ffffff',
     withBackground: true,
   });
+  // Exported in a theme: default inks swap, code takes the theme's colors.
+  svg('themed: export parity document in the light theme', parityDocument(), {
+    canvasColor: '#ffffff',
+    withBackground: true,
+    theme: 'light',
+  });
+  svg('themed: export parity document in the dark theme', parityDocument(), {
+    canvasColor: '#080808',
+    withBackground: true,
+    theme: 'dark',
+  });
+  const inks: Element[] = [
+    {
+      ...BASE,
+      id: 'a',
+      type: 'rectangle',
+      x: 0,
+      y: 0,
+      width: 80,
+      height: 40,
+      strokeColor: '#e2e2ef',
+      label: 'dark ink',
+    },
+    {
+      ...BASE,
+      id: 'b',
+      type: 'rectangle',
+      x: 100,
+      y: 0,
+      width: 80,
+      height: 40,
+      strokeColor: '#000000',
+      label: 'black ink',
+    },
+    {
+      ...BASE,
+      id: 'c',
+      type: 'rectangle',
+      x: 200,
+      y: 0,
+      width: 80,
+      height: 40,
+      strokeColor: '#000000',
+      fillColor: '#ffd43b',
+      labelColor: '#000',
+    },
+    {
+      ...BASE,
+      id: 'd',
+      type: 'text',
+      x: 0,
+      y: 60,
+      width: 200,
+      height: 24,
+      content: 'note',
+      fontSize: 20,
+      fontFamily: 'Arial, sans-serif',
+      strokeColor: '#e2e2ef',
+    },
+    {
+      ...BASE,
+      id: 'e',
+      type: 'text',
+      x: 0,
+      y: 100,
+      width: 200,
+      height: 60,
+      content: 'x = 1',
+      fontSize: 16,
+      fontFamily: 'monospace',
+      isCode: true,
+      strokeColor: '#000000',
+    },
+    {
+      ...BASE,
+      id: 'f',
+      type: 'arrow',
+      x: 0,
+      y: 200,
+      x2: 200,
+      y2: 200,
+      strokeColor: '#e2e2ef',
+      label: 'flow',
+    },
+    {
+      ...BASE,
+      id: 'g',
+      type: 'line',
+      x: 0,
+      y: 240,
+      x2: 200,
+      y2: 240,
+      strokeColor: '#000',
+      labelColor: '#e2e2ef',
+      label: 'edge',
+    },
+    // A filled icon keeps black artwork in the dark theme, its label does not.
+    {
+      ...createStencil(
+        'h',
+        { kind: 'builtin', ref: 'generic/server' },
+        32,
+        32,
+        { ...BASE, strokeColor: '#000000', fillColor: '#ffd43b' },
+        'Server',
+      ),
+      x: 260,
+      y: 200,
+    },
+  ] as unknown as Element[];
+  for (const theme of ['light', 'dark'] as const) {
+    svg(`themed: default inks in the ${theme} theme`, inks, {
+      canvasColor: theme === 'light' ? '#ffffff' : '#080808',
+      withBackground: true,
+      theme,
+    });
+  }
 
   // One element per type and variant.
   for (const [name, elements] of variants()) svg(name, elements);
