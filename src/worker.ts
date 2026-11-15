@@ -166,6 +166,17 @@ export class SessionRoom {
    * name/color across reconnects and can only ever modify their own
    * properties. Clients that don't send one get a throwaway server id.
    */
+  /**
+   * Whether the room has no seat for `clientId`. Its own sockets do not
+   * count: admitting it replaces them, so a peer reconnecting while its old
+   * socket is still registered keeps its seat in a full room.
+   */
+  private roomFull(clientId: string): boolean {
+    let others = 0;
+    for (const id of this.sockets.values()) if (id !== clientId) others++;
+    return others >= MAX_PEERS;
+  }
+
   private resolveClientId(raw: string | null): string {
     return raw && CLIENT_ID_RE.test(raw) ? raw : crypto.randomUUID();
   }
@@ -234,14 +245,14 @@ export class SessionRoom {
     const [client, server] = Object.values(pair) as [WebSocket, WebSocket];
     server.accept();
 
-    // Reject peers beyond the room's capacity.
-    if (this.sockets.size >= MAX_PEERS) {
+    const clientId = this.resolveClientId(url.searchParams.get('clientId'));
+    // Reject peers beyond the room's capacity (the client treats it as final).
+    if (this.roomFull(clientId)) {
       server.send(JSON.stringify({ type: 'error', error: 'room full' }));
       server.close(1013, 'Room full');
       return new Response(null, { status: 101, webSocket: client });
     }
 
-    const clientId = this.resolveClientId(url.searchParams.get('clientId'));
     const kind: PeerKind =
       request.headers.get(PEER_KIND_HEADER) === 'agent' ? 'agent' : 'browser';
 
