@@ -161,6 +161,7 @@
   "copiedAsPng": "PNG としてクリップボードにコピーしました",
   "copiedAsSvg": "SVG としてクリップボードにコピーしました",
   "clipboardUnavailable": "ブラウザがクリップボードへのアクセスを許可しませんでした",
+  "pasteOnlyElements": "このメニューから貼り付けられるのは Markasso の要素だけです。画像や Mermaid コードはキーボードショートカットで貼り付けてください。",
   "commandPalette": "コマンドパレット",
   "cmdSearchPlaceholder": "コマンドやツールを検索…",
   "cmdNoResults": "結果なし",

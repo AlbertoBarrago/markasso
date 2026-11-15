@@ -112,7 +112,12 @@ export function initContextMenu(deps: ContextMenuDeps): void {
           showNoticeToast(t('clipboardUnavailable'), true);
         return;
       case 'paste':
-        void clipboardTask(() => pasteFromSystemClipboard(history));
+        // The menu reads only text: say so rather than do nothing on an
+        // image or Mermaid code, which the keyboard paste handles.
+        void clipboardTask(async () => {
+          if (!(await pasteFromSystemClipboard(history)))
+            showNoticeToast(t('pasteOnlyElements'));
+        });
         return;
       case 'copyAsPng':
         void clipboardTask(() => copySelectionAsPNG(history), 'copiedAsPng');

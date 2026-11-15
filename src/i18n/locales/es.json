@@ -161,6 +161,7 @@
   "copiedAsPng": "Copiado al portapapeles como PNG",
   "copiedAsSvg": "Copiado al portapapeles como SVG",
   "clipboardUnavailable": "El navegador no permitió acceder al portapapeles",
+  "pasteOnlyElements": "Desde este menú solo se pegan elementos de Markasso. Para pegar una imagen o código Mermaid, usa el atajo de teclado.",
   "commandPalette": "Paleta de comandos",
   "cmdSearchPlaceholder": "Buscar comandos y herramientas…",
   "cmdNoResults": "Sin resultados",

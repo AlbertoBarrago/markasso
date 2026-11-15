@@ -3,6 +3,7 @@ import type { History } from '../engine/history';
 import { importMarkasso } from '../io/markasso';
 import { importMermaid, importMermaidText } from '../io/mermaid';
 import { showImportError } from './import_error';
+import { pasteBelongsToBoard } from './keyboard_utils';
 
 /**
  * Pasted text is treated as Mermaid only when it opens with a diagram keyword
@@ -70,7 +71,8 @@ export function initImageImport(
 
   // Paste handler (Ctrl+V with image or Mermaid text in clipboard)
   document.addEventListener('paste', (e) => {
-    if (e.defaultPrevented) return;
+    // Text pasted into a field (the Mermaid dialog, a label) stays there.
+    if (e.defaultPrevented || !pasteBelongsToBoard(e)) return;
     const items = e.clipboardData?.items;
     if (!items) return;
 

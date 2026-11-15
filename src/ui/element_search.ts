@@ -5,6 +5,7 @@ import type { History } from '../engine/history';
 import { t } from '../i18n';
 import { resolveStrokeColorForTheme } from '../rendering/draw_element';
 import { getElementBounds } from '../rendering/draw_selection';
+import { isEditableTarget, keyBelongsToDialog } from './keyboard_utils';
 import { SHAPE_KIND_LABEL_KEYS, shapeKindIcon } from './shape_icons';
 import { GENERIC_ICON_LABEL_KEYS, genericIconSvg } from './stencil_icons';
 
@@ -245,8 +246,9 @@ export function initElementSearch(
 
   // ── Global shortcut ───────────────────────────────────────────────────────
   window.addEventListener('keydown', (e) => {
-    const target = e.target as HTMLElement;
-    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+    if (isEditableTarget(e.target)) return;
+    // Another dialog keeps its keys; the search's own (open) dialog does not.
+    if (!isOpen() && keyBelongsToDialog(e)) return;
     if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
       e.preventDefault();
       if (isOpen()) {

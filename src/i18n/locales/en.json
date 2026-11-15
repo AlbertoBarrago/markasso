@@ -185,6 +185,7 @@
   "copiedAsPng": "Copied to the clipboard as PNG",
   "copiedAsSvg": "Copied to the clipboard as SVG",
   "clipboardUnavailable": "The browser did not allow access to the clipboard",
+  "pasteOnlyElements": "Only Markasso elements paste from this menu. To paste an image or Mermaid code, use the keyboard shortcut.",
   "commandPalette": "Command palette",
   "cmdSearchPlaceholder": "Search commands and tools…",
   "cmdNoResults": "No results",

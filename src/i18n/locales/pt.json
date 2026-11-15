@@ -161,6 +161,7 @@
   "copiedAsPng": "Copiado para a área de transferência como PNG",
   "copiedAsSvg": "Copiado para a área de transferência como SVG",
   "clipboardUnavailable": "O navegador não permitiu acesso à área de transferência",
+  "pasteOnlyElements": "Este menu só cola elementos do Markasso. Para colar uma imagem ou código Mermaid, use o atalho de teclado.",
   "commandPalette": "Paleta de comandos",
   "cmdSearchPlaceholder": "Pesquisar comandos e ferramentas…",
   "cmdNoResults": "Sem resultados",

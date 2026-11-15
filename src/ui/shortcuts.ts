@@ -6,14 +6,23 @@ import { exportMarkasso } from '../io/markasso';
 import type { SelectTool } from '../tools/select_tool';
 import type { HistoryActions } from './canvas_gesture';
 import {
+  cutSelectionToClipboardData,
   elementPayloadFrom,
   pasteElementPayload,
   writeSelectionToClipboardData,
 } from './clipboard_actions';
 import {
+  browserOwnsClipboard,
   fileShortcut,
+  isEditableTarget,
   isFocusInPanel,
   isModalDialogOpen,
+  keyBelongsToDialog,
+  pasteBelongsToBoard,
+  reorderShortcut,
+  styleShortcut,
+  trackDialogKeys,
+  viewShortcut,
 } from './keyboard_utils';
 import { toggleLibrary } from './library_panel';
 import { toggleMinimap } from './settings';
@@ -80,6 +89,7 @@ export function initShortcuts(
   openFile: () => void,
   historyActions: HistoryActions = history,
 ): void {
+  trackDialogKeys();
   const shortcuts = new Map<string, () => void>([
     ['h', () => history.dispatch({ type: 'SET_TOOL', tool: 'hand' })],
     ['v', () => history.dispatch({ type: 'SET_TOOL', tool: 'select' })],
@@ -128,14 +138,10 @@ export function initShortcuts(
       return;
     }
     // Don't capture shortcuts when typing in an input/textarea/select/contenteditable
+    if (isEditableTarget(e.target)) return;
+    // Nor behind an open dialog: its keys (Escape, arrows, Backspace) are its own.
+    if (keyBelongsToDialog(e)) return;
     const target = e.target as HTMLElement;
-    if (
-      target.tagName === 'INPUT' ||
-      target.tagName === 'TEXTAREA' ||
-      target.tagName === 'SELECT' ||
-      target.isContentEditable
-    )
-      return;
 
     // Ctrl+Plus / Ctrl+Minus — same as the toolbar zoom buttons; this also
     // keeps the browser from zooming the page.
@@ -244,7 +250,7 @@ export function initShortcuts(
 
     // Ctrl+Alt+C (Cmd+Alt+C): copy the style of the first selected element,
     // for Ctrl+Alt+V and for the format painter (the next click applies it).
-    if ((e.ctrlKey || e.metaKey) && e.altKey && key === 'c') {
+    if (styleShortcut(e) === 'copy') {
       e.preventDefault();
       const first = selectedElements(history.present)[0];
       if (first) {
@@ -255,15 +261,15 @@ export function initShortcuts(
     }
 
     // Ctrl+Alt+V (Cmd+Alt+V): paste the copied style on the selection
-    if ((e.ctrlKey || e.metaKey) && e.altKey && key === 'v') {
+    if (styleShortcut(e) === 'paste') {
       e.preventDefault();
       selectTool.formatPainterActive = false;
       pasteStyle(history);
       return;
     }
 
-    // Ctrl+Shift+] — bring to front
-    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === ']') {
+    // Ctrl+Shift+] — bring to front (Cmd+Option+] too)
+    if (reorderShortcut(e) === 'front') {
       e.preventDefault();
       const scene = history.present;
       const ids = [...scene.selectedIds];
@@ -277,8 +283,8 @@ export function initShortcuts(
       return;
     }
 
-    // Ctrl+Shift+[ — send to back
-    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === '[') {
+    // Ctrl+Shift+[ — send to back (Cmd+Option+[ too)
+    if (reorderShortcut(e) === 'back') {
       e.preventDefault();
       const scene = history.present;
       const ids = [...scene.selectedIds];
@@ -310,12 +316,13 @@ export function initShortcuts(
       return;
     }
 
-    if (e.key === '\\') {
+    const view = viewShortcut(e);
+    if (view === 'toggleUi') {
       document.body.classList.toggle('ui-hidden');
       return;
     }
 
-    if (e.key === 'f' || e.key === 'F') {
+    if (view === 'fitAll') {
       const vp = fitToElements(
         history.present.elements,
         window.innerWidth,
@@ -329,7 +336,7 @@ export function initShortcuts(
       });
       return;
     }
-    if (e.key === '0' && e.shiftKey) {
+    if (view === 'resetZoom') {
       history.dispatch({
         type: 'SET_VIEWPORT',
         offsetX: 0,
@@ -361,16 +368,24 @@ export function initShortcuts(
     }
   });
 
+  // Copy and cut leave a text selection or a focused field to the browser.
   document.addEventListener('copy', (e) => {
-    if (window.getSelection()?.toString() || !e.clipboardData) return;
+    if (!e.clipboardData || browserOwnsClipboard(e)) return;
     if (writeSelectionToClipboardData(history, e.clipboardData))
+      e.preventDefault();
+  });
+
+  document.addEventListener('cut', (e) => {
+    if (!e.clipboardData || browserOwnsClipboard(e)) return;
+    if (cutSelectionToClipboardData(history, e.clipboardData))
       e.preventDefault();
   });
 
   document.addEventListener(
     'paste',
     (e) => {
-      if (!e.clipboardData) return;
+      // Text pasted into a field stays in the field.
+      if (!e.clipboardData || !pasteBelongsToBoard(e)) return;
       const serialized = elementPayloadFrom(
         e.clipboardData.getData(ELEMENT_CLIPBOARD_MIME),
         e.clipboardData.getData('text/plain'),
