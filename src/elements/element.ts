@@ -232,6 +232,10 @@ export interface FreehandElement extends BaseElement {
   readonly pressures?: ReadonlyArray<number>;
 }
 
+/** The font sizes a text element may have, as `element_validation` accepts them. */
+export const MIN_FONT_SIZE = 1;
+export const MAX_FONT_SIZE = 1_000;
+
 export interface TextElement extends BaseElement {
   readonly type: 'text';
   readonly content: string;

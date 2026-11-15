@@ -936,10 +936,70 @@ export function getElementBounds(
   }
 }
 
+/**
+ * The world-space box the element covers once drawn: its bounds, turned by
+ * its rotation about the center the renderer rotates it around.
+ */
+export function getRotatedBounds(
+  el: Element,
+  allElements?: ReadonlyArray<Element>,
+): { x: number; y: number; w: number; h: number } {
+  return rotateBoxOf(el, getElementBounds(el, allElements));
+}
+
+/**
+ * The axis-aligned box around `box` once turned by the element's rotation,
+ * about the element's center: the extent of something drawn with it, such as
+ * the element or the element with its label.
+ */
+export function rotateBoxOf(
+  el: Element,
+  box: { x: number; y: number; w: number; h: number },
+): { x: number; y: number; w: number; h: number } {
+  if (!el.rotation) return box;
+  const [cx, cy] = getElementCenter(el);
+  const cos = Math.cos(el.rotation);
+  const sin = Math.sin(el.rotation);
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+  for (const [px, py] of [
+    [box.x, box.y],
+    [box.x + box.w, box.y],
+    [box.x + box.w, box.y + box.h],
+    [box.x, box.y + box.h],
+  ] as const) {
+    const rx = cx + (px - cx) * cos - (py - cy) * sin;
+    const ry = cy + (px - cx) * sin + (py - cy) * cos;
+    minX = Math.min(minX, rx);
+    minY = Math.min(minY, ry);
+    maxX = Math.max(maxX, rx);
+    maxY = Math.max(maxY, ry);
+  }
+  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+}
+
 /** Returns the world-space center of any element. */
 export function getElementCenter(el: Element): [number, number] {
   const { x, y, w, h } = getElementBounds(el);
   return [x + w / 2, y + h / 2];
+}
+
+/**
+ * Whether the selection offers a rotation handle. Not when a selected vendor
+ * icon may not be rotated, nor for a lone connector: its ends already set its
+ * direction, and a rotation would draw them away from where they are grabbed
+ * and from the shapes they are attached to.
+ */
+export function canRotateSelection(elements: ReadonlyArray<Element>): boolean {
+  if (elements.some((el) => el.type === 'stencil' && !isRotatableStencil(el)))
+    return false;
+  const only = elements.length === 1 ? elements[0]! : null;
+  return !(
+    only &&
+    (only.type === 'line' || only.type === 'arrow' || only.type === 'curve')
+  );
 }
 
 /** Returns the screen-space position of the rotation handle for the given selection, or null. */
@@ -948,11 +1008,7 @@ export function getRotationHandleScreen(
   viewport: Viewport,
   allElements?: ReadonlyArray<Element>,
 ): { screenX: number; screenY: number } | null {
-  if (elements.length === 0) return null;
-  // No handle at all when a selected vendor icon may not be rotated.
-  if (elements.some((el) => el.type === 'stencil' && !isRotatableStencil(el))) {
-    return null;
-  }
+  if (elements.length === 0 || !canRotateSelection(elements)) return null;
 
   let minX = Infinity,
     minY = Infinity,
@@ -1091,11 +1147,7 @@ export function drawSelection(
     );
   }
 
-  // Rotation handle, hidden when a selected vendor icon may not rotate.
-  const canRotate = !elements.some(
-    (el) => el.type === 'stencil' && !isRotatableStencil(el),
-  );
-  if (canRotate) {
+  if (canRotateSelection(elements)) {
     // Rotation handle — connector line + circle with ↻ arc indicator
     const mx = (sx + ex) / 2;
     const rotHandleY = sy - ROTATION_HANDLE_OFFSET;

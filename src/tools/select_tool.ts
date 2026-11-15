@@ -59,6 +59,25 @@ const HANDLE_CURSORS: Record<HandlePosition, string> = {
   se: 'se-resize',
 };
 
+/** Handles in clockwise order from east, 45° apart. */
+const HANDLES_CLOCKWISE: ReadonlyArray<HandlePosition> = [
+  'e',
+  'se',
+  's',
+  'sw',
+  'w',
+  'nw',
+  'n',
+  'ne',
+];
+
+/** The resize cursor of a handle, pointing the way it is drawn once rotated. */
+function handleCursor(handle: HandlePosition, rotation: number): string {
+  const steps = Math.round(rotation / (Math.PI / 4));
+  const i = HANDLES_CLOCKWISE.indexOf(handle) + steps;
+  return HANDLE_CURSORS[HANDLES_CLOCKWISE[((i % 8) + 8) % 8]!];
+}
+
 export class SelectTool implements Tool {
   private readonly handleTolerance =
     typeof window !== 'undefined' &&
@@ -346,8 +365,18 @@ export class SelectTool implements Tool {
         }
         this.resizeAnchorX = anchorX(hitHandle, this.resizeOrigBounds);
         this.resizeAnchorY = anchorY(hitHandle, this.resizeOrigBounds);
-        this.resizeInitialSignX = Math.sign(worldX - this.resizeAnchorX) || 1;
-        this.resizeInitialSignY = Math.sign(worldY - this.resizeAnchorY) || 1;
+        // A rotated element is resized in its own frame, where its handles
+        // and anchor sit on the axes.
+        const [px, py] = this.resizeOrigEl
+          ? toBoxFrame(
+              this.resizeOrigEl.rotation ?? 0,
+              this.resizeOrigBounds,
+              worldX,
+              worldY,
+            )
+          : [worldX, worldY];
+        this.resizeInitialSignX = Math.sign(px - this.resizeAnchorX) || 1;
+        this.resizeInitialSignY = Math.sign(py - this.resizeAnchorY) || 1;
         ctx.history.beginDrag();
         return;
       }
@@ -958,7 +987,11 @@ export class SelectTool implements Tool {
         screenY,
         this.handleTolerance,
       );
-      if (hit) return HANDLE_CURSORS[hit];
+      if (hit)
+        return handleCursor(
+          hit,
+          selectedEls.length === 1 ? (selectedEls[0]!.rotation ?? 0) : 0,
+        );
     }
 
     const hit = hitTest(scene.elements, worldX, worldY, scene.viewport);
@@ -1178,12 +1211,14 @@ export function computeResize(
   initialSignY = 1,
   zoom = 1,
 ): ResizePayload | null {
+  const rotation = el.rotation ?? 0;
+  const [lx, ly] = toBoxFrame(rotation, origBounds, curX, curY);
   const nb = newBoundsFromHandle(
     handle,
     ax,
     ay,
-    curX,
-    curY,
+    lx,
+    ly,
     origBounds,
     shiftKey || (el.type === 'text' && isCornerHandle(handle)),
     initialSignX,
@@ -1191,6 +1226,16 @@ export function computeResize(
     MIN_RESIZE_SCREEN_PX / zoom,
   );
   if (!nb) return null;
+  if (rotation) {
+    // The new box turns about its own center, which has moved: shift it by
+    // (I - R)(c0 - c1) so the anchor keeps its place on screen.
+    const dx = origBounds.x + origBounds.w / 2 - (nb.x + nb.w / 2);
+    const dy = origBounds.y + origBounds.h / 2 - (nb.y + nb.h / 2);
+    const cos = Math.cos(rotation);
+    const sin = Math.sin(rotation);
+    nb.x += dx - (dx * cos - dy * sin);
+    nb.y += dy - (dx * sin + dy * cos);
+  }
   return scaleElement(
     el,
     nb.x,
@@ -1200,6 +1245,26 @@ export function computeResize(
     isCornerHandle(handle),
     origBounds,
   );
+}
+
+/**
+ * A world point in the frame of a box turned by `rotation` about its center:
+ * where the point would be if the box were not rotated.
+ */
+function toBoxFrame(
+  rotation: number,
+  box: { x: number; y: number; w: number; h: number },
+  wx: number,
+  wy: number,
+): [number, number] {
+  if (!rotation) return [wx, wy];
+  const cx = box.x + box.w / 2;
+  const cy = box.y + box.h / 2;
+  const cos = Math.cos(-rotation);
+  const sin = Math.sin(-rotation);
+  const dx = wx - cx;
+  const dy = wy - cy;
+  return [cx + dx * cos - dy * sin, cy + dx * sin + dy * cos];
 }
 
 // ── Hit testing ───────────────────────────────────────────────────────────────

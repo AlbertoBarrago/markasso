@@ -286,6 +286,16 @@ function variants(): Array<[string, Command, string]> {
   );
   add(
     'icons',
+    { type: 'RESIZE_ELEMENT', id: 't', width: 2, height: 1, fontSize: 0.25 },
+    'text fontSize clamped to the minimum',
+  );
+  add(
+    'icons',
+    { type: 'RESIZE_ELEMENT', id: 't', fontSize: 4096 },
+    'text fontSize clamped to the maximum',
+  );
+  add(
+    'icons',
     { type: 'RESIZE_ELEMENT', id: 'im', x: 1, y: 2, width: 3, height: 4 },
     'image',
   );
@@ -684,6 +694,16 @@ function variants(): Array<[string, Command, string]> {
     'vendor stencil',
   );
   add('boxes', { type: 'SET_ROTATION', id: 'zz', rotation: 1 }, 'unknown');
+  add(
+    'boxes',
+    { type: 'SET_ROTATION', id: 'r', rotation: 7 },
+    'past a full turn wraps around',
+  );
+  add(
+    'boxes',
+    { type: 'SET_ROTATION', id: 'r', rotation: -3 * Math.PI },
+    'three half turns back',
+  );
 
   add('boxes', { type: 'SET_STROKE_STYLE', style: 'dotted' }, 'dotted');
 

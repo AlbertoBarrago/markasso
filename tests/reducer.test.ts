@@ -1094,11 +1094,11 @@ describe('reducer', () => {
     const next = reducer(scene, {
       type: 'SET_ROTATION',
       id: 'rect-1',
-      rotation: 45,
+      rotation: Math.PI / 4,
     });
     expect(
       (next.elements[0] as RectangleElement & { rotation?: number }).rotation,
-    ).toBe(45);
+    ).toBe(Math.PI / 4);
   });
 
   // ── REORDER_ELEMENTS ──────────────────────────────────────────────────────

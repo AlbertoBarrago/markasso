@@ -236,6 +236,12 @@ function variants(): Array<[string, Element[]]> {
   one('rectangle negative size', { ...rect, width: -120, height: -60 });
   one('rectangle rotated', { ...rect, rotation: 0.7 });
   one('rectangle rotated negative', { ...rect, rotation: -2.5 });
+  one('long bar rotated a quarter turn', {
+    ...rect,
+    width: 400,
+    height: 20,
+    rotation: Math.PI / 2,
+  });
   one('rectangle opacity', { ...rect, opacity: 0.35 });
   one('rectangle fractional', {
     ...rect,
@@ -394,6 +400,26 @@ function variants(): Array<[string, Element[]]> {
   one('line rotated', { ...line, rotation: 0.4, arrowHead: 'end' });
   one('line zero length', { ...line, x2: 0, y2: 0, arrowHead: 'end' });
   one('line elbow unbound', { ...line, routing: 'elbow', arrowHead: 'end' });
+  one('line elbow rotated', {
+    ...line,
+    routing: 'elbow',
+    arrowHead: 'end',
+    rotation: 0.5,
+  });
+  // Closed heads cut the shaft out with a mask, which turns with them.
+  one('line rotated with a hollow head', {
+    ...line,
+    arrowHead: 'end',
+    endHeadStyle: 'triangle',
+    rotation: 0.4,
+  });
+  one('line elbow rotated with a hollow head', {
+    ...line,
+    routing: 'elbow',
+    arrowHead: 'end',
+    endHeadStyle: 'diamond',
+    rotation: 0.5,
+  });
   one('line label', { ...line, label: 'label', arrowHead: 'end' });
   one('line multi line label', {
     ...line,
@@ -603,6 +629,18 @@ function variants(): Array<[string, Element[]]> {
     strokeStyle: 'dotted',
   });
   one('polygon one point', polygon([[0, 0]], true));
+  one('polygon rotated a quarter turn', {
+    ...polygon(
+      [
+        [0, 0],
+        [400, 0],
+        [400, 20],
+        [0, 20],
+      ],
+      true,
+    ),
+    rotation: Math.PI / 2,
+  });
   const curve = {
     ...BASE,
     id: 'c',
@@ -622,6 +660,7 @@ function variants(): Array<[string, Element[]]> {
     cx: 100.1,
     cy: -80.2,
   });
+  one('curve rotated', { ...curve, rotation: 0.6 });
   return out;
 }
 

@@ -3,7 +3,7 @@ import { getSelectedElements } from '../core/scene';
 import type { Element } from '../elements/element';
 import { drawConnectorLabels, drawElement } from './draw_element';
 import { drawGrid } from './draw_grid';
-import { drawSelection, getElementBounds } from './draw_selection';
+import { drawSelection, getRotatedBounds } from './draw_selection';
 import { getCanvasBg } from './theme_cache';
 
 // Elements whose (possibly rotated) bounds don't intersect the visible
@@ -18,48 +18,17 @@ function isElementVisible(
   right: number,
   bottom: number,
 ): boolean {
-  const b = getElementBounds(el, allElements);
+  const b = getRotatedBounds(el, allElements);
   const pad =
     el.strokeWidth / 2 +
     (el.shadowBlur ?? 0) +
     Math.max(Math.abs(el.shadowOffsetX ?? 0), Math.abs(el.shadowOffsetY ?? 0)) +
     4;
-
-  let minX = b.x;
-  let minY = b.y;
-  let maxX = b.x + b.w;
-  let maxY = b.y + b.h;
-
-  if (el.rotation) {
-    const cx = b.x + b.w / 2;
-    const cy = b.y + b.h / 2;
-    const cos = Math.cos(el.rotation);
-    const sin = Math.sin(el.rotation);
-    minX = Infinity;
-    minY = Infinity;
-    maxX = -Infinity;
-    maxY = -Infinity;
-    const corners: [number, number][] = [
-      [-b.w / 2, -b.h / 2],
-      [b.w / 2, -b.h / 2],
-      [b.w / 2, b.h / 2],
-      [-b.w / 2, b.h / 2],
-    ];
-    for (const [dx, dy] of corners) {
-      const rx = cx + dx * cos - dy * sin;
-      const ry = cy + dx * sin + dy * cos;
-      minX = Math.min(minX, rx);
-      minY = Math.min(minY, ry);
-      maxX = Math.max(maxX, rx);
-      maxY = Math.max(maxY, ry);
-    }
-  }
-
   return (
-    maxX + pad >= left &&
-    minX - pad <= right &&
-    maxY + pad >= top &&
-    minY - pad <= bottom
+    b.x + b.w + pad >= left &&
+    b.x - pad <= right &&
+    b.y + b.h + pad >= top &&
+    b.y - pad <= bottom
   );
 }
 

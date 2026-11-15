@@ -180,13 +180,15 @@ describe('RoomLog', () => {
         fontFamily: 'sans-serif',
       },
     });
-    // Past a full turn, and past the text length limit.
-    expect(log.append({ type: 'SET_ROTATION', id: 'a', rotation: 7 })).toBe(
-      false,
-    );
+    // Past the text length limit.
     expect(
       log.append({ type: 'EDIT_TEXT', id: 't', content: 'x'.repeat(10_001) }),
     ).toBe(false);
+    // A rotation past a full turn is kept within one turn by the reducer,
+    // so the element stays valid and the command is kept.
+    expect(log.append({ type: 'SET_ROTATION', id: 'a', rotation: 7 })).toBe(
+      true,
+    );
     expect(log.append({ type: 'SET_ROTATION', id: 'a', rotation: 1 })).toBe(
       true,
     );

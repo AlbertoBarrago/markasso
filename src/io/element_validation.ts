@@ -4,6 +4,8 @@ import {
   CONNECTOR_ROUTINGS,
   type Element,
   type ElementType,
+  MAX_FONT_SIZE,
+  MIN_FONT_SIZE,
   SHAPE_KINDS,
 } from '../elements/element';
 import {
@@ -280,7 +282,7 @@ export function isValidElement(value: unknown): value is Element {
         hasBoxFields(value) &&
         isString(value.content) &&
         isOptionalFiniteNumber(value.padding, 0, 1_000) &&
-        isFiniteNumberInRange(value.fontSize, 1, 1_000) &&
+        isFiniteNumberInRange(value.fontSize, MIN_FONT_SIZE, MAX_FONT_SIZE) &&
         isString(value.fontFamily, 256) &&
         isOptionalEnum(value.textAlign, TEXT_ALIGNS) &&
         isOptionalBoolean(value.isCode) &&
