@@ -4,6 +4,12 @@ All notable changes to `@markasso/mcp` are documented here. The MCP server is ve
 
 ---
 
+## [0.7.2] - 2026-11-15
+
+Publishes the fixes of 0.7.1, whose release did not reach npm. No other change.
+
+---
+
 ## [0.7.1] - 2026-11-15
 
 ### Fixed

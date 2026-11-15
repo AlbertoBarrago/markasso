@@ -91,7 +91,10 @@ export class RoomLog {
     if (growsContent(wire) && this.size() + chars > MAX_ROOM_CHARS) {
       // A compaction may free enough (moves and restyles of the same
       // elements collapse into one snapshot); otherwise the room is full.
-      this.compact();
+      // Only commands since the last compaction can collapse: on a log just
+      // compacted it would rebuild the whole board again for nothing, on
+      // every command a full room refuses.
+      if (this.appendedCommands > 0) this.compact();
       if (this.size() + chars > MAX_ROOM_CHARS) return false;
     }
     let next: Scene;
