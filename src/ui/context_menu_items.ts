@@ -181,12 +181,13 @@ export function buildContextMenu(
       {
         action: 'sendToBack',
         labelKey: 'toBack',
-        shortcut: k(['mod', 'shift'], '['),
+        // macOS browsers keep ⇧⌘[ / ] for switching tabs.
+        shortcut: k([options.isMac ? 'alt' : 'shift', 'mod'], '['),
       },
       {
         action: 'bringToFront',
         labelKey: 'toFront',
-        shortcut: k(['mod', 'shift'], ']'),
+        shortcut: k([options.isMac ? 'alt' : 'shift', 'mod'], ']'),
       },
     ],
     [

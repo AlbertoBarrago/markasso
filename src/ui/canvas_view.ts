@@ -64,6 +64,7 @@ import { StickyTool } from '../tools/sticky_tool';
 import { TextTool } from '../tools/text_tool';
 import type { Tool, ToolContext } from '../tools/tool';
 import { CanvasGesture } from './canvas_gesture';
+import { isEditableTarget, keyBelongsToDialog } from './keyboard_utils';
 import { toolAfterLabelEdit } from './label_edit_tool';
 import { deleteSelection, duplicateSelection } from './style_actions';
 
@@ -709,8 +710,9 @@ export function initCanvasView(
   );
 
   window.addEventListener('keydown', (e) => {
-    const target = e.target as HTMLElement;
-    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+    // Typing in a field, or a key meant for an open dialog, leaves the
+    // canvas alone (arrows would nudge, Escape would clear the selection).
+    if (isEditableTarget(e.target) || keyBelongsToDialog(e)) return;
     getActiveTool().onKeyDown?.(e, toolCtx);
     needsRender = true;
   });

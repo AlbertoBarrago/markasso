@@ -185,6 +185,7 @@
   "copiedAsPng": "Copiato negli appunti come PNG",
   "copiedAsSvg": "Copiato negli appunti come SVG",
   "clipboardUnavailable": "Il browser non ha consentito l'accesso agli appunti",
+  "pasteOnlyElements": "Da questo menu si incollano solo elementi Markasso. Per incollare un'immagine o codice Mermaid usa la scorciatoia da tastiera.",
   "commandPalette": "Riquadro comandi",
   "cmdSearchPlaceholder": "Cerca comandi e strumenti…",
   "cmdNoResults": "Nessun risultato",

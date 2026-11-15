@@ -557,6 +557,9 @@ export function initToolbar(
   // Mermaid dialog
   const mermaidDialog = document.createElement('div');
   mermaidDialog.id = 'mermaid-dialog';
+  // Modal, so the canvas shortcuts stay off while it is open.
+  mermaidDialog.setAttribute('role', 'dialog');
+  mermaidDialog.setAttribute('aria-modal', 'true');
   mermaidDialog.style.cssText = [
     'position:fixed',
     'inset:0',

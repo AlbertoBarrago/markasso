@@ -29,6 +29,7 @@ const SECTIONS: ShortcutSection[] = [
       { label: 'Redo', key: isMac ? '⌘⇧Z' : 'Ctrl+Y' },
       { label: 'Select all', key: `${mod}A` },
       { label: 'Duplicate', key: `${mod}D` },
+      { label: 'Cut', key: `${mod}X` },
       { label: 'Copy', key: `${mod}C` },
       { label: 'Paste', key: `${mod}V` },
       { label: 'Delete', key: 'Del / ⌫' },
@@ -37,8 +38,9 @@ const SECTIONS: ShortcutSection[] = [
   {
     title: 'Organize',
     items: [
-      { label: 'Bring to front', key: `${mod}⇧]` },
-      { label: 'Send to back', key: `${mod}⇧[` },
+      // macOS browsers keep ⇧⌘[ / ] for switching tabs.
+      { label: 'Bring to front', key: isMac ? '⌥⌘]' : 'Ctrl+Shift+]' },
+      { label: 'Send to back', key: isMac ? '⌥⌘[' : 'Ctrl+Shift+[' },
       { label: 'Group', key: `${mod}G` },
       { label: 'Ungroup', key: `${mod}⇧G` },
       { label: 'Lock / Unlock', key: `${mod}⇧L` },

@@ -166,6 +166,7 @@
   "copiedAsPng": "Copié dans le presse-papiers en PNG",
   "copiedAsSvg": "Copié dans le presse-papiers en SVG",
   "clipboardUnavailable": "Le navigateur n'a pas autorisé l'accès au presse-papiers",
+  "pasteOnlyElements": "Ce menu ne colle que des éléments Markasso. Pour coller une image ou du code Mermaid, utilisez le raccourci clavier.",
   "commandPalette": "Palette de commandes",
   "cmdSearchPlaceholder": "Rechercher des commandes et outils…",
   "cmdNoResults": "Aucun résultat",

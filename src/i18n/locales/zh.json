@@ -166,6 +166,7 @@
   "copiedAsPng": "已作为 PNG 复制到剪贴板",
   "copiedAsSvg": "已作为 SVG 复制到剪贴板",
   "clipboardUnavailable": "浏览器不允许访问剪贴板",
+  "pasteOnlyElements": "此菜单只能粘贴 Markasso 元素。要粘贴图片或 Mermaid 代码，请使用键盘快捷键。",
   "commandPalette": "命令面板",
   "cmdSearchPlaceholder": "搜索命令和工具…",
   "cmdNoResults": "无结果",
