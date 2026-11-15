@@ -4,6 +4,15 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [1.22.2] - 2026-11-15
+
+Completes 1.22.1, which was deployed but never got a published release: it carries all of its fixes.
+
+### Fixed
+- **Full live rooms ([#141](https://github.com/AlbertoBarrago/markasso/pull/141)).** A room at its size limit no longer rebuilds its whole board for every edit it has to refuse, which slowed the server down.
+
+---
+
 ## [1.22.1] - 2026-11-15
 
 A review pass over the whole app: live sessions, cloud boards, selection, undo, export and storage.
