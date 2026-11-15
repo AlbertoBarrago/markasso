@@ -895,6 +895,27 @@ function selectCases(): Array<[string, CaseSpec]> {
     elements: scene,
     events: [key('ArrowLeft')],
   });
+  sel('nudge skips locked elements', {
+    elements: [clean({ ...rect, locked: true }), ellipse, text],
+    selected: ['r', 't'],
+    events: [key('ArrowRight')],
+  });
+  sel('nudge only locked elements does nothing', {
+    elements: [clean({ ...rect, locked: true }), ellipse, text],
+    selected: ['r'],
+    events: [key('ArrowRight')],
+  });
+  // No handle on a locked element: the press on its corner moves nothing.
+  sel('locked element offers no resize handle', {
+    elements: [clean({ ...rect, locked: true }), ellipse],
+    selected: ['r'],
+    events: [move(220, 160), ...drag(220, 160, 300, 220, 2)],
+  });
+  sel('locked element offers no rotation handle', {
+    elements: [clean({ ...rect, locked: true }), ellipse],
+    selected: ['r'],
+    events: [down(160, 66), move(200, 70), move(260, 130), up(260, 130)],
+  });
   sel('escape clears selection', {
     elements: scene,
     selected: ['r'],
@@ -1630,6 +1651,48 @@ function connectorEditCases(): Array<[string, CaseSpec]> {
     selected: ['b'],
     events: [key('ArrowRight'), key('ArrowDown', true)],
   });
+  // A press on an end handle without a drag used to detach the end.
+  sel('click a bound end without dragging keeps it attached', {
+    elements: scene,
+    selected: ['b'],
+    events: [down(400, 140), up(400, 140)],
+  });
+  sel('jitter on a bound end keeps it attached', {
+    elements: scene,
+    selected: ['b'],
+    events: [down(400, 140), move(402, 141), up(402, 141)],
+  });
+  sel('locked connector offers no end handle', {
+    elements: scene.map((el) =>
+      el.id === 'b' ? clean({ ...el, locked: true }) : el,
+    ),
+    selected: ['b'],
+    events: drag(400, 140, 300, 300, 2),
+  });
+  sel('resize a selection with a curved line scales its control point', {
+    elements: [clean(RECT), curved],
+    selected: ['r', 'q'],
+    events: drag(300, 600, 400, 700, 2),
+  });
+  // The elbow's route leaves r upward, past its two ends: the resize starts
+  // from the route's bounds, where the handles are drawn.
+  const elbowUp = connector('wu', {
+    x: 0,
+    y: 0,
+    x2: 0,
+    y2: 0,
+    routing: 'elbow',
+    startElementId: 'r',
+    endElementId: 's',
+    startAnchor: { x: 0.5, y: 0 },
+    endAnchor: { x: 0.5, y: 0 },
+    arrowHead: 'end',
+  });
+  sel('resize a selection with an attached elbow from its drawn bounds', {
+    elements: [...nodes, elbowUp],
+    selected: ['r', 's', 'wu'],
+    events: [move(500, 420), ...drag(500, 420, 500, 440, 2)],
+  });
   sel('marquee selects connectors', {
     elements: scene,
     events: drag(50, 480, 340, 680, 2),
@@ -1985,6 +2048,10 @@ function stickyCases(): Array<[string, CaseSpec]> {
       { type: 'textInput', value: 'word '.repeat(60).trim() },
       { type: 'blur' },
     ],
+  });
+  // A mouseup with no press on the canvas (a click on the toolbar).
+  add('mouseup without a press places nothing', {
+    events: [up(300, 300)],
   });
   add('grid does not snap sticky notes', {
     appState: { gridVisible: true, gridSize: 20 },

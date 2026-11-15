@@ -10,13 +10,20 @@ export class StickyTool implements Tool {
   /** Called after placing a sticky to immediately open the text editor. Injected by canvas_view.ts. */
   onPlaced: ((el: TextElement, ctx: ToolContext) => void) | null = null;
 
+  /**
+   * A press started on the canvas. The canvas forwards every mouseup of the
+   * window, so without it a click on a toolbar button placed a note under
+   * the button.
+   */
+  private pressed = false;
+
   onMouseDown(
     _e: MouseEvent,
     _worldX: number,
     _worldY: number,
     _ctx: ToolContext,
   ): void {
-    // Nothing on mousedown
+    this.pressed = true;
   }
 
   onMouseMove(
@@ -34,6 +41,8 @@ export class StickyTool implements Tool {
     worldY: number,
     ctx: ToolContext,
   ): void {
+    if (!this.pressed) return;
+    this.pressed = false;
     const id = crypto.randomUUID();
     const { appState } = ctx.history.present;
     const el: TextElement = {
@@ -70,8 +79,12 @@ export class StickyTool implements Tool {
     this.onPlaced?.(el, ctx);
   }
 
+  onCancel(_ctx: ToolContext): void {
+    this.pressed = false;
+  }
+
   onDeactivate(_ctx: ToolContext): void {
-    // Nothing
+    this.pressed = false;
   }
 
   getCursor(): string {
