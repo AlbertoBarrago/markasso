@@ -808,6 +808,42 @@ function selectCases(): Array<[string, CaseSpec]> {
     selected: ['r', 'e'],
     events: [down(300, 66), move(350, 90), up(350, 90)],
   });
+  {
+    // r (100,100 120x60) turned about its center (160,130).
+    const turned = (rotation: number, lx: number, ly: number) => {
+      const dx = lx - 160;
+      const dy = ly - 130;
+      return [
+        160 + dx * Math.cos(rotation) - dy * Math.sin(rotation),
+        130 + dx * Math.sin(rotation) + dy * Math.cos(rotation),
+      ] as const;
+    };
+    const quarter = [{ ...rect, rotation: Math.PI / 2 }, ellipse, text];
+    const [ex, ey] = turned(Math.PI / 2, 220, 130);
+    sel('resize a rotated rectangle along its own axis', {
+      elements: quarter,
+      selected: ['r'],
+      events: [move(ex, ey), ...drag(ex, ey, ex, ey + 40, 3)],
+    });
+    const eighth = [{ ...rect, rotation: Math.PI / 4 }, ellipse, text];
+    const [sx, sy] = turned(Math.PI / 4, 220, 160);
+    sel('resize a rotated rectangle by its corner', {
+      elements: eighth,
+      selected: ['r'],
+      events: [move(sx, sy), ...drag(sx, sy, sx - 10, sy + 45, 3)],
+    });
+    sel('resize a rotated rectangle with shift keeps aspect', {
+      elements: eighth,
+      selected: ['r'],
+      events: drag(sx, sy, sx + 5, sy + 60, 3, { shift: true }),
+    });
+  }
+  // Where the rotation handle of a box would be: 34 px above (200,400).
+  sel('a line offers no rotation handle', {
+    elements: [...scene, line],
+    selected: ['l'],
+    events: [move(200, 366), down(200, 366), move(240, 380), up(240, 380)],
+  });
   sel('marquee selects enclosed', {
     elements: scene,
     events: drag(80, 80, 520, 200, 3),

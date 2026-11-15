@@ -1,7 +1,14 @@
 import type { Command } from '../commands/commands';
+import { normalizeRotation } from '../core/geometry';
 import type { Scene } from '../core/scene';
 import { pan, zoom } from '../core/viewport';
-import type { ArrowElement, Element, LineElement } from '../elements/element';
+import {
+  type ArrowElement,
+  type Element,
+  type LineElement,
+  MAX_FONT_SIZE,
+  MIN_FONT_SIZE,
+} from '../elements/element';
 import {
   isRestylableStencil,
   isRotatableStencil,
@@ -225,7 +232,13 @@ export function reducer(
               ...(y !== undefined && { y }),
               ...(width !== undefined && { width }),
               ...(height !== undefined && { height }),
-              ...(fontSize !== undefined && el.type === 'text' && { fontSize }),
+              ...(fontSize !== undefined &&
+                el.type === 'text' && {
+                  fontSize: Math.min(
+                    MAX_FONT_SIZE,
+                    Math.max(MIN_FONT_SIZE, fontSize),
+                  ),
+                }),
             };
           }
           if (el.type === 'curve') {
@@ -491,7 +504,7 @@ export function reducer(
         elements: scene.elements.map((el) =>
           el.id === command.id &&
           !(el.type === 'stencil' && !isRotatableStencil(el))
-            ? { ...el, rotation: command.rotation }
+            ? { ...el, rotation: normalizeRotation(command.rotation) }
             : el,
         ),
       };

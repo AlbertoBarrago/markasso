@@ -53,6 +53,7 @@ import {
   getElementBounds,
   resolveArrowEndpoints,
   resolveConnectorRoute,
+  rotateBoxOf,
 } from './draw_selection';
 import { getLabelWrapWidth, getShapeTextBox } from './shape_geometry';
 
@@ -290,63 +291,31 @@ function computeBounds(elements: ReadonlyArray<Element>): {
     maxY = -Infinity;
 
   for (const el of elements) {
+    if (
+      (el.type === 'freehand' || el.type === 'polygon') &&
+      el.points.length === 0
+    )
+      continue;
     // Attached connectors are drawn from their resolved ends, not the
     // coordinates stored when they were created.
-    if (el.type === 'line' || el.type === 'arrow') {
-      const b = getElementBounds(el, elements);
-      minX = Math.min(minX, b.x);
-      minY = Math.min(minY, b.y);
-      maxX = Math.max(maxX, b.x + b.w);
-      maxY = Math.max(maxY, b.y + b.h);
-      continue;
+    let box = getElementBounds(el, elements);
+    if (el.type === 'stencil') {
+      // Include the label, which hangs below the icon box.
+      const { x, y, w, h } = box;
+      const labelW = el.label ? getStencilLabelWidth(w) : w;
+      box = {
+        x: x + w / 2 - labelW / 2,
+        y,
+        w: labelW,
+        h: h + getStencilLabelHeight(el),
+      };
     }
-    switch (el.type) {
-      case 'stencil': {
-        // Include the label, which hangs below the icon box.
-        const { x, y, w, h } = normalizeRect(el);
-        const labelW = el.label ? getStencilLabelWidth(w) : w;
-        minX = Math.min(minX, x + w / 2 - labelW / 2);
-        minY = Math.min(minY, y);
-        maxX = Math.max(maxX, x + w / 2 + labelW / 2);
-        maxY = Math.max(maxY, y + h + getStencilLabelHeight(el));
-        break;
-      }
-      case 'rectangle':
-      case 'ellipse':
-      case 'rhombus':
-      case 'shape':
-      case 'text': {
-        const { x, y, w, h } = normalizeRect(el);
-        minX = Math.min(minX, x);
-        minY = Math.min(minY, y);
-        maxX = Math.max(maxX, x + w);
-        maxY = Math.max(maxY, y + h);
-        break;
-      }
-      case 'freehand':
-      case 'polygon':
-        for (const [px, py] of el.points) {
-          minX = Math.min(minX, px);
-          minY = Math.min(minY, py);
-          maxX = Math.max(maxX, px);
-          maxY = Math.max(maxY, py);
-        }
-        break;
-      case 'curve':
-        minX = Math.min(minX, el.x, el.x2, el.cx);
-        minY = Math.min(minY, el.y, el.y2, el.cy);
-        maxX = Math.max(maxX, el.x, el.x2, el.cx);
-        maxY = Math.max(maxY, el.y, el.y2, el.cy);
-        break;
-      case 'image': {
-        const { x: ix, y: iy, w, h } = normalizeRect(el);
-        minX = Math.min(minX, ix);
-        minY = Math.min(minY, iy);
-        maxX = Math.max(maxX, ix + w);
-        maxY = Math.max(maxY, iy + h);
-        break;
-      }
-    }
+    // A rotated element reaches past its unrotated box.
+    const b = rotateBoxOf(el, box);
+    minX = Math.min(minX, b.x);
+    minY = Math.min(minY, b.y);
+    maxX = Math.max(maxX, b.x + b.w);
+    maxY = Math.max(maxY, b.y + b.h);
   }
 
   for (const box of getConnectorLabelBoxes(elements).values()) {
@@ -404,7 +373,7 @@ function elementToSVG(
             : '';
       const pts = el.points.map(([x, y]) => `${x + ox},${y + oy}`).join(' ');
       const tag = el.closed ? 'polygon' : 'polyline';
-      return `<${tag} points="${pts}" fill="${escapeXml(fill)}" stroke="${escapeXml(stroke)}" stroke-width="${sw}" opacity="${el.opacity}" ${dash}/>`;
+      return `<${tag} points="${pts}" fill="${escapeXml(fill)}" stroke="${escapeXml(stroke)}" stroke-width="${sw}" opacity="${el.opacity}" ${dash}${rotateAttr(el, ox, oy)}/>`;
     }
     case 'curve': {
       const stroke = el.strokeColor;
@@ -421,7 +390,7 @@ function elementToSVG(
       const y2 = el.y2 + oy;
       const cx = el.cx + ox;
       const cy = el.cy + oy;
-      return `<path d="M ${x} ${y} Q ${cx} ${cy} ${x2} ${y2}" fill="none" stroke="${escapeXml(stroke)}" stroke-width="${sw}" opacity="${el.opacity}" ${dash}/>`;
+      return `<path d="M ${x} ${y} Q ${cx} ${cy} ${x2} ${y2}" fill="none" stroke="${escapeXml(stroke)}" stroke-width="${sw}" opacity="${el.opacity}" ${dash}${rotateAttr(el, ox, oy)}/>`;
     }
   }
 }
@@ -693,8 +662,9 @@ function connectorToSVG(
   const parts: string[] = [];
   if (closed.length > 0) {
     const id = `mh-${el.id.replace(/[^\w-]/g, '')}`;
+    // The cutouts turn with the heads they sit under.
     const cutouts = closed
-      .map(({ shape }) => headShapeToSVG(shape, 'fill="black"'))
+      .map(({ shape }) => headShapeToSVG(shape, `fill="black"${rot}`))
       .join('');
     parts.push(
       `<mask id="${id}" maskUnits="userSpaceOnUse" ${EVERYTHING_BOX}><rect ${EVERYTHING_BOX} fill="white"/>${cutouts}</mask>`,
@@ -749,8 +719,15 @@ function elbowToSVG(
   const heads = getConnectorHeads(el, (placement) =>
     offsetVector(getRouteHeadVector(route, placement), ox, oy),
   );
+  // Turned like the canvas turns it, as the straight connectors are.
+  const rot = rotateAttr(el, ox, oy);
   const parts = [
-    connectorToSVG(el, `<polyline points="${points}" ${sp}/>`, heads, ''),
+    connectorToSVG(
+      el,
+      `<polyline points="${points}" ${sp}${rot}/>`,
+      heads,
+      rot,
+    ),
   ];
   return parts.join('\n');
 }
