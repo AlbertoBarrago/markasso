@@ -138,11 +138,31 @@ function scripts(fam: Family): void {
     h.redo();
   });
 
-  trace(fam, 'undo still restores a text default', () => {
+  trace(fam, 'a text default alone is no step', () => {
     const h = new History(threeBoxes());
     h.dispatch({ type: 'SET_FONT_SIZE', size: 48 });
     h.dispatch({ type: 'SET_TEXT_MODE', mode: 'code' });
     h.undo();
+    h.undo();
+    h.redo();
+  });
+
+  trace(fam, 'undo keeps a default changed after the step', () => {
+    const h = new History(threeBoxes());
+    h.dispatch(MOVE_R);
+    h.dispatch({ type: 'SET_FONT_SIZE', size: 48 });
+    h.dispatch({ type: 'SET_FONT_FAMILY', family: 'Georgia, serif' });
+    h.undo();
+    h.redo();
+  });
+
+  trace(fam, 'undo keeps a later default of a field the step set', () => {
+    const h = new History(
+      makeScene([sample('text'), sample('note')], ['t'], {}),
+    );
+    h.dispatch({ type: 'SET_FONT_SIZE', size: 48, width: 300, height: 40 });
+    h.dispatch({ type: 'SELECT_ELEMENTS', ids: [] });
+    h.dispatch({ type: 'SET_FONT_SIZE', size: 32 });
     h.undo();
     h.redo();
   });
