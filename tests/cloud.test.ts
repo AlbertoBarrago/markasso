@@ -928,6 +928,23 @@ describe('cloud save recovery', () => {
 });
 
 describe('licence and failures', () => {
+  it('resets a failed first save, so saving can start over', async () => {
+    const ctx = setup();
+    ctx.fetcher.mockRejectedValueOnce(new TypeError('offline'));
+    await expect(ctx.client.create(scene)).rejects.toMatchObject({
+      status: 0,
+    });
+    expect(ctx.client.state).toBe('offline');
+    expect(ctx.client.id).toBeNull();
+    ctx.client.reset();
+    expect(ctx.client.state).toBe('saved');
+    expect(ctx.client.error).toBe(0);
+    ctx.fetcher.mockResolvedValueOnce(
+      response({ id, writeToken: token, version: 1 }, 201),
+    );
+    await ctx.client.create(scene);
+    expect(ctx.client.id).toBe(id);
+  });
   it('402 on create can be retried with a stored licence; removal clears it', async () => {
     const ctx = setup();
     ctx.fetcher.mockResolvedValueOnce(response({}, 402));
