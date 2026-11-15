@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Command } from '../src/commands/commands';
 import { createScene } from '../src/core/scene';
 import type { Element } from '../src/elements/element';
@@ -165,6 +165,33 @@ describe('RoomLog', () => {
       log.append({ type: 'MOVE_ELEMENTS', ids: ['r0'], dx: 1, dy: 1 }),
     ).toBe(true);
     expect(log.append({ type: 'DELETE_ELEMENTS', ids: ['r1'] })).toBe(true);
+  });
+
+  it('refuses on a full room without compacting it again for nothing', () => {
+    const log = new RoomLog();
+    const label = 'x'.repeat(9_900);
+    let i = 0;
+    while (
+      log.append({
+        type: 'CREATE_ELEMENT',
+        element: rect(`r${i}`, { label }),
+      })
+    )
+      i++;
+    const compact = vi.spyOn(log, 'compact');
+    for (let n = 0; n < 50; n++)
+      log.append({
+        type: 'CREATE_ELEMENT',
+        element: rect(`late${n}`, { label }),
+      });
+    // The refusal that filled the room compacted it; nothing came in since.
+    expect(compact).not.toHaveBeenCalled();
+    // A move comes in: the next refusal may compact once more.
+    expect(
+      log.append({ type: 'MOVE_ELEMENTS', ids: ['r0'], dx: 1, dy: 1 }),
+    ).toBe(true);
+    log.append({ type: 'CREATE_ELEMENT', element: rect('again', { label }) });
+    expect(compact).toHaveBeenCalledTimes(1);
   });
 
   it('refuses a command that leaves an element compaction would lose', () => {
