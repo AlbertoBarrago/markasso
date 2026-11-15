@@ -78,21 +78,54 @@ export function toggleTextFormat(history: History, key: TextFormatKey): void {
 
 export type LayerMove = 'back' | 'backward' | 'forward' | 'front';
 
-/** Moves the selection in the stacking order, relative to its first element. */
+/**
+ * Where `move` puts the selected elements, as a REORDER_ELEMENTS
+ * `targetIndex` (an index among the unselected ones), or null when the
+ * order would not change. The selection moves as one block, keeping its
+ * own stacking: forward goes past the first unselected element above the
+ * topmost selected one, backward past the first one below the lowest.
+ */
+export function layerTarget(
+  elements: readonly { id: string }[],
+  selected: ReadonlySet<string>,
+  move: LayerMove,
+): number | null {
+  const rest = elements.filter((el) => !selected.has(el.id));
+  if (rest.length === elements.length) return null;
+  const isSelected = elements.map((el) => selected.has(el.id));
+  let target: number;
+  if (move === 'back') target = 0;
+  else if (move === 'front') target = rest.length;
+  else if (move === 'forward') {
+    const top = isSelected.lastIndexOf(true);
+    const above = isSelected.indexOf(false, top + 1);
+    if (above < 0) return null;
+    target = rest.indexOf(elements[above] as { id: string }) + 1;
+  } else {
+    const bottom = isSelected.indexOf(true);
+    const below = isSelected.lastIndexOf(false, bottom);
+    if (below < 0) return null;
+    target = rest.indexOf(elements[below] as { id: string });
+  }
+  // Unchanged when the block already sits there, contiguous.
+  const unchanged = isSelected.every(
+    (selectedHere, index) =>
+      selectedHere ===
+      (index >= target && index < target + elements.length - rest.length),
+  );
+  return unchanged ? null : target;
+}
+
+/** Moves the selection in the stacking order, as one undo step. */
 export function reorderSelection(history: History, move: LayerMove): void {
   const scene = history.present;
-  const ids = [...scene.selectedIds];
-  if (ids.length === 0) return;
-  const currentIndex = scene.elements.findIndex((el) => el.id === ids[0]);
-  let targetIndex = currentIndex;
-  if (move === 'back') targetIndex = 0;
-  else if (move === 'backward') targetIndex = Math.max(0, currentIndex - 1);
-  else if (move === 'forward')
-    targetIndex = Math.min(scene.elements.length - 1, currentIndex + 1);
-  else targetIndex = scene.elements.length - 1;
-  if (targetIndex !== currentIndex) {
-    history.dispatch({ type: 'REORDER_ELEMENTS', ids, targetIndex });
-  }
+  const targetIndex = layerTarget(scene.elements, scene.selectedIds, move);
+  if (targetIndex === null) return;
+  history.dispatch({
+    type: 'REORDER_ELEMENTS',
+    ids: [...scene.selectedIds],
+    targetIndex,
+  });
 }
 
 /** Duplicates the selection with a small offset. */

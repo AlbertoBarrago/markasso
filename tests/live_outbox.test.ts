@@ -112,6 +112,52 @@ describe('LiveOutbox', () => {
     expect(outbox.pending).toBe(true);
   });
 
+  it('collapses a group resize to one command per element', () => {
+    const sent: Command[] = [];
+    const outbox = new LiveOutbox({ send: (c) => sent.push(c) });
+    const ids = ['a', 'b', 'c', 'd', 'e'];
+    // 5 s of a 60 Hz resize: one RESIZE_ELEMENT per element per move.
+    for (let frame = 0; frame < 300; frame++) {
+      for (const id of ids)
+        outbox.push({ type: 'RESIZE_ELEMENT', id, width: 40 + frame });
+      vi.advanceTimersByTime(16);
+    }
+    // The gesture outpaces the room's quota, but what waits is one command
+    // per element at most, sent within one quota window, not a backlog.
+    vi.advanceTimersByTime(5_100);
+    expect(outbox.pending).toBe(false);
+    expect(sent.length).toBeLessThanOrEqual(300);
+    // Every element ends at the last size.
+    for (const id of ids) {
+      const last = sent
+        .filter((c) => c.type === 'RESIZE_ELEMENT' && c.id === id)
+        .at(-1) as { width: number };
+      expect(last.width).toBe(339);
+    }
+  });
+
+  it('does not merge across a command that may depend on the element', () => {
+    const sent: Command[] = [];
+    const outbox = new LiveOutbox({ send: (c) => sent.push(c) });
+    // The first push is sent at once; the rest wait for the interval.
+    outbox.push({ type: 'DELETE_ELEMENTS', ids: ['x'] });
+    outbox.push({ type: 'RESIZE_ELEMENT', id: 'a', width: 10 });
+    outbox.push({ type: 'UPDATE_ELEMENT', id: 'a', props: { label: 'A' } });
+    outbox.push({ type: 'RESIZE_ELEMENT', id: 'a', width: 20 });
+    outbox.push({ type: 'RESIZE_ELEMENT', id: 'b', width: 5 });
+    outbox.push({ type: 'RESIZE_ELEMENT', id: 'b', width: 6 });
+    vi.advanceTimersByTime(100);
+    expect(sent.map((c) => c.type)).toEqual([
+      'DELETE_ELEMENTS',
+      'RESIZE_ELEMENT',
+      'UPDATE_ELEMENT',
+      'RESIZE_ELEMENT',
+      'RESIZE_ELEMENT',
+    ]);
+    expect((sent[3] as { width: number }).width).toBe(20);
+    expect((sent[4] as { width: number }).width).toBe(6);
+  });
+
   it('drops what is waiting when cleared', () => {
     const sent: Command[] = [];
     const outbox = new LiveOutbox({ send: (c) => sent.push(c) });

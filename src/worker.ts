@@ -47,6 +47,8 @@ const LAST_ACTIVITY_KEY = 'lastActivity';
 const ROOM_ID_RE = /^[a-zA-Z0-9_-]{3,64}$/;
 const CLIENT_ID_RE = /^[a-zA-Z0-9_-]{8,64}$/;
 const MAX_PEERS = 20;
+/** Why the room refused a command (see SessionRoom.reject). */
+type RejectReason = 'too_large' | 'rate' | 'full' | 'invalid';
 const CMD_WINDOW_MS = 5000;
 const MAX_CMD_PER_WINDOW = 200;
 const MAX_MSG_BYTES = 512 * 1024;
@@ -166,6 +168,17 @@ export class SessionRoom {
    * name/color across reconnects and can only ever modify their own
    * properties. Clients that don't send one get a throwaway server id.
    */
+  /**
+   * Whether the room has no seat for `clientId`. Its own sockets do not
+   * count: admitting it replaces them, so a peer reconnecting while its old
+   * socket is still registered keeps its seat in a full room.
+   */
+  private roomFull(clientId: string): boolean {
+    let others = 0;
+    for (const id of this.sockets.values()) if (id !== clientId) others++;
+    return others >= MAX_PEERS;
+  }
+
   private resolveClientId(raw: string | null): string {
     return raw && CLIENT_ID_RE.test(raw) ? raw : crypto.randomUUID();
   }
@@ -234,14 +247,14 @@ export class SessionRoom {
     const [client, server] = Object.values(pair) as [WebSocket, WebSocket];
     server.accept();
 
-    // Reject peers beyond the room's capacity.
-    if (this.sockets.size >= MAX_PEERS) {
+    const clientId = this.resolveClientId(url.searchParams.get('clientId'));
+    // Reject peers beyond the room's capacity (the client treats it as final).
+    if (this.roomFull(clientId)) {
       server.send(JSON.stringify({ type: 'error', error: 'room full' }));
       server.close(1013, 'Room full');
       return new Response(null, { status: 101, webSocket: client });
     }
 
-    const clientId = this.resolveClientId(url.searchParams.get('clientId'));
     const kind: PeerKind =
       request.headers.get(PEER_KIND_HEADER) === 'agent' ? 'agent' : 'browser';
 
@@ -311,7 +324,11 @@ export class SessionRoom {
 
   /** Parses one raw socket message from an admitted peer. */
   private receive(clientId: string, raw: string): void {
-    if (raw.length > MAX_MSG_BYTES) return;
+    if (raw.length > MAX_MSG_BYTES) {
+      // In practice a command carrying a large image.
+      this.reject(clientId, 'too_large');
+      return;
+    }
     let msg: unknown;
     try {
       msg = JSON.parse(raw);
@@ -386,11 +403,17 @@ export class SessionRoom {
       const command = m.command as { type?: string };
       // Also drops bare UNDO/REDO from outdated clients (see isSessionCommand).
       if (!isSessionCommand(command)) return;
-      if (!this.allowCommand(clientId)) return;
+      if (!this.allowCommand(clientId)) {
+        this.reject(clientId, 'rate');
+        return;
+      }
       // Relayed to every peer and replayed to every joiner: a command the
       // room cannot apply (malformed, refused by the reducer, too large for
       // the room) must stop here.
-      if (!this.log.append(command)) return;
+      if (!this.log.append(command)) {
+        this.reject(clientId, this.log.refusal);
+        return;
+      }
       this.touch();
       this.broadcast(
         { type: 'apply', command, from: this.publicIds.get(clientId) },
@@ -655,6 +678,25 @@ export class SessionRoom {
     return [...this.peers.entries()]
       .filter(([id]) => connected.has(id))
       .map(([id, p]) => ({ id: this.publicIds.get(id) ?? '', ...p }));
+  }
+
+  /**
+   * Tells a peer the room refused its command, so it can say so instead of
+   * drifting apart from the others until a reconnect. One notice per
+   * refused command, to the sender only: never more than it sent, and each
+   * separate edit gets its own (the app coalesces them into one toast).
+   * Older clients ignore the message type.
+   */
+  private reject(clientId: string, reason: RejectReason): void {
+    const data = JSON.stringify({ type: 'rejected', reason });
+    for (const [socket, peerId] of this.sockets) {
+      if (peerId !== clientId) continue;
+      try {
+        socket.send(data);
+      } catch {
+        // socket may be closing
+      }
+    }
   }
 
   private broadcast(msg: unknown, exceptPeerId?: string): void {

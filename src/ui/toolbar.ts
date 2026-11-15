@@ -29,6 +29,7 @@ import { initPeopleList } from './people_list';
 import {
   copyToClipboard,
   showLiveEndedToast,
+  showLiveRejectedToast,
   showLiveStatusToast,
   showShareToast,
 } from './share_actions';
@@ -379,6 +380,7 @@ export function initToolbar(
         setLiveUI(false);
         showLiveEndedToast(reason);
       },
+      onRejected: showLiveRejectedToast,
     });
     liveStartBtn.disabled = false;
     refreshLiveControls();

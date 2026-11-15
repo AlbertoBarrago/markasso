@@ -192,6 +192,35 @@ describe('LiveLink', () => {
     expect(Date.now() - start).toBeLessThan(1_000);
   });
 
+  it('reports the edits the room refused with the next answer', async () => {
+    const diagram = new Diagram();
+    const { result, socket } = await join(diagram, []);
+    socket.receive({ type: 'rejected', reason: 'too_large' });
+    socket.receive({ type: 'rejected', reason: 'too_large' });
+    socket.receive({ type: 'rejected', reason: 'rate' });
+    const note = result.link.takeRejections();
+    expect(note).toContain('too large for a single message');
+    expect(note).toContain('too many edits');
+    expect(note.match(/too large/g)).toHaveLength(1);
+    // Reported once.
+    expect(result.link.takeRejections()).toBe('');
+  });
+
+  it('counts its edits and settles once the held back ones are sent', async () => {
+    const diagram = new Diagram();
+    const { result, socket } = await join(diagram, []);
+    const before = result.link.editCount;
+    await diagram.addNodes([{ key: 'api' }]);
+    await diagram.addNodes([{ key: 'db' }]);
+    expect(result.link.editCount).toBe(before + 2);
+    // The second waits for the outbox interval; settling sends it.
+    await result.link.settle(1_000, 0);
+    const sent = socket.sent.filter(
+      (m) => (m as { type?: string }).type === 'command',
+    );
+    expect(sent.length).toBeGreaterThanOrEqual(2);
+  });
+
   it('authenticates first when MARKASSO_LICENSE is set', async () => {
     process.env.MARKASSO_LICENSE = ' MKC-AAAAA-BBBBB-CCCCC-DDDDD-EEEEE ';
     try {

@@ -29,6 +29,7 @@ class FakeServerSocket {
 
 type RoomInternals = {
   initialize(): Promise<void>;
+  roomFull(clientId: string): boolean;
   admit(
     server: FakeServerSocket,
     clientId: string,
@@ -106,6 +107,47 @@ describe('live room commands', () => {
     expect(alice.ofType('init')[0]?.commands).toEqual([
       { type: 'CREATE_ELEMENTS', elements: [element] },
     ]);
+  });
+
+  it('keeps the seat of a peer reconnecting into a full room', async () => {
+    const { instance } = await room();
+    // alice and bob are in; 18 more fill the room's 20 seats.
+    for (let i = 0; i < 18; i++)
+      await instance.admit(new FakeServerSocket(), `peer-${i}`, 'browser');
+    expect(instance.roomFull('newcomer')).toBe(true);
+    // alice's old socket is still registered: her reconnect replaces it.
+    expect(instance.roomFull('alice-client')).toBe(false);
+  });
+
+  it('tells the sender when the room refuses each of its commands', async () => {
+    const { alice, bob } = await room();
+    // Too large for one message: an image data URL of about 600k chars.
+    alice.receive({
+      type: 'command',
+      command: {
+        type: 'CREATE_ELEMENT',
+        element: {
+          ...element,
+          id: 'img',
+          type: 'image',
+          src: `data:image/png;base64,${'A'.repeat(600_000)}`,
+        },
+      },
+    });
+    expect(alice.ofType('rejected')).toEqual([
+      { type: 'rejected', reason: 'too_large' },
+    ]);
+    // Not applicable, twice in a row: a notice each, so a retry that is
+    // refused again is reported too.
+    alice.receive({ type: 'command', command: { type: 'CREATE_ELEMENTS' } });
+    alice.receive({ type: 'command', command: { type: 'CREATE_ELEMENTS' } });
+    expect(alice.ofType('rejected')).toEqual([
+      { type: 'rejected', reason: 'too_large' },
+      { type: 'rejected', reason: 'invalid' },
+      { type: 'rejected', reason: 'invalid' },
+    ]);
+    // Only the sender hears about it.
+    expect(bob.ofType('rejected')).toEqual([]);
   });
 
   it('replaces the first of two tabs with the same client id that join at once', async () => {
