@@ -654,7 +654,13 @@ export class TextTool implements Tool {
     setTimeout(grow, 0);
 
     const doCommit = (): void => {
-      const content = ta.value.trim();
+      // Code keeps its indentation and blank lines; trimming only tells
+      // whether anything is left.
+      const content = ta.value.trim()
+        ? el.isCode
+          ? ta.value
+          : ta.value.trim()
+        : '';
       const newHeight = ta.offsetHeight / viewport.zoom;
       const newWidth = ta.offsetWidth / viewport.zoom;
       mirror?.remove();
@@ -668,6 +674,12 @@ export class TextTool implements Tool {
       this.editingId = null;
 
       if (content) {
+        // The new text and the box that fits it are one undo step: undoing
+        // only the box would clip the text. A transaction already open (a
+        // style slider pressed while editing) takes them in instead, and is
+        // left for its owner to close.
+        const ownStep = !ctx.history.isDragging;
+        if (ownStep) ctx.history.beginDrag();
         ctx.history.dispatch({ type: 'EDIT_TEXT', id: el.id, content });
         const clampedHeight = Math.max(newHeight, el.fontSize);
         const clampedWidth = Math.max(newWidth, 10);
@@ -681,6 +693,7 @@ export class TextTool implements Tool {
             width: clampedWidth,
           });
         }
+        if (ownStep) ctx.history.endDrag();
       } else {
         ctx.history.dispatch({ type: 'DELETE_ELEMENTS', ids: [el.id] });
       }

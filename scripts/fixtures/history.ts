@@ -102,6 +102,51 @@ function scripts(fam: Family): void {
     h.redo();
   });
 
+  trace(fam, 'a command that changes nothing keeps the redo stack', () => {
+    const h = new History(threeBoxes());
+    h.dispatch(MOVE_R);
+    h.undo();
+    h.dispatch({ type: 'RESIZE_ELEMENT', id: 'r', width: 120, height: 60 });
+    h.dispatch({ type: 'APPLY_STYLE', ids: [], shapeKind: 'database' });
+    h.redo();
+  });
+
+  trace(fam, 'a drag of no-op resizes keeps the redo stack', () => {
+    const h = new History(threeBoxes());
+    h.dispatch(MOVE_R);
+    h.undo();
+    h.beginDrag();
+    h.dispatch({ type: 'RESIZE_ELEMENT', id: 'r', width: 120 });
+    h.endDrag();
+    h.redo();
+  });
+
+  trace(fam, 'undo keeps the tool choices made after the step', () => {
+    const h = new History(threeBoxes());
+    h.dispatch(MOVE_R);
+    h.dispatch({ type: 'SET_TOOL', tool: 'shape', shapeKind: 'database' });
+    h.dispatch({ type: 'SET_TOOL', tool: 'rectangle' });
+    h.undo();
+    h.redo();
+  });
+
+  trace(fam, 'a type-only change is still a step', () => {
+    const h = new History(threeBoxes());
+    h.dispatch(MOVE_R);
+    h.undo();
+    h.dispatch({ type: 'UPDATE_ELEMENT', id: 'e', props: { type: 'rhombus' } });
+    h.redo();
+  });
+
+  trace(fam, 'undo still restores a text default', () => {
+    const h = new History(threeBoxes());
+    h.dispatch({ type: 'SET_FONT_SIZE', size: 48 });
+    h.dispatch({ type: 'SET_TEXT_MODE', mode: 'code' });
+    h.undo();
+    h.undo();
+    h.redo();
+  });
+
   trace(fam, 'drag clears the redo stack once it changes something', () => {
     const h = new History(threeBoxes());
     h.dispatch(MOVE_R);
@@ -183,7 +228,7 @@ function scripts(fam: Family): void {
 
   trace(
     fam,
-    'a changed scene with no element change is an empty undo step',
+    'a changed scene with nothing undo restores records no step',
     () => {
       const h = new History(threeBoxes());
       h.dispatch({ type: 'UPDATE_ELEMENT', id: 'r', props: { x: 0 } });
