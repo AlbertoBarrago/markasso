@@ -367,4 +367,29 @@ export class LiveLink {
     this.socket?.close();
     this.socket = null;
   }
+
+  /**
+   * Leaves once every edit held back by the room's quota is sent, then
+   * waits for the socket to close (at most `timeoutMs`), so the last edits
+   * leave the process before it exits. A lost connection clears the queue,
+   * which ends the wait; the 60 s cap (twelve quota windows, about 1,800
+   * unmerged commands) only bounds a pathological burst.
+   */
+  async leaveAndWait(timeoutMs = 1000): Promise<void> {
+    await this.outbox.idle(60_000);
+    const socket = this.socket;
+    // Listening before the close starts, which may report it right away.
+    const closed =
+      socket && socket.readyState !== 3 // WebSocket.CLOSED
+        ? new Promise<void>((resolve) => {
+            const timer = setTimeout(resolve, timeoutMs);
+            socket.addEventListener('close', () => {
+              clearTimeout(timer);
+              resolve();
+            });
+          })
+        : Promise.resolve();
+    this.leave();
+    await closed;
+  }
 }

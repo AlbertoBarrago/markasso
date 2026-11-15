@@ -92,6 +92,26 @@ describe('LiveOutbox', () => {
     );
   });
 
+  it('settles once a held burst is sent, or at its time limit', async () => {
+    const sent: Command[] = [];
+    const outbox = new LiveOutbox({ send: (c) => sent.push(c) });
+    for (let i = 0; i < 200; i++)
+      outbox.push({ type: 'DELETE_ELEMENTS', ids: [`e${i}`] });
+    const done = outbox.idle(10_000);
+    await vi.advanceTimersByTimeAsync(5_200);
+    await done;
+    expect(sent).toHaveLength(200);
+    expect(outbox.pending).toBe(false);
+
+    for (let i = 0; i < 400; i++)
+      outbox.push({ type: 'DELETE_ELEMENTS', ids: [`f${i}`] });
+    const capped = outbox.idle(1_000);
+    await vi.advanceTimersByTimeAsync(1_100);
+    await capped;
+    // Gave up at the limit, with part of the burst still waiting.
+    expect(outbox.pending).toBe(true);
+  });
+
   it('drops what is waiting when cleared', () => {
     const sent: Command[] = [];
     const outbox = new LiveOutbox({ send: (c) => sent.push(c) });
