@@ -1,5 +1,6 @@
 import { validateElements, validateViewport } from '../io/element_validation';
 import { readJsonBody } from '../worker';
+import { clientKey } from './client_key';
 import { licenseGate, sha256 } from './license';
 
 type Board = {
@@ -95,7 +96,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     return json({ error: 'Method not allowed' }, 405);
   if (request.method !== 'GET') {
     const limited = await env.BOARD_RATE_LIMITER.limit({
-      key: `board:${request.headers.get('CF-Connecting-IP') ?? 'unknown'}`,
+      key: `board:${clientKey(request)}`,
     });
     if (!limited.success) {
       const response = json({ error: 'Too many requests' }, 429);
@@ -268,6 +269,12 @@ export async function purgeBoards(env: Env): Promise<void> {
       .run();
     if (result.meta.changes) await deletePrefix(env, `boards/${id}/`);
   }
+  // Every scene in use, read once: a query per stored object could run the
+  // invocation out of subrequests with many boards.
+  const used = await env.BOARDS_DB.prepare('SELECT scene_key FROM boards').all<{
+    scene_key: string;
+  }>();
+  const referenced = new Set(used.results.map((row) => row.scene_key));
   let cursor: string | undefined;
   do {
     const page = await env.BOARDS_BUCKET.list({
@@ -276,12 +283,8 @@ export async function purgeBoards(env: Env): Promise<void> {
     });
     for (const object of page.objects) {
       if (object.uploaded.getTime() > Date.now() - GRACE) continue;
-      const referenced = await env.BOARDS_DB.prepare(
-        'SELECT id FROM boards WHERE scene_key = ?',
-      )
-        .bind(object.key)
-        .first();
-      if (!referenced) await env.BOARDS_BUCKET.delete(object.key);
+      if (!referenced.has(object.key))
+        await env.BOARDS_BUCKET.delete(object.key);
     }
     cursor = page.truncated ? page.cursor : undefined;
   } while (cursor);

@@ -1,3 +1,5 @@
+import { clientKey } from './client_key';
+
 /**
  * Markasso Cloud licences, sold through Polar (merchant of record). Polar
  * generates the key, emails the buyer a link to its customer portal, and
@@ -172,7 +174,7 @@ export async function licenseCheck(
   env: Env,
 ): Promise<Response> {
   const limited = await env.BOARD_RATE_LIMITER.limit({
-    key: `licence:${request.headers.get('CF-Connecting-IP') ?? 'unknown'}`,
+    key: `licence:${clientKey(request)}`,
   });
   if (!limited.success)
     return Response.json(
