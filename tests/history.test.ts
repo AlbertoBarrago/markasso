@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { Command } from '../src/commands/commands';
 import { createScene } from '../src/core/scene';
+import { isSessionCommand } from '../src/engine/ephemeral';
 import { History } from '../src/engine/history';
 
 describe('History', () => {
@@ -231,5 +233,57 @@ describe('History', () => {
     unsub();
     h.dispatch({ type: 'TOGGLE_GRID' });
     expect(listener).not.toHaveBeenCalled();
+  });
+
+  describe('commands that act on the selection', () => {
+    const text = (id: string, content: string) => ({
+      id,
+      type: 'text' as const,
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 30,
+      content,
+      fontSize: 16,
+      fontFamily: 'sans-serif',
+      strokeColor: '#000',
+      fillColor: 'transparent',
+      strokeWidth: 0,
+      opacity: 1,
+      roughness: 0,
+    });
+
+    it('send the ids of the local selection, so peers change the same texts', () => {
+      const sender = new History(createScene());
+      const peer = new History(createScene());
+      for (const h of [sender, peer]) {
+        h.dispatch({
+          type: 'CREATE_ELEMENTS',
+          elements: [text('a', 'Hi'), text('b', 'A longer line')],
+        });
+      }
+      const relayed: Command[] = [];
+      sender.setOnCommand((command) => relayed.push(command));
+      sender.dispatch({ type: 'SELECT_ELEMENTS', ids: ['a'] });
+      peer.dispatch({ type: 'SELECT_ELEMENTS', ids: ['b'] });
+
+      sender.dispatch({ type: 'SET_FONT_FAMILY', family: 'monospace' });
+      sender.dispatch({ type: 'SET_FONT_SIZE', size: 40 });
+      sender.dispatch({ type: 'SET_TEXT_MODE', mode: 'code' });
+      for (const command of relayed.filter(isSessionCommand))
+        peer.applyRemote(command);
+
+      const fonts = (h: History) =>
+        h.present.elements.map((el) =>
+          el.type === 'text' ? [el.fontFamily, el.fontSize, !!el.isCode] : [],
+        );
+      expect(fonts(peer)).toEqual(fonts(sender));
+      expect(fonts(peer)).toEqual([
+        ['monospace', 40, true],
+        ['sans-serif', 16, false],
+      ]);
+      // The text mode is a per-user default, like the font.
+      expect(peer.present.appState.textMode).toBe('text');
+    });
   });
 });

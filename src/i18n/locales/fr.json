@@ -59,6 +59,8 @@
   "startLiveSession": "Démarrer une session en direct",
   "leaveLiveSession": "Quitter la session en direct",
   "liveLeft": "Vous avez quitté la session en direct. Le tableau reste ici comme copie.",
+  "liveReplaced": "Cette session en direct est ouverte dans un autre onglet de ce navigateur. Le tableau reste ici comme copie.",
+  "liveFull": "Cette session en direct est complète. Le tableau reste ici comme copie.",
   "inviteAiAgent": "Inviter un agent IA",
   "inviteAiAgentLocked": "Avec Markasso Cloud",
   "mcpInviteCopied": "Prompt copié : collez-le dans votre agent IA",

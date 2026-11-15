@@ -639,6 +639,29 @@ function variants(): Array<[string, Command, string]> {
   );
   add('texts', { type: 'SET_FONT_SIZE', size: 12, height: 15 }, 'height only');
   add('boxes', { type: 'SET_FONT_SIZE', size: 40 }, 'non-text selection');
+  add(
+    'texts',
+    { type: 'SET_FONT_FAMILY', family: 'Georgia, serif', ids: ['n'] },
+    'explicit ids',
+  );
+  add(
+    'texts',
+    {
+      type: 'SET_FONT_SIZE',
+      size: 30,
+      ids: ['t', 'n', 'r'],
+      bounds: [
+        { id: 't', width: 120, height: 40 },
+        { id: 'r', width: 999, height: 999 },
+      ],
+    },
+    'per-text bounds',
+  );
+  add(
+    'texts',
+    { type: 'SET_FONT_SIZE', size: 22, ids: [], width: 50, height: 20 },
+    'empty ids',
+  );
 
   add('boxes', { type: 'TOGGLE_GRID' }, 'visible');
   add('textTool', { type: 'TOGGLE_GRID' }, 'hidden');
@@ -747,6 +770,11 @@ function variants(): Array<[string, Command, string]> {
   add('texts', { type: 'SET_TEXT_MODE', mode: 'code' }, 'code');
   add('textTool', { type: 'SET_TEXT_MODE', mode: 'text' }, 'text');
   add('boxes', { type: 'SET_TEXT_MODE', mode: 'code' }, 'non-text selection');
+  add(
+    'texts',
+    { type: 'SET_TEXT_MODE', mode: 'code', ids: ['n'] },
+    'explicit ids',
+  );
 
   add(
     'boxes',

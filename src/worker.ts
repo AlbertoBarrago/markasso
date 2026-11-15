@@ -19,6 +19,7 @@ import {
 import { boardRequest, purgeBoards } from './worker/boards';
 import { licenseCheck, licenseKeyValid } from './worker/license';
 import { macDownload } from './worker/mac_download';
+import { RoomLog } from './worker/room_log';
 
 const ID_LENGTH = 8;
 const ID_CHARS =
@@ -45,8 +46,6 @@ interface PeerInfo {
   kind: PeerKind;
 }
 
-const MAX_LOG_LENGTH = 5000;
-const LOG_KEY = 'commands';
 const LAST_ACTIVITY_KEY = 'lastActivity';
 const ROOM_ID_RE = /^[a-zA-Z0-9_-]{3,64}$/;
 const CLIENT_ID_RE = /^[a-zA-Z0-9_-]{8,64}$/;
@@ -90,10 +89,6 @@ export function isRoomInactive(
   return connectedPeers === 0 && now - lastActivity > thresholdMs;
 }
 
-/** A command as serialized over the wire. Kept structural so the Worker does
- *  not need to type-check browser-dependent element/app_state modules. */
-type WireCommand = { type: string; [k: string]: unknown };
-
 ///**
 /**
  * One live editing room. A single serialization point: it appends commands to
@@ -106,9 +101,23 @@ type WireCommand = { type: string; [k: string]: unknown };
 export class SessionRoom {
   private readonly state: DurableObjectState;
   private readonly env: Env;
-  private readonly commands: WireCommand[] = [];
+  /** The room's content: see RoomLog. */
+  private readonly log = new RoomLog();
   private readonly sockets = new Map<WebSocket, string>(); // ws -> clientId
   private readonly peers = new Map<string, Omit<PeerInfo, 'id'>>(); // clientId -> props
+  /**
+   * clientId -> the id other peers see. The clientId is the secret a peer
+   * reconnects with (it replaces the socket that holds it and keeps its name
+   * and licence), so it never leaves the room: every message names peers by
+   * this derived id instead.
+   */
+  private readonly publicIds = new Map<string, string>();
+  /**
+   * The hash being computed for a clientId. Shared, so connections with the
+   * same clientId resume in the order they arrived and the latest one is
+   * the one that stays (see admit).
+   */
+  private readonly publicIdTasks = new Map<string, Promise<string>>();
   private readonly cmdCounts = new Map<string, number>();
   /** Browser peers that proved a valid licence: they may message agents. */
   private readonly licensed = new Set<string>();
@@ -132,8 +141,7 @@ export class SessionRoom {
   private async initialize(): Promise<void> {
     if (this.loaded) return;
     this.loaded = true;
-    const stored = await this.state.storage.get<WireCommand[]>(LOG_KEY);
-    if (Array.isArray(stored)) this.commands.push(...stored);
+    await this.log.load(this.state.storage);
     const last = await this.state.storage.get<number>(LAST_ACTIVITY_KEY);
     if (typeof last === 'number') this.lastActivity = last;
   }
@@ -155,6 +163,42 @@ export class SessionRoom {
    */
   private resolveClientId(raw: string | null): string {
     return raw && CLIENT_ID_RE.test(raw) ? raw : crypto.randomUUID();
+  }
+
+  /**
+   * The id other peers see for `clientId`: stable across reconnects, so
+   * cursors and the people list keep following the same peer, different in
+   * every room, and not reversible to the clientId.
+   */
+  private async publicId(clientId: string): Promise<string> {
+    const known = this.publicIds.get(clientId);
+    if (known) return known;
+    let task = this.publicIdTasks.get(clientId);
+    if (!task) {
+      task = crypto.subtle
+        .digest(
+          'SHA-256',
+          new TextEncoder().encode(`${this.roomId()}:${clientId}`),
+        )
+        .then((digest) => {
+          const id = Array.from(
+            new Uint8Array(digest).subarray(0, 16),
+            (byte) => byte.toString(16).padStart(2, '0'),
+          ).join('');
+          this.publicIds.set(clientId, id);
+          this.publicIdTasks.delete(clientId);
+          return id;
+        });
+      this.publicIdTasks.set(clientId, task);
+    }
+    return task;
+  }
+
+  /** The connected peer other peers know as `publicId`, if any. */
+  private clientIdOf(publicId: string): string | undefined {
+    for (const clientId of this.sockets.values())
+      if (this.publicIds.get(clientId) === publicId) return clientId;
+    return undefined;
   }
 
   /** Record this room in the KV index so the daily cron can find it. */
@@ -278,6 +322,10 @@ export class SessionRoom {
     clientId: string,
     kind: PeerKind,
   ): Promise<void> {
+    // Resolved first: the replacement below and the registration must not be
+    // split by an await, or two tabs with the same clientId admitted at once
+    // would both stay registered and miss each other's edits.
+    const self = await this.publicId(clientId);
     // A reconnect with the same clientId replaces any stale live socket so a
     // peer never ends up with two identities in the same room.
     for (const [sock, id] of this.sockets) {
@@ -307,8 +355,8 @@ export class SessionRoom {
     server.send(
       JSON.stringify({
         type: 'init',
-        self: clientId,
-        commands: this.commands,
+        self,
+        commands: this.log.commands,
         peers: this.peerList(),
       }),
     );
@@ -330,17 +378,19 @@ export class SessionRoom {
     const m = msg as Record<string, unknown>;
 
     if (m.type === 'command' && m.command) {
-      const command = m.command as WireCommand;
+      const command = m.command as { type?: string };
       // Also drops bare UNDO/REDO from outdated clients (see isSessionCommand).
       if (!isSessionCommand(command)) return;
       if (!this.allowCommand(clientId)) return;
+      // Relayed to every peer and replayed to every joiner: a command the
+      // room cannot apply (malformed, refused by the reducer, too large for
+      // the room) must stop here.
+      if (!this.log.append(command)) return;
       this.touch();
       this.broadcast(
-        { type: 'apply', command, from: clientId },
+        { type: 'apply', command, from: this.publicIds.get(clientId) },
         /* except */ clientId,
       );
-      if (this.commands.length >= MAX_LOG_LENGTH) this.commands.shift();
-      this.commands.push(command);
       this.schedulePersist();
       return;
     }
@@ -353,7 +403,7 @@ export class SessionRoom {
       this.broadcast(
         {
           type: 'cursor',
-          from: clientId,
+          from: this.publicIds.get(clientId),
           x,
           y,
           name: peer?.name ?? randomAnimalName(),
@@ -462,7 +512,8 @@ export class SessionRoom {
         : undefined;
     const sender = this.peers.get(clientId);
     const text = typeof m.text === 'string' ? m.text.trim() : '';
-    const to = typeof m.to === 'string' ? m.to : '';
+    // Peers name each other by public id: resolve the target's own.
+    const to = (typeof m.to === 'string' && this.clientIdOf(m.to)) || '';
     let rejection: AgentRequestRejection | null = null;
     if (sender?.kind !== 'browser' || !this.licensed.has(clientId))
       rejection = 'unauthorized';
@@ -493,7 +544,7 @@ export class SessionRoom {
     this.sendTo(to, {
       type: 'request',
       id,
-      from: clientId,
+      from: this.publicIds.get(clientId) ?? '',
       fromName: sender.name,
       text,
     });
@@ -598,7 +649,7 @@ export class SessionRoom {
     const connected = new Set(this.sockets.values());
     return [...this.peers.entries()]
       .filter(([id]) => connected.has(id))
-      .map(([id, p]) => ({ id, ...p }));
+      .map(([id, p]) => ({ id: this.publicIds.get(id) ?? '', ...p }));
   }
 
   private broadcast(msg: unknown, exceptPeerId?: string): void {
@@ -617,10 +668,14 @@ export class SessionRoom {
     if (this.persistTimer) return;
     this.persistTimer = setTimeout(async () => {
       this.persistTimer = null;
-      await this.state.storage.put({
-        [LOG_KEY]: this.commands.slice(),
-        [LAST_ACTIVITY_KEY]: this.lastActivity,
-      });
+      try {
+        await this.log.save(this.state.storage, {
+          [LAST_ACTIVITY_KEY]: this.lastActivity,
+        });
+      } catch (error) {
+        // The changes stay pending: the next command saves them again.
+        console.log('[live] could not save the room log', error);
+      }
     }, 800);
   }
 
@@ -639,7 +694,7 @@ export class SessionRoom {
     if (!inactive) return Response.json({ deleted: false });
 
     await this.state.storage.deleteAll();
-    this.commands.length = 0;
+    this.log.reset();
     this.peers.clear();
     try {
       await this.env.SHARE_LINKS.delete(ROOM_INDEX_PREFIX + this.roomId());

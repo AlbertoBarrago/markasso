@@ -59,6 +59,8 @@
   "startLiveSession": "开始实时会话",
   "leaveLiveSession": "退出实时会话",
   "liveLeft": "你已退出实时会话。白板会作为副本保留在这里。",
+  "liveReplaced": "此实时会话已在此浏览器的另一个标签页中打开。画板会作为副本保留在这里。",
+  "liveFull": "此实时会话已满。画板会作为副本保留在这里。",
   "inviteAiAgent": "邀请 AI 代理",
   "inviteAiAgentLocked": "需要 Markasso Cloud",
   "mcpInviteCopied": "提示已复制：粘贴给你的 AI 代理",

@@ -456,6 +456,26 @@ function scripts(fam: Family): void {
     for (let i = 0; i < 6; i++) h.redo();
   });
 
+  trace(fam, 'text commands carry the selection they were made on', () => {
+    const h = new History(
+      makeScene([sample('text'), sample('note')], ['t', 'n']),
+    );
+    h.dispatch({
+      type: 'SET_FONT_SIZE',
+      size: 30,
+      bounds: [
+        { id: 't', width: 120, height: 40 },
+        { id: 'n', width: 220, height: 60 },
+      ],
+    });
+    h.dispatch({ type: 'SET_FONT_FAMILY', family: 'Georgia, serif' });
+    h.dispatch({ type: 'SET_TEXT_MODE', mode: 'code' });
+    h.dispatch({ type: 'SELECT_ELEMENTS', ids: ['t'] });
+    h.applyRemote({ type: 'SET_TEXT_MODE', mode: 'text', ids: ['n'] });
+    h.applyRemote({ type: 'SET_FONT_SIZE', size: 12, ids: ['n'] });
+    h.undo();
+  });
+
   trace(fam, 'applyRemote of an unchanged command', () => {
     const h = new History(threeBoxes());
     h.dispatch(MOVE_R);
@@ -485,6 +505,28 @@ function scripts(fam: Family): void {
     ]);
     h.endDrag();
     h.undo();
+  });
+
+  trace(fam, "resetForLiveReplay keeps this user's appState", () => {
+    const h = new History(makeScene([sample('rect')], ['r']));
+    h.dispatch({ type: 'SET_TOOL', tool: 'rectangle' });
+    h.dispatch({ type: 'APPLY_STYLE', strokeColor: '#ff0000', opacity: 0.5 });
+    h.dispatch({ type: 'SET_TOOL_LOCK', locked: true });
+    h.dispatch({ type: 'TOGGLE_GRID' });
+    h.dispatch({ type: 'SET_TEXT_MODE', mode: 'code' });
+    h.dispatch({
+      type: 'CREATE_ELEMENT',
+      element: sample('ellipse'),
+      select: false,
+    });
+    h.resetForLiveReplay([
+      { type: 'CREATE_ELEMENT', element: sample('note') },
+      {
+        type: 'LOAD_SCENE',
+        elements: [sample('curve')],
+        viewport: { offsetX: 90, offsetY: 90, zoom: 0.2 },
+      },
+    ]);
   });
 
   trace(fam, 'resetForLiveReplay with a fresh viewport', () => {

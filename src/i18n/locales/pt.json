@@ -59,6 +59,8 @@
   "startLiveSession": "Iniciar sessão ao vivo",
   "leaveLiveSession": "Sair da sessão ao vivo",
   "liveLeft": "Você saiu da sessão ao vivo. O quadro fica aqui como cópia.",
+  "liveReplaced": "Esta sessão ao vivo está aberta noutro separador deste navegador. O quadro fica aqui como cópia.",
+  "liveFull": "Esta sessão ao vivo está cheia. O quadro fica aqui como cópia.",
   "inviteAiAgent": "Convidar agente de IA",
   "inviteAiAgentLocked": "Com Markasso Cloud",
   "mcpInviteCopied": "Prompt copiado: cole-o no seu agente de IA",

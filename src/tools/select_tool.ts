@@ -464,6 +464,10 @@ export class SelectTool implements Tool {
         const snapRad = (SNAP_DEG * Math.PI) / 180;
         rotation = Math.round(rotation / snapRad) * snapRad;
       }
+      // Kept within half a turn either way: each drag adds to the previous
+      // rotation, and past a full turn the element no longer passed
+      // validation, so a saved file or a live room dropped it.
+      rotation -= 2 * Math.PI * Math.round(rotation / (2 * Math.PI));
       if (this.rotateElId) {
         ctx.history.dispatch({
           type: 'SET_ROTATION',

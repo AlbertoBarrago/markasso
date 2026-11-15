@@ -59,6 +59,8 @@
   "startLiveSession": "Iniciar sesión en directo",
   "leaveLiveSession": "Salir de la sesión en directo",
   "liveLeft": "Has salido de la sesión en directo. La pizarra se queda aquí como copia.",
+  "liveReplaced": "Esta sesión en vivo está abierta en otra pestaña de este navegador. La pizarra se queda aquí como copia.",
+  "liveFull": "Esta sesión en vivo está completa. La pizarra se queda aquí como copia.",
   "inviteAiAgent": "Invitar agente de IA",
   "inviteAiAgentLocked": "Con Markasso Cloud",
   "mcpInviteCopied": "Prompt copiado: pégalo en tu agente de IA",

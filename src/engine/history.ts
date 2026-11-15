@@ -13,22 +13,33 @@ import {
 } from './scene_diff';
 
 /**
- * For APPLY_STYLE commands without explicit `ids`, resolve the target elements
- * from the current selection (or the last-created element when nothing is
- * selected) and bake them into the command. This keeps the command
- * deterministic across a shared session.
+ * Bakes the target elements into the commands that act on "the selection"
+ * (APPLY_STYLE and the text font and mode commands) when they carry no `ids`.
+ * In a shared session every client then changes the same elements, never
+ * each peer's own selection. APPLY_STYLE without a selection targets the
+ * last-created element.
  */
-function withApplyStyleTargets(scene: Scene, command: Command): Command {
-  if (command.type !== 'APPLY_STYLE' || command.ids !== undefined) {
-    return command;
+function withTargets(scene: Scene, command: Command): Command {
+  switch (command.type) {
+    case 'APPLY_STYLE': {
+      if (command.ids !== undefined) return command;
+      const ids =
+        scene.selectedIds.size > 0
+          ? [...scene.selectedIds]
+          : scene.appState.lastCreatedId
+            ? [scene.appState.lastCreatedId]
+            : [];
+      return { ...command, ids };
+    }
+    case 'SET_FONT_FAMILY':
+    case 'SET_FONT_SIZE':
+    case 'SET_TEXT_MODE':
+      return command.ids !== undefined
+        ? command
+        : { ...command, ids: [...scene.selectedIds] };
+    default:
+      return command;
   }
-  const ids =
-    scene.selectedIds.size > 0
-      ? [...scene.selectedIds]
-      : scene.appState.lastCreatedId
-        ? [scene.appState.lastCreatedId]
-        : [];
-  return { ...command, ids };
 }
 
 type Listener = (scene: Scene) => void;
@@ -163,17 +174,38 @@ export class History {
     this.notify();
   }
 
-  /** Reset the scene to a fresh board, then replay a list of commands (used when
-   *  joining a live room: the room's log is authoritative). Does not touch undo. */
+  /**
+   * Replaces the board with the room's (used when joining or rejoining a live
+   * room: the room's log is authoritative), then notifies once. Clears undo.
+   *
+   * Only the board is replaced: the tool, the default style and the grid are
+   * this user's own and survive a join or a reconnect. The viewport survives
+   * too unless `keepViewport` is false.
+   */
   resetForLiveReplay(commands: readonly Command[], keepViewport = true): void {
     if (this.readOnly) return;
-    const viewport = this._present.viewport;
+    const { viewport, appState } = this._present;
     this.past = [];
     this.future = [];
     this.drag = null;
-    this._present = createScene();
-    if (keepViewport) this._present = { ...this._present, viewport };
-    for (const command of commands) this.applyRemote(command);
+    const fresh = createScene();
+    let scene: Scene = {
+      ...fresh,
+      // These two point at elements of the board being replaced.
+      appState: { ...appState, lastCreatedId: null, justCreatedText: false },
+      viewport: keepViewport ? viewport : fresh.viewport,
+    };
+    for (const command of commands) {
+      // One command the reducer cannot apply must not cost the rest of the
+      // board: skip it and keep replaying.
+      try {
+        scene = reducer(scene, command, true);
+      } catch (error) {
+        console.error('Skipped a live command that failed to apply', error);
+      }
+    }
+    this._present = scene;
+    this.notify();
   }
 
   dispatch(command: Command): void {
@@ -183,10 +215,9 @@ export class History {
         command.type === 'SET_JUST_CREATED_TEXT')
     )
       return;
-    // APPLY_STYLE targets the local selection; bake those ids into the command
-    // so a shared session applies the style to the SAME elements on every
-    // client (never to each peer's own selection).
-    const resolved = withApplyStyleTargets(this._present, command);
+    // Commands that target the local selection carry its ids from here on,
+    // so a shared session changes the SAME elements on every client.
+    const resolved = withTargets(this._present, command);
     const next = reducer(this._present, resolved);
     if (next === this._present) return;
 

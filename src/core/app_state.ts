@@ -43,15 +43,18 @@ export interface AppState {
 }
 
 export function createAppState(): AppState {
-  const resolvedTheme =
-    typeof document !== 'undefined'
-      ? document.documentElement.getAttribute('data-theme')
-      : null;
+  // Read through globalThis: this module also runs in the Worker, where the
+  // live room applies commands with the reducer and neither global exists.
+  const { document: doc, window: win } = globalThis as {
+    document?: {
+      documentElement: { getAttribute(name: string): string | null };
+    };
+    window?: { matchMedia(query: string): { matches: boolean } };
+  };
+  const resolvedTheme = doc?.documentElement.getAttribute('data-theme');
   const defaultStrokeColor = resolvedTheme === 'light' ? '#000000' : '#e2e2ef';
 
-  const isMobile =
-    typeof window !== 'undefined' &&
-    window.matchMedia('(pointer: coarse)').matches;
+  const isMobile = win?.matchMedia('(pointer: coarse)').matches ?? false;
 
   return {
     activeTool: 'select',

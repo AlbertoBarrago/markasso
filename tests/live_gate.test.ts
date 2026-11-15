@@ -69,17 +69,17 @@ describe('live agent licence gate', () => {
     server.receive({ type: 'presence', name: 'Claude', color: '#c77dff' });
     await settled(server);
     expect(server.closed).toBeNull();
-    expect(server.sent[0]).toMatchObject({
-      type: 'init',
-      self: 'agent-client-1',
-    });
+    expect(server.sent[0]).toMatchObject({ type: 'init' });
+    // Peers are named by an id derived in the room, never by the client id.
+    const self = server.sent[0]?.self;
+    expect(self).toMatch(/^[0-9a-f]{32}$/);
     // The presence sent during the check is replayed once the agent is in.
     await vi.waitFor(() =>
       expect(
         server.sent.filter((m) => m.type === 'presence').at(-1)?.peers,
       ).toEqual([
         {
-          id: 'agent-client-1',
+          id: self,
           name: 'Claude',
           color: '#c77dff',
           kind: 'agent',
