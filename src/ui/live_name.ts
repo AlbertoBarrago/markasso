@@ -32,3 +32,15 @@ export function setLiveUI(connected: boolean): void {
     for (const fn of hideFns) fn();
   }
 }
+
+/**
+ * Shows `name` in a live name chip. The chip is a flex row (live dot, then
+ * the name), where text-overflow does not apply to bare text: the name sits
+ * in its own span, which ellipsizes a long name instead of clipping it.
+ */
+export function setNameChipText(chip: HTMLElement, name: string): void {
+  const label = document.createElement('span');
+  label.className = 'name-chip-label';
+  label.textContent = name;
+  chip.replaceChildren(label);
+}

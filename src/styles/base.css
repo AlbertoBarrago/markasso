@@ -624,6 +624,15 @@ body.ui-hidden #mobile-actions {
   font-size: 24px;
 }
 
+/* The name itself, in a span so a long one ends with an ellipsis (text in a
+   flex row is clipped, not ellipsized). */
+.name-chip-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* The name chip is visible only while the live session is connected. */
 .tb-name-chip::before,
 .mobile-name-chip::before {
