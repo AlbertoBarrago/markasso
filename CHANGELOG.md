@@ -4,6 +4,22 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [1.22.1] - 2026-11-15
+
+A review pass over the whole app: live sessions, cloud boards, selection, undo, export and storage.
+
+### Fixed
+- **Live sessions ([#127](https://github.com/AlbertoBarrago/markasso/pull/127)-[#132](https://github.com/AlbertoBarrago/markasso/pull/132)).** The room checks every command it relays and replays, so a malformed one can no longer break the board for everyone who joins. Font and text-mode changes reach the same texts on every client, a reconnect keeps your tool, style and view, and the room keeps the whole board in a compact form instead of dropping its oldest edits. Commands are paced to the room's limit, a large board is seeded in pieces, and leaving sends the last edits first. The client id stays private, and a second tab no longer causes reconnect loops.
+- **Your local drawing ([#125](https://github.com/AlbertoBarrago/markasso/pull/125), [#126](https://github.com/AlbertoBarrago/markasso/pull/126)).** Opening a shared or live link asks before it replaces the drawing saved in this browser, and a cloud board never overwrites it. An edit link no longer replaces the saved edit token of a board until the link's token is proven.
+- **Selection ([#133](https://github.com/AlbertoBarrago/markasso/pull/133), [#134](https://github.com/AlbertoBarrago/markasso/pull/134)).** A click on an arrow end no longer detaches it, ends follow the pointer while dragged, and locked elements show no handles and stay put on arrow keys. Rotated elements resize along their own axes, lines and arrows no longer offer a rotation handle, and rotated elements are no longer cut off in exports.
+- **Keyboard and clipboard ([#135](https://github.com/AlbertoBarrago/markasso/pull/135)).** Shortcuts stay off while a dialog is open, Cmd/Ctrl+F only opens the search, Shift+0 and the layer shortcuts work on every keyboard layout (⌥⌘[ / ] on Mac), Cmd/Ctrl+X cuts, and pasting into a text field no longer pastes on the canvas too.
+- **Undo ([#136](https://github.com/AlbertoBarrago/markasso/pull/136)).** Undo no longer records steps that change nothing, keeps your tool choices, undoes a text edit in one step, and Bring to front keeps the stacking of the selection. Code blocks keep their indentation when edited.
+- **Blocked browser storage ([#137](https://github.com/AlbertoBarrago/markasso/pull/137)).** The app and the Cloud page start with site data blocked, and warn that the drawing is not kept across reloads.
+- **SVG export ([#138](https://github.com/AlbertoBarrago/markasso/pull/138)).** SVG follows the current theme like PNG, and exports code blocks, rotated labels, underline and strikethrough, rounded rhombus corners and line caps as drawn. Dotted strokes no longer produce an invalid file.
+- **Cloud boards ([#139](https://github.com/AlbertoBarrago/markasso/pull/139)).** A board that no longer exists takes you back to your drawing instead of an empty read-only canvas, Save to cloud can be retried after a failure, and Enter confirms dialogs with a text field. The command palette names Select all correctly and asks about the background when exporting an image.
+
+---
+
 ## [1.22.0] - 2026-11-12
 
 ### Added

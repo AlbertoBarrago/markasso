@@ -4,6 +4,8 @@ import {
   CONNECTOR_ROUTINGS,
   type Element,
   type ElementType,
+  MAX_FONT_SIZE,
+  MIN_FONT_SIZE,
   SHAPE_KINDS,
 } from '../elements/element';
 import {
@@ -146,7 +148,7 @@ function hasShapeLabelFields(el: Record<string, unknown>): boolean {
   );
 }
 
-function isValidStencilSource(value: unknown): boolean {
+export function isValidStencilSource(value: unknown): boolean {
   if (!isRecord(value)) return false;
   if (value.kind === 'builtin') {
     return isString(value.ref, 128) && isValidStencilRef(value.ref);
@@ -199,7 +201,7 @@ function hasPointFields(el: Record<string, unknown>): boolean {
   );
 }
 
-function isImageSource(value: unknown): value is string {
+export function isImageSource(value: unknown): value is string {
   return (
     isString(value, 10_000_000) &&
     /^data:image\/(?:png|jpe?g|gif|webp|svg\+xml);base64,/i.test(value)
@@ -280,7 +282,7 @@ export function isValidElement(value: unknown): value is Element {
         hasBoxFields(value) &&
         isString(value.content) &&
         isOptionalFiniteNumber(value.padding, 0, 1_000) &&
-        isFiniteNumberInRange(value.fontSize, 1, 1_000) &&
+        isFiniteNumberInRange(value.fontSize, MIN_FONT_SIZE, MAX_FONT_SIZE) &&
         isString(value.fontFamily, 256) &&
         isOptionalEnum(value.textAlign, TEXT_ALIGNS) &&
         isOptionalBoolean(value.isCode) &&

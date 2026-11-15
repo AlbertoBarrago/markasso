@@ -6,6 +6,7 @@ import { reducer } from './reducer';
 import {
   buildRevertPatch,
   composeChange,
+  deepEqual,
   diffScenes,
   emptyChange,
   rebaseIndices,
@@ -13,22 +14,33 @@ import {
 } from './scene_diff';
 
 /**
- * For APPLY_STYLE commands without explicit `ids`, resolve the target elements
- * from the current selection (or the last-created element when nothing is
- * selected) and bake them into the command. This keeps the command
- * deterministic across a shared session.
+ * Bakes the target elements into the commands that act on "the selection"
+ * (APPLY_STYLE and the text font and mode commands) when they carry no `ids`.
+ * In a shared session every client then changes the same elements, never
+ * each peer's own selection. APPLY_STYLE without a selection targets the
+ * last-created element.
  */
-function withApplyStyleTargets(scene: Scene, command: Command): Command {
-  if (command.type !== 'APPLY_STYLE' || command.ids !== undefined) {
-    return command;
+function withTargets(scene: Scene, command: Command): Command {
+  switch (command.type) {
+    case 'APPLY_STYLE': {
+      if (command.ids !== undefined) return command;
+      const ids =
+        scene.selectedIds.size > 0
+          ? [...scene.selectedIds]
+          : scene.appState.lastCreatedId
+            ? [scene.appState.lastCreatedId]
+            : [];
+      return { ...command, ids };
+    }
+    case 'SET_FONT_FAMILY':
+    case 'SET_FONT_SIZE':
+    case 'SET_TEXT_MODE':
+      return command.ids !== undefined
+        ? command
+        : { ...command, ids: [...scene.selectedIds] };
+    default:
+      return command;
   }
-  const ids =
-    scene.selectedIds.size > 0
-      ? [...scene.selectedIds]
-      : scene.appState.lastCreatedId
-        ? [scene.appState.lastCreatedId]
-        : [];
-  return { ...command, ids };
 }
 
 type Listener = (scene: Scene) => void;
@@ -92,6 +104,11 @@ export class History {
     return this._present;
   }
 
+  /** True between beginDrag and endDrag (or cancelDrag). */
+  get isDragging(): boolean {
+    return this.drag !== null;
+  }
+
   /** Call at the start of a drag (move/resize/rotate). Every command until
    *  endDrag folds into one undo step, so the drag undoes in a single Ctrl+Z. */
   beginDrag(): void {
@@ -113,8 +130,12 @@ export class History {
     const drag = this.drag;
     if (!drag) return;
     this.drag = null;
+    // The commands of the drag notified while it was open, before the undo
+    // and redo stacks were settled: notify once more when they change, so
+    // undo/redo buttons follow.
     if (!drag.touched) {
       this.future = drag.future;
+      if (drag.future.length > 0) this.notify();
       return;
     }
     rebaseIndices(drag.change, drag.sceneBefore, this._present);
@@ -123,6 +144,7 @@ export class History {
       appStateBefore: drag.appStateBefore,
       appStateAfter: this._present.appState,
     });
+    this.notify();
   }
 
   /** Cancel an in-progress drag and revert what it changed. Edits peers made
@@ -163,17 +185,38 @@ export class History {
     this.notify();
   }
 
-  /** Reset the scene to a fresh board, then replay a list of commands (used when
-   *  joining a live room: the room's log is authoritative). Does not touch undo. */
+  /**
+   * Replaces the board with the room's (used when joining or rejoining a live
+   * room: the room's log is authoritative), then notifies once. Clears undo.
+   *
+   * Only the board is replaced: the tool, the default style and the grid are
+   * this user's own and survive a join or a reconnect. The viewport survives
+   * too unless `keepViewport` is false.
+   */
   resetForLiveReplay(commands: readonly Command[], keepViewport = true): void {
     if (this.readOnly) return;
-    const viewport = this._present.viewport;
+    const { viewport, appState } = this._present;
     this.past = [];
     this.future = [];
     this.drag = null;
-    this._present = createScene();
-    if (keepViewport) this._present = { ...this._present, viewport };
-    for (const command of commands) this.applyRemote(command);
+    const fresh = createScene();
+    let scene: Scene = {
+      ...fresh,
+      // These two point at elements of the board being replaced.
+      appState: { ...appState, lastCreatedId: null, justCreatedText: false },
+      viewport: keepViewport ? viewport : fresh.viewport,
+    };
+    for (const command of commands) {
+      // One command the reducer cannot apply must not cost the rest of the
+      // board: skip it and keep replaying.
+      try {
+        scene = reducer(scene, command, true);
+      } catch (error) {
+        console.error('Skipped a live command that failed to apply', error);
+      }
+    }
+    this._present = scene;
+    this.notify();
   }
 
   dispatch(command: Command): void {
@@ -183,19 +226,22 @@ export class History {
         command.type === 'SET_JUST_CREATED_TEXT')
     )
       return;
-    // APPLY_STYLE targets the local selection; bake those ids into the command
-    // so a shared session applies the style to the SAME elements on every
-    // client (never to each peer's own selection).
-    const resolved = withApplyStyleTargets(this._present, command);
+    // Commands that target the local selection carry its ids from here on,
+    // so a shared session changes the SAME elements on every client.
+    const resolved = withTargets(this._present, command);
     const next = reducer(this._present, resolved);
     if (next === this._present) return;
 
     if (!isEphemeralCommand(resolved.type)) {
       const step = diffScenes(this._present, next);
+      // A command that changes nothing undo would bring back (no element, no
+      // order, only appState fields undo keeps as they are) is no step: it
+      // would make Ctrl+Z look dead and drop the redo stack.
+      const undoable = isUndoableChange(step, this._present, next);
       if (this.drag) {
         composeChange(this.drag.change, step);
-        this.drag.touched = true;
-      } else {
+        if (undoable) this.drag.touched = true;
+      } else if (undoable) {
         this.past.push({
           change: step,
           appStateBefore: this._present.appState,
@@ -269,10 +315,66 @@ export class History {
 }
 
 /**
+ * appState fields undo and redo leave as they are now: the tool and the
+ * default style, which the tool switch and the style panel also set without
+ * an undo step (SET_TOOL inherits the selection's style and sets the shape
+ * kind), and view settings. Restoring them would undo choices the user made
+ * after the step. The text defaults (font size and family, alignment, mode)
+ * and the line routing are restored.
+ */
+const KEPT_ON_UNDO = [
+  'activeTool',
+  'strokeColor',
+  'fillColor',
+  'strokeWidth',
+  'opacity',
+  'roughness',
+  'strokeStyle',
+  'shapeKind',
+  'gridVisible',
+  'gridType',
+  'toolLocked',
+  'justCreatedText',
+] as const satisfies ReadonlyArray<keyof AppState>;
+
+const KEPT_ON_UNDO_SET: ReadonlySet<string> = new Set([
+  ...KEPT_ON_UNDO,
+  // Restored separately: kept only while its element exists.
+  'lastCreatedId',
+]);
+
+/**
+ * Whether a change is worth an undo step: it touches elements or their order,
+ * or an appState field that undo restores. An element change the diff leaves
+ * out (a type-only change: the type is identity there) still counts, so the
+ * board is never changed without a step.
+ */
+function isUndoableChange(
+  change: SceneChange,
+  prev: Scene,
+  next: Scene,
+): boolean {
+  if (change.elements.size > 0 || change.order) return true;
+  if (!sameElements(prev.elements, next.elements)) return true;
+  const before = prev.appState;
+  const after = next.appState;
+  return (Object.keys(after) as Array<keyof AppState>).some(
+    (key) => !KEPT_ON_UNDO_SET.has(key) && after[key] !== before[key],
+  );
+}
+
+/** Same elements in the same order, by value (unchanged ones keep identity). */
+function sameElements(a: Scene['elements'], b: Scene['elements']): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  return a.every((el, i) => el === b[i] || deepEqual(el, b[i]));
+}
+
+/**
  * Restore the per-user appState recorded with an undo step (e.g. the font size
- * default a command changed), keeping view and tool state as they are now.
- * The selection stays as-is unless `selectedIds` is given (cancelled drag);
- * either way it is limited to elements that still exist.
+ * default a command changed), keeping the fields in KEPT_ON_UNDO as they are
+ * now. The selection stays as-is unless `selectedIds` is given (cancelled
+ * drag); either way it is limited to elements that still exist.
  */
 function restoreLocalState(
   scene: Scene,
@@ -281,6 +383,8 @@ function restoreLocalState(
 ): Scene {
   const elementIds = new Set(scene.elements.map((element) => element.id));
   const current = scene.appState;
+  const kept: Partial<Record<keyof AppState, unknown>> = {};
+  for (const key of KEPT_ON_UNDO) kept[key] = current[key];
   const currentLastCreatedId = current.lastCreatedId;
 
   return {
@@ -288,14 +392,7 @@ function restoreLocalState(
     selectedIds: new Set([...selectedIds].filter((id) => elementIds.has(id))),
     appState: {
       ...appState,
-      activeTool: current.activeTool,
-      strokeColor: current.strokeColor,
-      fillColor: current.fillColor,
-      strokeWidth: current.strokeWidth,
-      gridVisible: current.gridVisible,
-      gridType: current.gridType,
-      toolLocked: current.toolLocked,
-      justCreatedText: current.justCreatedText,
+      ...(kept as Partial<AppState>),
       lastCreatedId:
         currentLastCreatedId && elementIds.has(currentLastCreatedId)
           ? currentLastCreatedId

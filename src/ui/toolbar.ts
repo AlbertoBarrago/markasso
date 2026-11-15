@@ -15,6 +15,7 @@ import {
   leaveLiveSession,
   setLiveName,
 } from '../io/realtime';
+import { readStorage } from '../io/safe_storage';
 import { showImportError } from './import_error';
 import { toggleLibrary } from './library_panel';
 import { onLiveHide, onLiveReveal, setLiveUI } from './live_name';
@@ -22,6 +23,7 @@ import { buildLiveInvitePrompt } from './mcp_clients';
 import { initPeopleList } from './people_list';
 import {
   copyToClipboard,
+  showLiveEndedToast,
   showLiveStatusToast,
   showShareToast,
 } from './share_actions';
@@ -318,11 +320,7 @@ export function initToolbar(
   let liveActive = false;
   function inviteAgentLocked(): boolean {
     if (!CLOUD_ENABLED) return false;
-    try {
-      return !localStorage.getItem(LICENSE_KEY);
-    } catch {
-      return true;
-    }
+    return !readStorage(LICENSE_KEY);
   }
   /**
    * Start shows while this tab is in no session (a reconnecting session still
@@ -371,6 +369,10 @@ export function initToolbar(
       onStatus: (connected) => {
         setLiveUI(connected);
         showLiveStatusToast(connected);
+      },
+      onEnded: (reason) => {
+        setLiveUI(false);
+        showLiveEndedToast(reason);
       },
     });
     liveStartBtn.disabled = false;
@@ -552,6 +554,9 @@ export function initToolbar(
   // Mermaid dialog
   const mermaidDialog = document.createElement('div');
   mermaidDialog.id = 'mermaid-dialog';
+  // Modal, so the canvas shortcuts stay off while it is open.
+  mermaidDialog.setAttribute('role', 'dialog');
+  mermaidDialog.setAttribute('aria-modal', 'true');
   mermaidDialog.style.cssText = [
     'position:fixed',
     'inset:0',

@@ -1,4 +1,5 @@
 import type { History } from '../engine/history';
+import { readStorage, writeStorage } from '../io/safe_storage';
 
 export const COLOR_PICKER_COLORS = [
   'transparent',
@@ -65,7 +66,7 @@ export function bindUndoTransaction(
 
 export function loadCustomColor(kind: CustomColorKind): string | null {
   try {
-    const raw = localStorage.getItem(CUSTOM_COLORS_KEY);
+    const raw = readStorage(CUSTOM_COLORS_KEY);
     if (!raw) return null;
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== 'object' || parsed === null) return null;
@@ -82,7 +83,7 @@ export function saveCustomColor(
 ): void {
   let data: Record<string, string | null> = {};
   try {
-    const raw = localStorage.getItem(CUSTOM_COLORS_KEY);
+    const raw = readStorage(CUSTOM_COLORS_KEY);
     if (raw) {
       const parsed: unknown = JSON.parse(raw);
       if (typeof parsed === 'object' && parsed !== null) {
@@ -93,7 +94,9 @@ export function saveCustomColor(
     // Ignore an invalid persisted custom color.
   }
   data[kind] = color;
-  localStorage.setItem(CUSTOM_COLORS_KEY, JSON.stringify(data));
+  // A refused write (blocked or full storage) only loses the remembered
+  // color: the pick itself still applies.
+  writeStorage(CUSTOM_COLORS_KEY, JSON.stringify(data));
 }
 
 export function updateCustomColorButton(

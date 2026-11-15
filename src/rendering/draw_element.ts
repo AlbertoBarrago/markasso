@@ -70,8 +70,20 @@ export function resolveStrokeColorForTheme(
   fillColor?: string,
 ): string {
   if (typeof document === 'undefined') return strokeColor;
+  return inkForTheme(strokeColor, getIsLightTheme(), fillColor);
+}
+
+/**
+ * The rule behind resolveStrokeColorForTheme for a given theme, without the
+ * DOM: the SVG export applies it for the theme it exports in.
+ */
+export function inkForTheme(
+  strokeColor: string,
+  light: boolean,
+  fillColor?: string,
+): string {
   const c = strokeColor.toLowerCase();
-  if (getIsLightTheme()) {
+  if (light) {
     return c === DARK_DEFAULT_STROKE ? LIGHT_DEFAULT_STROKE : strokeColor;
   }
   const onFill = !!fillColor && fillColor !== 'transparent';
@@ -82,7 +94,15 @@ export function resolveStrokeColorForTheme(
 
 /** Background and outline of a code block, tuned per theme. */
 export function getCodeBlockColors(): { fill: string; border: string } {
-  return typeof document !== 'undefined' && getIsLightTheme()
+  return codeBlockColors(typeof document !== 'undefined' && getIsLightTheme());
+}
+
+/** getCodeBlockColors for a given theme, without the DOM. */
+export function codeBlockColors(light: boolean): {
+  fill: string;
+  border: string;
+} {
+  return light
     ? { fill: 'rgba(0,0,0,0.05)', border: 'rgba(0,0,0,0.15)' }
     : { fill: 'rgba(0,0,0,0.55)', border: 'rgba(255,255,255,0.15)' };
 }

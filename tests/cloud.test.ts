@@ -161,6 +161,79 @@ describe('cloud links and storage', () => {
     expect(reopened.editable).toBe(true);
     expect(reopened.version).toBe(5);
   });
+  it('keeps the saved token when a link carries one that cannot write', async () => {
+    const ctx = setup();
+    await editable(ctx);
+    const wrong = 'w'.repeat(43);
+    const reopened = new CloudClient(ctx.storage, ctx.fetcher);
+    ctx.fetcher.mockResolvedValueOnce(response(board()));
+    await reopened.open(new URL(`https://markasso.it/b/${id}#k=${wrong}`));
+    expect(JSON.parse(ctx.values.get(TOKEN_KEY)!)).toEqual({ [id]: token });
+
+    ctx.fetcher.mockResolvedValueOnce(response({}, 401));
+    ctx.fetcher.mockResolvedValueOnce(response({ version: 2 }));
+    reopened.schedule(newer);
+    await reopened.flush();
+    const [rejected, retried] = ctx.fetcher.mock.calls.slice(-2);
+    expect(rejected?.[1]?.headers).toMatchObject({
+      Authorization: `Bearer ${wrong}`,
+    });
+    expect(retried?.[1]?.headers).toMatchObject({
+      Authorization: `Bearer ${token}`,
+    });
+    expect(reopened.state).toBe('saved');
+    expect(reopened.version).toBe(2);
+    expect(JSON.parse(ctx.values.get(TOKEN_KEY)!)).toEqual({ [id]: token });
+  });
+  it('replaces the saved token once a write proves the one in the link', async () => {
+    const ctx = setup();
+    await editable(ctx);
+    const rotated = 'y'.repeat(43);
+    const reopened = new CloudClient(ctx.storage, ctx.fetcher);
+    ctx.fetcher.mockResolvedValueOnce(response(board()));
+    await reopened.open(new URL(`https://markasso.it/b/${id}#k=${rotated}`));
+    expect(JSON.parse(ctx.values.get(TOKEN_KEY)!)).toEqual({ [id]: token });
+
+    ctx.fetcher.mockResolvedValueOnce(response({ version: 2 }));
+    reopened.schedule(newer);
+    await reopened.flush();
+    expect(reopened.state).toBe('saved');
+    expect(JSON.parse(ctx.values.get(TOKEN_KEY)!)).toEqual({ [id]: rotated });
+  });
+  it('trusts the token in the link once the board answers a conflict', async () => {
+    const ctx = setup();
+    await editable(ctx);
+    const rotated = 'y'.repeat(43);
+    const reopened = new CloudClient(ctx.storage, ctx.fetcher);
+    ctx.fetcher.mockResolvedValueOnce(response(board()));
+    await reopened.open(new URL(`https://markasso.it/b/${id}#k=${rotated}`));
+    ctx.fetcher.mockResolvedValueOnce(response({ version: 4 }, 409));
+    ctx.fetcher.mockResolvedValueOnce(response({ ...board(4), elements: [] }));
+    reopened.schedule(newer);
+    await reopened.flush();
+    expect(reopened.state).toBe('conflict');
+    expect(JSON.parse(ctx.values.get(TOKEN_KEY)!)).toEqual({ [id]: rotated });
+  });
+  it('acts on the open board with the token in use, then the saved one', async () => {
+    const ctx = setup();
+    await editable(ctx);
+    const other = 'w'.repeat(43);
+    const reopened = new CloudClient(ctx.storage, ctx.fetcher);
+    ctx.fetcher.mockResolvedValueOnce(response(board()));
+    await reopened.open(new URL(`https://markasso.it/b/${id}#k=${other}`));
+    expect(reopened.knownTokens()).toEqual({ [id]: other });
+
+    ctx.fetcher.mockResolvedValueOnce(response({}, 401));
+    ctx.fetcher.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    await reopened.deleteBoard(id);
+    const sent = ctx.fetcher.mock.calls
+      .slice(-2)
+      .map(
+        (call) => (call[1]?.headers as Record<string, string>).Authorization,
+      );
+    expect(sent).toEqual([`Bearer ${other}`, `Bearer ${token}`]);
+    expect(ctx.values.get(TOKEN_KEY)).toBe('{}');
+  });
   it('ignores corrupt or invalid token storage', async () => {
     for (const value of [
       '{',
@@ -855,6 +928,23 @@ describe('cloud save recovery', () => {
 });
 
 describe('licence and failures', () => {
+  it('resets a failed first save, so saving can start over', async () => {
+    const ctx = setup();
+    ctx.fetcher.mockRejectedValueOnce(new TypeError('offline'));
+    await expect(ctx.client.create(scene)).rejects.toMatchObject({
+      status: 0,
+    });
+    expect(ctx.client.state).toBe('offline');
+    expect(ctx.client.id).toBeNull();
+    ctx.client.reset();
+    expect(ctx.client.state).toBe('saved');
+    expect(ctx.client.error).toBe(0);
+    ctx.fetcher.mockResolvedValueOnce(
+      response({ id, writeToken: token, version: 1 }, 201),
+    );
+    await ctx.client.create(scene);
+    expect(ctx.client.id).toBe(id);
+  });
   it('402 on create can be retried with a stored licence; removal clears it', async () => {
     const ctx = setup();
     ctx.fetcher.mockResolvedValueOnce(response({}, 402));

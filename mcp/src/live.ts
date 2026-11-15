@@ -4,6 +4,8 @@ import {
   type AgentRequestMsg,
   MAX_AGENT_REPLY_CHARS,
 } from '../../src/io/agent_requests_protocol';
+import { isValidSessionCommand } from '../../src/io/command_validation';
+import { createCommands, LiveOutbox } from '../../src/io/live_outbox';
 import type { Diagram } from './diagram';
 import { markassoBaseUrl } from './storage';
 
@@ -51,6 +53,27 @@ const LICENCE_MESSAGE =
 
 export class LiveError extends Error {
   override name = 'LiveError';
+}
+
+/**
+ * Whether a live link points at the Markasso instance this server is set up
+ * for (`MARKASSO_URL`, default markasso.it). The licence key is a paid
+ * credential and the link is untrusted input (it can come from a document, a
+ * label or a live request), so the key is only ever sent to that instance.
+ */
+function isConfiguredInstance(origin: string): boolean {
+  try {
+    return new URL(origin).origin === new URL(markassoBaseUrl()).origin;
+  } catch {
+    return false;
+  }
+}
+
+function licenceMessage(origin: string): string {
+  if (process.env.MARKASSO_LICENSE?.trim() && !isConfiguredInstance(origin)) {
+    return `This room needs a Markasso Cloud licence, and the key in MARKASSO_LICENSE was not sent because the link points to ${origin}, not to ${markassoBaseUrl()}. If that is your own Markasso instance, set MARKASSO_URL to it in this MCP server's environment.`;
+  }
+  return LICENCE_MESSAGE;
 }
 
 /** Room id and app origin from a live link (`...?live=<room>`) or a bare id. */
@@ -203,6 +226,11 @@ export class LiveLink {
     this.wakeWaiters();
   }
 
+  /** Scene commands, paced to the room's quota (see LiveOutbox). */
+  private readonly outbox = new LiveOutbox({
+    send: (command) => this.send({ type: 'command', command }),
+  });
+
   private send(message: unknown): void {
     if (this.socket?.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify(message));
@@ -229,7 +257,8 @@ export class LiveLink {
         // Must be the first message: rooms that require a licence for agents
         // admit the peer only after checking it, and ignore it otherwise.
         const license = process.env.MARKASSO_LICENSE?.trim();
-        if (license) this.send({ type: 'auth', license });
+        if (license && isConfiguredInstance(origin))
+          this.send({ type: 'auth', license });
         this.send({ type: 'presence', name: this.name, color: AGENT_COLOR });
       });
 
@@ -250,25 +279,39 @@ export class LiveLink {
           if (msg.commands.length > 0) {
             // The room is authoritative, as in the app.
             discarded = local.length;
-            history.resetForLiveReplay(msg.commands);
+            history.resetForLiveReplay(
+              msg.commands.filter(isValidSessionCommand),
+            );
           } else if (local.length > 0) {
-            // Empty room: publish what the agent already drew.
-            this.send({
-              type: 'command',
-              command: { type: 'CREATE_ELEMENTS', elements: local },
-            });
+            // Empty room: publish what the agent already drew, in pieces
+            // the room accepts.
+            for (const command of createCommands(local, { validOnly: true }))
+              this.outbox.push(command);
             seeded = true;
           }
           history.setOnCommand((command) => {
             if (this.open && isSessionCommand(command)) {
-              this.send({ type: 'command', command });
+              this.outbox.push(command);
             }
           });
           this.open = true;
           resolve({ seeded, discarded });
         } else if (msg.type === 'apply') {
           // Bare UNDO/REDO from an outdated client: see isSessionCommand.
-          if (isSessionCommand(msg.command)) history.applyRemote(msg.command);
+          if (
+            isSessionCommand(msg.command) &&
+            isValidSessionCommand(msg.command)
+          ) {
+            // An exception in a socket listener would end the process.
+            try {
+              history.applyRemote(msg.command);
+            } catch (error) {
+              console.error(
+                'Skipped a live command that failed to apply',
+                error,
+              );
+            }
+          }
         } else if (msg.type === 'presence') {
           this.peers = msg.peers;
         } else if (msg.type === 'request') {
@@ -278,7 +321,7 @@ export class LiveLink {
           reject(
             new LiveError(
               msg.error === 'licence required'
-                ? LICENCE_MESSAGE
+                ? licenceMessage(origin)
                 : `The live room refused to join: ${msg.error}.`,
             ),
           );
@@ -292,11 +335,12 @@ export class LiveLink {
           reject(
             new LiveError(
               event.code === CLOSE_LICENCE_REQUIRED
-                ? LICENCE_MESSAGE
+                ? licenceMessage(origin)
                 : 'The live room closed the connection.',
             ),
           );
         this.open = false;
+        this.outbox.clear();
         history.setOnCommand(undefined);
         this.wakeWaiters();
       });
@@ -315,6 +359,8 @@ export class LiveLink {
   }
 
   leave(): void {
+    // Edits already applied here still reach the peers before the close.
+    this.outbox.drain();
     this.open = false;
     this.wakeWaiters();
     this.diagram.history.setOnCommand(undefined);

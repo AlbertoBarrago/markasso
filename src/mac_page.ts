@@ -2,6 +2,7 @@ import './styles/base.css';
 import './styles/theme.css';
 import './styles/cloud-page.css';
 import { t } from './i18n';
+import { readStorage } from './io/safe_storage';
 import { initSiteFx } from './site_fx';
 
 /**
@@ -9,12 +10,8 @@ import { initSiteFx } from './site_fx';
  * read from the worker (which follows the Sparkle appcast).
  */
 const media = window.matchMedia('(prefers-color-scheme: light)');
-let theme: string | null = null;
-try {
-  theme = localStorage.getItem('markasso-theme');
-} catch {
-  /** Use device appearance when browser storage is unavailable. */
-}
+// Device appearance when browser storage is unavailable.
+const theme = readStorage('markasso-theme');
 function applyTheme(): void {
   const light = theme === 'light' || (theme !== 'dark' && media.matches);
   document.documentElement.dataset.theme = light ? 'light' : 'dark';

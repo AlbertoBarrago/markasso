@@ -286,6 +286,16 @@ function variants(): Array<[string, Command, string]> {
   );
   add(
     'icons',
+    { type: 'RESIZE_ELEMENT', id: 't', width: 2, height: 1, fontSize: 0.25 },
+    'text fontSize clamped to the minimum',
+  );
+  add(
+    'icons',
+    { type: 'RESIZE_ELEMENT', id: 't', fontSize: 4096 },
+    'text fontSize clamped to the maximum',
+  );
+  add(
+    'icons',
     { type: 'RESIZE_ELEMENT', id: 'im', x: 1, y: 2, width: 3, height: 4 },
     'image',
   );
@@ -639,6 +649,29 @@ function variants(): Array<[string, Command, string]> {
   );
   add('texts', { type: 'SET_FONT_SIZE', size: 12, height: 15 }, 'height only');
   add('boxes', { type: 'SET_FONT_SIZE', size: 40 }, 'non-text selection');
+  add(
+    'texts',
+    { type: 'SET_FONT_FAMILY', family: 'Georgia, serif', ids: ['n'] },
+    'explicit ids',
+  );
+  add(
+    'texts',
+    {
+      type: 'SET_FONT_SIZE',
+      size: 30,
+      ids: ['t', 'n', 'r'],
+      bounds: [
+        { id: 't', width: 120, height: 40 },
+        { id: 'r', width: 999, height: 999 },
+      ],
+    },
+    'per-text bounds',
+  );
+  add(
+    'texts',
+    { type: 'SET_FONT_SIZE', size: 22, ids: [], width: 50, height: 20 },
+    'empty ids',
+  );
 
   add('boxes', { type: 'TOGGLE_GRID' }, 'visible');
   add('textTool', { type: 'TOGGLE_GRID' }, 'hidden');
@@ -661,6 +694,16 @@ function variants(): Array<[string, Command, string]> {
     'vendor stencil',
   );
   add('boxes', { type: 'SET_ROTATION', id: 'zz', rotation: 1 }, 'unknown');
+  add(
+    'boxes',
+    { type: 'SET_ROTATION', id: 'r', rotation: 7 },
+    'past a full turn wraps around',
+  );
+  add(
+    'boxes',
+    { type: 'SET_ROTATION', id: 'r', rotation: -3 * Math.PI },
+    'three half turns back',
+  );
 
   add('boxes', { type: 'SET_STROKE_STYLE', style: 'dotted' }, 'dotted');
 
@@ -695,6 +738,11 @@ function variants(): Array<[string, Command, string]> {
     'duplicate id',
   );
   add('boxes', { type: 'REORDER_ELEMENTS', ids: [], targetIndex: 0 }, 'none');
+  add(
+    'boxes',
+    { type: 'REORDER_ELEMENTS', ids: ['l', 'a', 'r'], targetIndex: 99 },
+    'selection order differs from the scene order',
+  );
 
   add('boxes', { type: 'TOGGLE_ELEMENT_VISIBILITY', id: 'r' }, 'visible');
   add('grouped', { type: 'TOGGLE_ELEMENT_VISIBILITY', id: 't' }, 'hidden');
@@ -747,6 +795,11 @@ function variants(): Array<[string, Command, string]> {
   add('texts', { type: 'SET_TEXT_MODE', mode: 'code' }, 'code');
   add('textTool', { type: 'SET_TEXT_MODE', mode: 'text' }, 'text');
   add('boxes', { type: 'SET_TEXT_MODE', mode: 'code' }, 'non-text selection');
+  add(
+    'texts',
+    { type: 'SET_TEXT_MODE', mode: 'code', ids: ['n'] },
+    'explicit ids',
+  );
 
   add(
     'boxes',

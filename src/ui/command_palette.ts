@@ -16,6 +16,7 @@ import {
   cloudAction,
   cloudActionAvailable,
 } from './cloud_boards';
+import { exportImage } from './export_actions';
 import { insertStencil } from './library_insert';
 import { SHAPE_KIND_LABEL_KEYS, shapeKindIcon } from './shape_icons';
 import { copyToClipboard, showShareToast } from './share_actions';
@@ -29,6 +30,16 @@ interface PaletteItem {
   icon: string;
   execute: () => void;
 }
+
+/** Palette actions that act on the drawing, offered only when it has elements. */
+const NEEDS_ELEMENTS: ReadonlySet<string> = new Set([
+  'action:export-png',
+  'action:export-svg',
+  'action:export-html',
+  'action:save-markasso',
+  'action:share-link',
+  'action:clear',
+]);
 
 // ── Simple fuzzy match ──────────────────────────────────────────────────────
 // Returns true if every character of `query` appears in `target` in order
@@ -334,7 +345,7 @@ export function initCommandPalette(
     });
     items.push({
       id: 'action:select-all',
-      label: `${t('select')} ${t('actions')}`,
+      label: t('selectAll'),
       hint: 'Ctrl+A',
       category: 'action',
       icon: `<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2" stroke-dasharray="3 2"/></svg>`,
@@ -379,14 +390,14 @@ export function initCommandPalette(
       label: t('exportPNG'),
       category: 'action',
       icon: `<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3v9M7 9l3 3 3-3"/><path d="M4 14v1.5A1.5 1.5 0 005.5 17h9a1.5 1.5 0 001.5-1.5V14"/></svg>`,
-      execute: () => exportPNG(history.present, false),
+      execute: () => void exportImage(() => history.present, exportPNG),
     });
     items.push({
       id: 'action:export-svg',
       label: t('exportSVG'),
       category: 'action',
       icon: `<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3v9M7 9l3 3 3-3"/><path d="M4 14v1.5A1.5 1.5 0 005.5 17h9a1.5 1.5 0 001.5-1.5V14"/></svg>`,
-      execute: () => exportSVG(history.present, false),
+      execute: () => void exportImage(() => history.present, exportSVG),
     });
     items.push({
       id: 'action:export-html',
@@ -439,7 +450,10 @@ export function initCommandPalette(
       execute: () => void clearCanvas(history),
     });
 
-    return items;
+    // Like the menu, which disables them: nothing to save, export, share or
+    // clear on an empty canvas.
+    if (history.present.elements.length > 0) return items;
+    return items.filter((item) => !NEEDS_ELEMENTS.has(item.id));
   }
 
   // ── Render list ──────────────────────────────────────────────────────────

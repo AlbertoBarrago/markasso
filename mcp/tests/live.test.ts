@@ -134,6 +134,19 @@ describe('LiveLink', () => {
     expect(diagram.elements.map((el) => el.id)).toContain('peer');
   });
 
+  it('skips malformed commands in the room log and from peers', async () => {
+    const diagram = new Diagram();
+    const { socket } = await join(diagram, [
+      { type: 'CREATE_ELEMENTS' },
+      { type: 'CREATE_ELEMENT', element: rect('room', 'From room') },
+      { type: 'FROM_A_NEWER_CLIENT' },
+    ]);
+    expect(diagram.elements.map((el) => el.id)).toEqual(['room']);
+    socket.receive({ type: 'apply', command: { type: 'CREATE_ELEMENTS' } });
+    socket.receive({ type: 'apply', command: { type: 'DELETE_ELEMENTS' } });
+    expect(diagram.elements.map((el) => el.id)).toEqual(['room']);
+  });
+
   it('ignores a bare UNDO from an outdated client', async () => {
     const diagram = new Diagram();
     const { socket } = await join(diagram, []);
@@ -150,6 +163,8 @@ describe('LiveLink', () => {
     await diagram.addNodes([{ key: 'api' }]);
     diagram.history.undo();
     expect(diagram.elements).toHaveLength(0);
+    // Paced: a command right after another leaves on the next interval.
+    await new Promise((resolve) => setTimeout(resolve, 80));
     expect(socket.sent.at(-1)).toMatchObject({
       type: 'command',
       command: { type: 'PATCH_ELEMENTS', delete: [expect.any(String)] },
@@ -176,6 +191,49 @@ describe('LiveLink', () => {
       expect(socket.sent[1]).toMatchObject({ type: 'presence' });
     } finally {
       delete process.env.MARKASSO_LICENSE;
+    }
+  });
+
+  it('never sends the licence to another host', async () => {
+    process.env.MARKASSO_LICENSE = 'MKC-AAAAA-BBBBB-CCCCC-DDDDD-EEEEE';
+    try {
+      const pending = LiveLink.join(
+        new Diagram([]),
+        'https://evil.example/?live=room-123',
+        'Claude',
+      );
+      await new Promise((r) => setTimeout(r, 0));
+      const socket = FakeSocket.last!;
+      expect(socket.url).toMatch(/^wss:\/\/evil\.example\//);
+      expect(socket.sent).toHaveLength(1);
+      expect(socket.sent[0]).toMatchObject({ type: 'presence' });
+      expect(JSON.stringify(socket.sent)).not.toContain('MKC-');
+      socket.receive({ type: 'error', error: 'licence required' });
+      await expect(pending).rejects.toThrow(
+        /not sent because the link points to https:\/\/evil\.example/,
+      );
+    } finally {
+      delete process.env.MARKASSO_LICENSE;
+    }
+  });
+
+  it('sends the licence to the instance set in MARKASSO_URL', async () => {
+    process.env.MARKASSO_LICENSE = 'MKC-AAAAA-BBBBB-CCCCC-DDDDD-EEEEE';
+    process.env.MARKASSO_URL = 'http://localhost:8787/';
+    try {
+      const pending = LiveLink.join(
+        new Diagram([]),
+        'http://localhost:8787/?live=room-123',
+        'Claude',
+      );
+      await new Promise((r) => setTimeout(r, 0));
+      const socket = FakeSocket.last!;
+      expect(socket.sent[0]).toMatchObject({ type: 'auth' });
+      socket.receive({ type: 'init', self: 'me', commands: [], peers: [] });
+      (await pending).link.leave();
+    } finally {
+      delete process.env.MARKASSO_LICENSE;
+      delete process.env.MARKASSO_URL;
     }
   });
 

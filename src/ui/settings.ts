@@ -4,6 +4,7 @@ import { fitToElements } from '../core/viewport';
 import type { History } from '../engine/history';
 import { getLocale, LOCALES, type Locale, setLocale, t } from '../i18n';
 import { exportMarkasso, importMarkasso } from '../io/markasso';
+import { readStorage, writeStorage } from '../io/safe_storage';
 import { buildShareUrl } from '../io/share';
 import { exportHTML, exportPNG, exportSVG } from '../rendering/export';
 import { invalidateThemeCache } from '../rendering/theme_cache';
@@ -16,9 +17,13 @@ import {
   cloudLicenseStored,
   cloudSeparators,
 } from './cloud_boards';
-import { dialog } from './dialog';
+import { exportImage } from './export_actions';
 import { showImportError } from './import_error';
-import { copyToClipboard, showShareToast } from './share_actions';
+import {
+  copyToClipboard,
+  showNoticeToast,
+  showShareToast,
+} from './share_actions';
 import {
   type StyleControlsMode,
   setStyleControlsMode,
@@ -29,13 +34,18 @@ export type ThemeMode = 'light' | 'dark' | 'device';
 
 const THEME_KEY = 'markasso-theme';
 
+/** The mode chosen in this page, kept even when storage refuses it. */
+let chosenTheme: ThemeMode | null = null;
+
 export function getThemeMode(): ThemeMode {
-  const s = localStorage.getItem(THEME_KEY);
+  if (chosenTheme) return chosenTheme;
+  const s = readStorage(THEME_KEY);
   return s === 'light' || s === 'dark' || s === 'device' ? s : 'dark';
 }
 
 export function applyTheme(mode: ThemeMode): void {
-  localStorage.setItem(THEME_KEY, mode);
+  chosenTheme = mode;
+  writeStorage(THEME_KEY, mode);
   const resolved =
     mode === 'device'
       ? window.matchMedia('(prefers-color-scheme: light)').matches
@@ -74,7 +84,7 @@ export function loadSettings(): UISettings {
     styleControls: 'panel',
   };
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = readStorage(STORAGE_KEY);
     if (raw) {
       const stored = {
         ...defaults,
@@ -91,7 +101,7 @@ export function loadSettings(): UISettings {
 }
 
 export function saveSettings(s: UISettings): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+  writeStorage(STORAGE_KEY, JSON.stringify(s));
 }
 
 export function applySettings(appEl: HTMLElement, s: UISettings): void {
@@ -827,26 +837,9 @@ export function initSettings(
   // ── File actions ─────────────────────────────────────────────────────────
   onActivate('#menu-open', () => fileInput.click());
   onActivate('#menu-save', () => exportMarkasso(history.present));
-  /** Asks whether the image keeps the canvas background; null when cancelled. */
-  const askBackground = async (): Promise<boolean | null> => {
-    const choice = await dialog({
-      title: t('exportBackgroundTitle'),
-      message: t('exportBackgroundMessage'),
-      choices: [
-        { key: 'exportTransparent' },
-        { key: 'exportWithBackground', primary: true },
-      ],
-    });
-    return choice === null ? null : choice === 'exportWithBackground';
-  };
-  const exportImage = async (
-    run: (scene: typeof history.present, withBackground: boolean) => void,
-  ): Promise<void> => {
-    const withBackground = await askBackground();
-    if (withBackground !== null) run(history.present, withBackground);
-  };
-  onActivate('#menu-export-png', () => exportImage(exportPNG));
-  onActivate('#menu-export-svg', () => exportImage(exportSVG));
+  const present = () => history.present;
+  onActivate('#menu-export-png', () => exportImage(present, exportPNG));
+  onActivate('#menu-export-svg', () => exportImage(present, exportSVG));
   onActivate('#menu-export-html', () => exportHTML(history.present));
 
   // ── Share ────────────────────────────────────────────────────────────────
@@ -990,7 +983,8 @@ export function initSettings(
   panel.querySelectorAll<HTMLElement>('[data-locale]').forEach((b) => {
     b.addEventListener('click', () => {
       const locale = b.dataset.locale as Locale;
-      if (locale !== getLocale()) setLocale(locale);
+      if (locale !== getLocale() && !setLocale(locale))
+        showNoticeToast(t('languageNotSaved'), true);
     });
   });
 

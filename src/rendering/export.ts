@@ -44,17 +44,21 @@ import {
 } from './connector_geometry';
 import { getConnectorLabelBoxes, type LabelBox } from './connector_labels';
 import {
+  codeBlockColors,
   contrastColor,
   drawConnectorLabels,
   drawElement,
   getIconStrokeWidth,
+  inkForTheme,
 } from './draw_element';
 import {
   getElementBounds,
   resolveArrowEndpoints,
   resolveConnectorRoute,
+  rotateBoxOf,
 } from './draw_selection';
 import { getLabelWrapWidth, getShapeTextBox } from './shape_geometry';
+import { getIsLightTheme } from './theme_cache';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -128,6 +132,7 @@ export function elementsToSVG(elements: ReadonlyArray<Element>): string | null {
   return sceneToSVG(elements, {
     canvasColor: getCanvasBg(),
     withBackground: false,
+    theme: getIsLightTheme() ? 'light' : 'dark',
   });
 }
 
@@ -217,6 +222,7 @@ export function exportSVG(scene: Scene, withBackground = true): void {
   const svgStr = sceneToSVG(scene.elements, {
     canvasColor: getCanvasBg(),
     withBackground,
+    theme: getIsLightTheme() ? 'light' : 'dark',
   });
   if (!svgStr) return;
   const blob = new Blob([svgStr], { type: 'image/svg+xml' });
@@ -233,6 +239,52 @@ export interface SceneToSVGOptions {
    */
   readonly canvasColor: string;
   readonly withBackground: boolean;
+  /**
+   * Theme the diagram is exported in. The default inks swap between themes
+   * as on the canvas (see inkForTheme), and code blocks take that theme's
+   * colors. Without it the stored colors are written as they are.
+   */
+  readonly theme?: 'light' | 'dark';
+}
+
+/** Colors an export resolves per theme (see SceneToSVGOptions.theme). */
+interface SvgInk {
+  /** The color a stroke or text is drawn in, on `fill` when given. */
+  readonly ink: (color: string, fill?: string) => string;
+  readonly code: { readonly fill: string; readonly border: string };
+}
+
+function svgInk(theme: SceneToSVGOptions['theme']): SvgInk {
+  if (!theme) return { ink: (color) => color, code: codeBlockColors(false) };
+  const light = theme === 'light';
+  return {
+    ink: (color, fill) => inkForTheme(color, light, fill),
+    code: codeBlockColors(light),
+  };
+}
+
+/**
+ * The element with its stroke and label colors as the canvas draws them in
+ * the export's theme: strokes resolve on the element's fill, and so do shape
+ * labels; an icon's label hangs below the icon, off its fill, so it resolves
+ * without it and is set explicitly (it would otherwise take the stroke).
+ */
+function inked<T extends Element>(el: T, ink: SvgInk['ink']): T {
+  const labelColor = (el as { labelColor?: string }).labelColor;
+  if (el.type === 'stencil') {
+    return {
+      ...el,
+      strokeColor: ink(el.strokeColor, el.fillColor),
+      labelColor: ink(labelColor ?? el.strokeColor),
+    };
+  }
+  return {
+    ...el,
+    strokeColor: ink(el.strokeColor, el.fillColor),
+    ...(labelColor !== undefined && {
+      labelColor: ink(labelColor, el.fillColor),
+    }),
+  };
 }
 
 /**
@@ -253,6 +305,7 @@ export function sceneToSVG(
   const ox = PAD - minX;
   const oy = PAD - minY;
   const canvasColor = escapeXml(options.canvasColor);
+  const ink = svgInk(options.theme);
 
   const parts: string[] = [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${round(w)}" height="${round(h)}" viewBox="0 0 ${round(w)} ${round(h)}">`,
@@ -263,14 +316,24 @@ export function sceneToSVG(
     );
   }
   for (const el of elements) {
-    parts.push(elementToSVG(el, ox, oy, elements));
+    parts.push(elementToSVG(inked(el, ink.ink), ox, oy, elements, ink));
   }
   // Connector labels go last, above every stroke, as on the canvas.
   const labels = getConnectorLabelBoxes(elements);
   for (const el of elements) {
     const box = labels.get(el.id);
     if (box && (el.type === 'line' || el.type === 'arrow'))
-      parts.push(connectorLabelToSVG(el, box, ox, oy, canvasColor));
+      parts.push(
+        connectorLabelToSVG(
+          el,
+          box,
+          ox,
+          oy,
+          canvasColor,
+          // Drawn on the canvas color, not on the connector's fill.
+          ink.ink(el.labelColor ?? el.strokeColor),
+        ),
+      );
   }
   parts.push('</svg>');
   return parts.join('\n');
@@ -290,63 +353,31 @@ function computeBounds(elements: ReadonlyArray<Element>): {
     maxY = -Infinity;
 
   for (const el of elements) {
+    if (
+      (el.type === 'freehand' || el.type === 'polygon') &&
+      el.points.length === 0
+    )
+      continue;
     // Attached connectors are drawn from their resolved ends, not the
     // coordinates stored when they were created.
-    if (el.type === 'line' || el.type === 'arrow') {
-      const b = getElementBounds(el, elements);
-      minX = Math.min(minX, b.x);
-      minY = Math.min(minY, b.y);
-      maxX = Math.max(maxX, b.x + b.w);
-      maxY = Math.max(maxY, b.y + b.h);
-      continue;
+    let box = getElementBounds(el, elements);
+    if (el.type === 'stencil') {
+      // Include the label, which hangs below the icon box.
+      const { x, y, w, h } = box;
+      const labelW = el.label ? getStencilLabelWidth(w) : w;
+      box = {
+        x: x + w / 2 - labelW / 2,
+        y,
+        w: labelW,
+        h: h + getStencilLabelHeight(el),
+      };
     }
-    switch (el.type) {
-      case 'stencil': {
-        // Include the label, which hangs below the icon box.
-        const { x, y, w, h } = normalizeRect(el);
-        const labelW = el.label ? getStencilLabelWidth(w) : w;
-        minX = Math.min(minX, x + w / 2 - labelW / 2);
-        minY = Math.min(minY, y);
-        maxX = Math.max(maxX, x + w / 2 + labelW / 2);
-        maxY = Math.max(maxY, y + h + getStencilLabelHeight(el));
-        break;
-      }
-      case 'rectangle':
-      case 'ellipse':
-      case 'rhombus':
-      case 'shape':
-      case 'text': {
-        const { x, y, w, h } = normalizeRect(el);
-        minX = Math.min(minX, x);
-        minY = Math.min(minY, y);
-        maxX = Math.max(maxX, x + w);
-        maxY = Math.max(maxY, y + h);
-        break;
-      }
-      case 'freehand':
-      case 'polygon':
-        for (const [px, py] of el.points) {
-          minX = Math.min(minX, px);
-          minY = Math.min(minY, py);
-          maxX = Math.max(maxX, px);
-          maxY = Math.max(maxY, py);
-        }
-        break;
-      case 'curve':
-        minX = Math.min(minX, el.x, el.x2, el.cx);
-        minY = Math.min(minY, el.y, el.y2, el.cy);
-        maxX = Math.max(maxX, el.x, el.x2, el.cx);
-        maxY = Math.max(maxY, el.y, el.y2, el.cy);
-        break;
-      case 'image': {
-        const { x: ix, y: iy, w, h } = normalizeRect(el);
-        minX = Math.min(minX, ix);
-        minY = Math.min(minY, iy);
-        maxX = Math.max(maxX, ix + w);
-        maxY = Math.max(maxY, iy + h);
-        break;
-      }
-    }
+    // A rotated element reaches past its unrotated box.
+    const b = rotateBoxOf(el, box);
+    minX = Math.min(minX, b.x);
+    minY = Math.min(minY, b.y);
+    maxX = Math.max(maxX, b.x + b.w);
+    maxY = Math.max(maxY, b.y + b.h);
   }
 
   for (const box of getConnectorLabelBoxes(elements).values()) {
@@ -366,6 +397,7 @@ function elementToSVG(
   ox: number,
   oy: number,
   allElements: ReadonlyArray<Element>,
+  ink: SvgInk,
 ): string {
   if ((el.type === 'line' || el.type === 'arrow') && el.routing === 'elbow') {
     return elbowToSVG(el, resolveConnectorRoute(el, allElements), ox, oy);
@@ -388,40 +420,26 @@ function elementToSVG(
     case 'freehand':
       return freehandToSVG(el, ox, oy);
     case 'text':
-      return textToSVG(el, ox, oy);
+      return el.isCode
+        ? codeToSVG(el, ox, oy, ink.code)
+        : textToSVG(el, ox, oy);
     case 'image':
       return imageToSVG(el, ox, oy);
     case 'polygon': {
       if (el.points.length < 2) return '';
-      const stroke = el.strokeColor;
-      const fill = el.fillColor === 'transparent' ? 'none' : el.fillColor;
-      const sw = el.strokeWidth;
-      const dash =
-        el.strokeStyle === 'dashed'
-          ? `stroke-dasharray="${sw * 4},${sw * 2}"`
-          : el.strokeStyle === 'dotted'
-            ? `stroke-dasharray="${sw},${sw * 2}"`
-            : '';
       const pts = el.points.map(([x, y]) => `${x + ox},${y + oy}`).join(' ');
       const tag = el.closed ? 'polygon' : 'polyline';
-      return `<${tag} points="${pts}" fill="${escapeXml(fill)}" stroke="${escapeXml(stroke)}" stroke-width="${sw}" opacity="${el.opacity}" ${dash}/>`;
+      // The dash and caps every other stroke takes, as on the canvas.
+      return `<${tag} points="${pts}" ${shapeProps(el)}${rotateAttr(el, ox, oy)}/>`;
     }
     case 'curve': {
-      const stroke = el.strokeColor;
-      const sw = el.strokeWidth;
-      const dash =
-        el.strokeStyle === 'dashed'
-          ? `stroke-dasharray="${sw * 4},${sw * 2}"`
-          : el.strokeStyle === 'dotted'
-            ? `stroke-dasharray="${sw},${sw * 2}"`
-            : '';
       const x = el.x + ox;
       const y = el.y + oy;
       const x2 = el.x2 + ox;
       const y2 = el.y2 + oy;
       const cx = el.cx + ox;
       const cy = el.cy + oy;
-      return `<path d="M ${x} ${y} Q ${cx} ${cy} ${x2} ${y2}" fill="none" stroke="${escapeXml(stroke)}" stroke-width="${sw}" opacity="${el.opacity}" ${dash}/>`;
+      return `<path d="M ${x} ${y} Q ${cx} ${cy} ${x2} ${y2}" ${shapeProps({ ...el, fillColor: 'transparent' })}${rotateAttr(el, ox, oy)}/>`;
     }
   }
 }
@@ -437,10 +455,26 @@ function strokeDashAttr(el: {
     return ` stroke-dasharray="${on} ${off}"`;
   }
   if (style === 'dotted') {
+    // Its round caps come from capJoinAttrs: an attribute written twice
+    // makes the document invalid XML.
     const gap = el.strokeWidth * 3;
-    return ` stroke-dasharray="${el.strokeWidth} ${gap}" stroke-linecap="round"`;
+    return ` stroke-dasharray="${el.strokeWidth} ${gap}"`;
   }
   return '';
+}
+
+/**
+ * stroke-linecap and stroke-linejoin as drawElement sets them on the canvas:
+ * the element's own, round when unset, and round caps for a dotted stroke,
+ * whose dots they make.
+ */
+function capJoinAttrs(el: {
+  lineCap?: string;
+  lineJoin?: string;
+  strokeStyle?: string;
+}): string {
+  const cap = el.strokeStyle === 'dotted' ? 'round' : (el.lineCap ?? 'round');
+  return `stroke-linecap="${escapeXml(cap)}" stroke-linejoin="${escapeXml(el.lineJoin ?? 'round')}"`;
 }
 
 function shapeProps(el: {
@@ -449,9 +483,11 @@ function shapeProps(el: {
   strokeWidth: number;
   opacity: number;
   strokeStyle?: string;
+  lineCap?: string;
+  lineJoin?: string;
 }): string {
   const fill = el.fillColor === 'transparent' ? 'none' : el.fillColor;
-  return `fill="${escapeXml(fill)}" stroke="${escapeXml(el.strokeColor)}" stroke-width="${el.strokeWidth}" stroke-linecap="round" stroke-linejoin="round" opacity="${el.opacity}"${strokeDashAttr(el)}`;
+  return `fill="${escapeXml(fill)}" stroke="${escapeXml(el.strokeColor)}" stroke-width="${el.strokeWidth}" ${capJoinAttrs(el)} opacity="${el.opacity}"${strokeDashAttr(el)}`;
 }
 
 function rotateAttr(el: Element, ox: number, oy: number): string {
@@ -470,22 +506,41 @@ function rectToSVG(el: RectangleElement, ox: number, oy: number): string {
   // Same clamp as the canvas (drawRectangle).
   const cr = Math.min(el.cornerRadius ?? 0, w / 2, h / 2);
   const rx = cr > 0 ? ` rx="${round(cr)}"` : '';
-  let svg = `<rect x="${round(x)}" y="${round(y)}" width="${round(w)}" height="${round(h)}"${rx} ${shapeProps(el)}${rotateAttr(el, ox, oy)}/>`;
+  const shape = `<rect x="${round(x)}" y="${round(y)}" width="${round(w)}" height="${round(h)}"${rx} ${shapeProps(el)}/>`;
+  return withLabel(el, shape, x + w / 2, y + h / 2, w, h, ox, oy);
+}
+
+/**
+ * A box shape followed by its centered label, turned together when the
+ * element is rotated, as on the canvas.
+ */
+function withLabel(
+  el: RectangleElement | EllipseElement | RhombusElement,
+  shape: string,
+  cx: number,
+  cy: number,
+  w: number,
+  h: number,
+  ox: number,
+  oy: number,
+): string {
+  const parts = [shape];
   if (el.label) {
-    svg +=
-      '\n' +
+    parts.push(
       wrappedLabelToSVG(
-        x + w / 2,
-        y + h / 2,
+        cx,
+        cy,
         getLabelWrapWidth(el, w, h),
         el.label,
         el.labelFontSize ?? DEFAULT_SHAPE_LABEL_FONT_SIZE,
         el.labelFontFamily ?? DEFAULT_LABEL_FONT_FAMILY,
         el.labelColor ?? contrastColor(el.fillColor, el.strokeColor),
         el.opacity,
-      );
+      ),
+    );
   }
-  return svg;
+  const rot = rotateAttr(el, ox, oy);
+  return rot ? `<g${rot}>${parts.join('')}</g>` : parts.join('\n');
 }
 
 function ellipseToSVG(el: EllipseElement, ox: number, oy: number): string {
@@ -493,50 +548,83 @@ function ellipseToSVG(el: EllipseElement, ox: number, oy: number): string {
   const cy = el.y + el.height / 2 + oy;
   const rx = Math.abs(el.width / 2);
   const ry = Math.abs(el.height / 2);
-  let svg = `<ellipse cx="${round(cx)}" cy="${round(cy)}" rx="${round(rx)}" ry="${round(ry)}" ${shapeProps(el)}${rotateAttr(el, ox, oy)}/>`;
-  if (el.label) {
-    svg +=
-      '\n' +
-      wrappedLabelToSVG(
-        cx,
-        cy,
-        getLabelWrapWidth(el, rx * 2, ry * 2),
-        el.label,
-        el.labelFontSize ?? DEFAULT_SHAPE_LABEL_FONT_SIZE,
-        el.labelFontFamily ?? DEFAULT_LABEL_FONT_FAMILY,
-        el.labelColor ?? contrastColor(el.fillColor, el.strokeColor),
-        el.opacity,
-      );
-  }
-  return svg;
+  const shape = `<ellipse cx="${round(cx)}" cy="${round(cy)}" rx="${round(rx)}" ry="${round(ry)}" ${shapeProps(el)}/>`;
+  return withLabel(el, shape, cx, cy, rx * 2, ry * 2, ox, oy);
 }
 
 function rhombusToSVG(el: RhombusElement, ox: number, oy: number): string {
   const { x: left, y: top, w, h } = normalizeRect(el);
   const x = left + ox;
   const y = top + oy;
-  const pts = [
-    `${round(x + w / 2)},${round(y)}`,
-    `${round(x + w)},${round(y + h / 2)}`,
-    `${round(x + w / 2)},${round(y + h)}`,
-    `${round(x)},${round(y + h / 2)}`,
-  ].join(' ');
-  let svg = `<polygon points="${pts}" ${shapeProps(el)}${rotateAttr(el, ox, oy)}/>`;
-  if (el.label) {
-    svg +=
-      '\n' +
-      wrappedLabelToSVG(
-        x + w / 2,
-        y + h / 2,
-        getLabelWrapWidth(el, w, h),
-        el.label,
-        el.labelFontSize ?? DEFAULT_SHAPE_LABEL_FONT_SIZE,
-        el.labelFontFamily ?? DEFAULT_LABEL_FONT_FAMILY,
-        el.labelColor ?? contrastColor(el.fillColor, el.strokeColor),
-        el.opacity,
-      );
+  // Same clamp as the canvas (drawRhombus).
+  const cr =
+    (el.cornerRadius ?? 0) > 0
+      ? Math.min(el.cornerRadius ?? 0, w / 4, h / 4)
+      : 0;
+  const shape =
+    cr > 0
+      ? `<path d="${roundedRhombusPath(x, y, w, h, cr)}" ${shapeProps(el)}/>`
+      : `<polygon points="${[
+          `${round(x + w / 2)},${round(y)}`,
+          `${round(x + w)},${round(y + h / 2)}`,
+          `${round(x + w / 2)},${round(y + h)}`,
+          `${round(x)},${round(y + h / 2)}`,
+        ].join(' ')}" ${shapeProps(el)}/>`;
+  return withLabel(el, shape, x + w / 2, y + h / 2, w, h, ox, oy);
+}
+
+/**
+ * The rhombus outline with rounded corners, as drawRhombusPath builds it on
+ * the canvas: at each corner a line to the point `r` along the incoming
+ * edge, then arcTo(corner, next, r), which draws a line to the arc's first
+ * tangent point and the arc of radius `r` to the second.
+ */
+function roundedRhombusPath(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  cr: number,
+): string {
+  const corners: Array<[number, number]> = [
+    [x + w / 2, y],
+    [x + w, y + h / 2],
+    [x + w / 2, y + h],
+    [x, y + h / 2],
+  ];
+  const d: string[] = [];
+  for (let i = 0; i < 4; i++) {
+    const prev = corners[(i + 3) % 4]!;
+    const curr = corners[i]!;
+    const next = corners[(i + 1) % 4]!;
+    const d1x = prev[0] - curr[0];
+    const d1y = prev[1] - curr[1];
+    const d2x = next[0] - curr[0];
+    const d2y = next[1] - curr[1];
+    const len1 = Math.hypot(d1x, d1y);
+    const len2 = Math.hypot(d2x, d2y);
+    const r = Math.min(cr, len1 / 2, len2 / 2);
+    const u1x = d1x / len1;
+    const u1y = d1y / len1;
+    const u2x = d2x / len2;
+    const u2y = d2y / len2;
+    d.push(
+      `${i === 0 ? 'M' : 'L'} ${round(curr[0] + u1x * r)} ${round(curr[1] + u1y * r)}`,
+    );
+    // Tangent points of a circle of radius r inside the corner, at
+    // r / tan(angle / 2) from it: written with the cosine alone, a square
+    // root rounds the same in every engine, unlike tan and acos.
+    const cos = u1x * u2x + u1y * u2y;
+    const t = r * Math.sqrt((1 + cos) / (1 - cos));
+    // Travelling in, then out: a clockwise turn on screen sweeps positively.
+    const sweep = -u1x * u2y + u1y * u2x > 0 ? 1 : 0;
+    d.push(
+      `L ${round(curr[0] + u1x * t)} ${round(curr[1] + u1y * t)}`,
+      `A ${round(r)} ${round(r)} 0 0 ${sweep} ${round(curr[0] + u2x * t)} ${round(curr[1] + u2y * t)}`,
+    );
   }
-  return svg;
+  d.push('Z');
+  return d.join(' ');
 }
 
 function stencilToSVG(el: StencilElement, ox: number, oy: number): string {
@@ -568,7 +656,7 @@ function stencilToSVG(el: StencilElement, ox: number, oy: number): string {
         );
       }
       inner.push(
-        `<path d="${shapeCommandsToPathData(icon.strokes, 0, 0)}" fill="none" stroke="${stroke}" stroke-width="${getIconStrokeWidth(el.strokeWidth)}" stroke-linecap="round" stroke-linejoin="round"/>`,
+        `<path d="${shapeCommandsToPathData(icon.strokes, 0, 0)}" fill="none" stroke="${stroke}" stroke-width="${getIconStrokeWidth(el.strokeWidth)}" ${capJoinAttrs(el)}/>`,
       );
       parts.push(
         `<g opacity="${el.opacity}" transform="translate(${round(tx)} ${round(ty)}) scale(${round(scale)})">${inner.join('')}</g>`,
@@ -677,7 +765,7 @@ function connectorToSVG(
   rot: string,
 ): string {
   const color = escapeXml(el.strokeColor);
-  const base = `stroke="${color}" stroke-width="${el.strokeWidth}" stroke-linecap="round" stroke-linejoin="round" opacity="${el.opacity}"`;
+  const base = `stroke="${color}" stroke-width="${el.strokeWidth}" ${capJoinAttrs(el)} opacity="${el.opacity}"`;
   const shapes = heads.map((h) => ({
     h,
     shape: getArrowHeadShape(
@@ -693,8 +781,9 @@ function connectorToSVG(
   const parts: string[] = [];
   if (closed.length > 0) {
     const id = `mh-${el.id.replace(/[^\w-]/g, '')}`;
+    // The cutouts turn with the heads they sit under.
     const cutouts = closed
-      .map(({ shape }) => headShapeToSVG(shape, 'fill="black"'))
+      .map(({ shape }) => headShapeToSVG(shape, `fill="black"${rot}`))
       .join('');
     parts.push(
       `<mask id="${id}" maskUnits="userSpaceOnUse" ${EVERYTHING_BOX}><rect ${EVERYTHING_BOX} fill="white"/>${cutouts}</mask>`,
@@ -721,7 +810,7 @@ function lineToSVG(
     y1 = pts.y + oy;
   const x2 = pts.x2 + ox,
     y2 = pts.y2 + oy;
-  const sp = `stroke="${escapeXml(el.strokeColor)}" stroke-width="${el.strokeWidth}" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="${el.opacity}"${strokeDashAttr(el)}`;
+  const sp = `stroke="${escapeXml(el.strokeColor)}" stroke-width="${el.strokeWidth}" ${capJoinAttrs(el)} fill="none" opacity="${el.opacity}"${strokeDashAttr(el)}`;
   const rot = rotateAttr(el, ox, oy);
   const curved = el.cx !== undefined && el.cy !== undefined;
   const shaft = curved
@@ -742,15 +831,22 @@ function elbowToSVG(
   oy: number,
 ): string {
   if (route.length < 2) return '';
-  const sp = `stroke="${escapeXml(el.strokeColor)}" stroke-width="${el.strokeWidth}" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="${el.opacity}"${strokeDashAttr(el)}`;
+  const sp = `stroke="${escapeXml(el.strokeColor)}" stroke-width="${el.strokeWidth}" ${capJoinAttrs(el)} fill="none" opacity="${el.opacity}"${strokeDashAttr(el)}`;
   const points = route
     .map(([x, y]) => `${round(x + ox)},${round(y + oy)}`)
     .join(' ');
   const heads = getConnectorHeads(el, (placement) =>
     offsetVector(getRouteHeadVector(route, placement), ox, oy),
   );
+  // Turned like the canvas turns it, as the straight connectors are.
+  const rot = rotateAttr(el, ox, oy);
   const parts = [
-    connectorToSVG(el, `<polyline points="${points}" ${sp}/>`, heads, ''),
+    connectorToSVG(
+      el,
+      `<polyline points="${points}" ${sp}${rot}/>`,
+      heads,
+      rot,
+    ),
   ];
   return parts.join('\n');
 }
@@ -766,7 +862,7 @@ function arrowToSVG(
     y1 = pts.y + oy;
   const x2 = pts.x2 + ox,
     y2 = pts.y2 + oy;
-  const sp = `stroke="${escapeXml(el.strokeColor)}" stroke-width="${el.strokeWidth}" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="${el.opacity}"`;
+  const sp = `stroke="${escapeXml(el.strokeColor)}" stroke-width="${el.strokeWidth}" ${capJoinAttrs(el)} fill="none" opacity="${el.opacity}"`;
   const rot = rotateAttr(el, ox, oy);
   const shaft = `<line x1="${round(x1)}" y1="${round(y1)}" x2="${round(x2)}" y2="${round(y2)}" ${sp}${rot}/>`;
   const heads = getConnectorHeads(el, (placement) =>
@@ -832,11 +928,53 @@ function textToSVG(el: TextElement, ox: number, oy: number): string {
     .join('');
   const weight = el.bold ? ' font-weight="bold"' : '';
   const style = el.italic ? ' font-style="italic"' : '';
+  const decorations = [
+    el.underline && 'underline',
+    el.strikethrough && 'line-through',
+  ].filter(Boolean);
+  const decoration =
+    decorations.length > 0 ? ` text-decoration="${decorations.join(' ')}"` : '';
   const background =
     el.fillColor === 'transparent'
       ? ''
       : `<rect x="${round(el.x + ox)}" y="${round(el.y + oy)}" width="${round(el.width)}" height="${round(el.height)}" fill="${escapeXml(el.fillColor)}" opacity="${el.opacity}"${rotateAttr(el, ox, oy)}/>`;
-  return `${background}<text font-family="${escapeXml(el.fontFamily)}" font-size="${el.fontSize}"${weight}${style} fill="${escapeXml(el.strokeColor)}" opacity="${el.opacity}" text-anchor="${anchor}" dominant-baseline="text-before-edge"${rotateAttr(el, ox, oy)}>${tspans}</text>`;
+  return `${background}<text font-family="${escapeXml(el.fontFamily)}" font-size="${el.fontSize}"${weight}${style}${decoration} fill="${escapeXml(el.strokeColor)}" opacity="${el.opacity}" text-anchor="${anchor}" dominant-baseline="text-before-edge"${rotateAttr(el, ox, oy)}>${tspans}</text>`;
+}
+
+/**
+ * A code block as drawCode paints it: a rounded box in the theme's code
+ * colors, unwrapped lines 1.3 apart with a 10 px padding, spaces kept.
+ */
+function codeToSVG(
+  el: TextElement,
+  ox: number,
+  oy: number,
+  colors: SvgInk['code'],
+): string {
+  const PAD = 10;
+  const x = el.x + ox;
+  const y = el.y + oy;
+  const align = el.textAlign ?? 'left';
+  const textX =
+    align === 'center'
+      ? x + el.width / 2
+      : align === 'right'
+        ? x + el.width - PAD
+        : x + PAD;
+  const anchor =
+    align === 'center' ? 'middle' : align === 'right' ? 'end' : 'start';
+  const rot = rotateAttr(el, ox, oy);
+  const tspans = el.content
+    .split('\n')
+    .map(
+      (line, i) =>
+        `<tspan x="${round(textX)}" y="${round(y + PAD + i * el.fontSize * 1.3)}">${escapeXml(line)}</tspan>`,
+    )
+    .join('');
+  return [
+    `<rect x="${round(x)}" y="${round(y)}" width="${round(el.width)}" height="${round(el.height)}" rx="6" fill="${colors.fill}" stroke="${colors.border}" stroke-width="1" opacity="${el.opacity}"${rot}/>`,
+    `<text xml:space="preserve" font-family="${escapeXml(el.fontFamily)}" font-size="${el.fontSize}" fill="${escapeXml(el.strokeColor)}" opacity="${el.opacity}" text-anchor="${anchor}" dominant-baseline="text-before-edge"${rot}>${tspans}</text>`,
+  ].join('');
 }
 
 /** Connector label on a box of the canvas color (see connector_labels.ts). */
@@ -846,6 +984,7 @@ function connectorLabelToSVG(
   ox: number,
   oy: number,
   canvasColor: string,
+  color: string,
 ): string {
   if (!el.label) return '';
   const cx = box.x + ox;
@@ -856,15 +995,7 @@ function connectorLabelToSVG(
   const lines = el.label.split('\n');
   return [
     `<rect x="${round(cx - w / 2)}" y="${round(cy - h / 2)}" width="${round(w)}" height="${round(h)}" fill="${canvasColor}"/>`,
-    shapeLabelToSVG(
-      cx,
-      cy,
-      lines,
-      fontSize,
-      fontFamily,
-      el.labelColor ?? el.strokeColor,
-      el.opacity,
-    ),
+    shapeLabelToSVG(cx, cy, lines, fontSize, fontFamily, color, el.opacity),
   ].join('\n');
 }
 

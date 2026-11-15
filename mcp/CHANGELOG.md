@@ -4,6 +4,14 @@ All notable changes to `@markasso/mcp` are documented here. The MCP server is ve
 
 ---
 
+## [0.7.1] - 2026-11-15
+
+### Fixed
+- **The licence key goes only to the configured instance ([#124](https://github.com/AlbertoBarrago/markasso/pull/124)).** `live_join` no longer sends `MARKASSO_LICENSE` to whatever host a link points to.
+- **Live sessions ([#127](https://github.com/AlbertoBarrago/markasso/pull/127), [#132](https://github.com/AlbertoBarrago/markasso/pull/132)).** Commands from the room are validated before they are applied, and one that fails no longer ends the server. Edits are paced to the room's limit, a board drawn before joining is published in pieces, and `live_leave` sends the last edits before closing.
+
+---
+
 ## [0.7.0] - 2026-11-09
 
 ### Added

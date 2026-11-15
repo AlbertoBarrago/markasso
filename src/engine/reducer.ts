@@ -1,7 +1,14 @@
 import type { Command } from '../commands/commands';
+import { normalizeRotation } from '../core/geometry';
 import type { Scene } from '../core/scene';
 import { pan, zoom } from '../core/viewport';
-import type { ArrowElement, Element, LineElement } from '../elements/element';
+import {
+  type ArrowElement,
+  type Element,
+  type LineElement,
+  MAX_FONT_SIZE,
+  MIN_FONT_SIZE,
+} from '../elements/element';
 import {
   isRestylableStencil,
   isRotatableStencil,
@@ -130,6 +137,18 @@ function applyPatch(
   };
 }
 
+/**
+ * The elements a selection command acts on: its explicit `ids` (baked in by
+ * History, see withTargets) or, for commands from older clients without
+ * them, the local selection.
+ */
+function targetIds(
+  scene: Scene,
+  ids: readonly string[] | undefined,
+): ReadonlySet<string> {
+  return ids ? new Set(ids) : scene.selectedIds;
+}
+
 export function reducer(
   scene: Scene,
   command: Command,
@@ -225,7 +244,13 @@ export function reducer(
               ...(y !== undefined && { y }),
               ...(width !== undefined && { width }),
               ...(height !== undefined && { height }),
-              ...(fontSize !== undefined && el.type === 'text' && { fontSize }),
+              ...(fontSize !== undefined &&
+                el.type === 'text' && {
+                  fontSize: Math.min(
+                    MAX_FONT_SIZE,
+                    Math.max(MIN_FONT_SIZE, fontSize),
+                  ),
+                }),
             };
           }
           if (el.type === 'curve') {
@@ -445,11 +470,14 @@ export function reducer(
         appState: isRemote
           ? scene.appState
           : { ...scene.appState, fontFamily: command.family },
-        elements: scene.elements.map((el) =>
-          scene.selectedIds.has(el.id) && el.type === 'text'
-            ? { ...el, fontFamily: command.family }
-            : el,
-        ),
+        elements: (() => {
+          const targets = targetIds(scene, command.ids);
+          return scene.elements.map((el) =>
+            targets.has(el.id) && el.type === 'text'
+              ? { ...el, fontFamily: command.family }
+              : el,
+          );
+        })(),
       };
 
     case 'SET_FONT_SIZE':
@@ -458,16 +486,22 @@ export function reducer(
         appState: isRemote
           ? scene.appState
           : { ...scene.appState, fontSize: command.size },
-        elements: scene.elements.map((el) =>
-          scene.selectedIds.has(el.id) && el.type === 'text'
-            ? {
-                ...el,
-                fontSize: command.size,
-                ...(command.width !== undefined && { width: command.width }),
-                ...(command.height !== undefined && { height: command.height }),
-              }
-            : el,
-        ),
+        elements: (() => {
+          const targets = targetIds(scene, command.ids);
+          const measured = new Map(
+            (command.bounds ?? []).map((b) => [b.id, b] as const),
+          );
+          return scene.elements.map((el) => {
+            if (!targets.has(el.id) || el.type !== 'text') return el;
+            const box = command.bounds ? measured.get(el.id) : command;
+            return {
+              ...el,
+              fontSize: command.size,
+              ...(box?.width !== undefined && { width: box.width }),
+              ...(box?.height !== undefined && { height: box.height }),
+            };
+          });
+        })(),
       };
 
     case 'TOGGLE_GRID':
@@ -491,7 +525,7 @@ export function reducer(
         elements: scene.elements.map((el) =>
           el.id === command.id &&
           !(el.type === 'stencil' && !isRotatableStencil(el))
-            ? { ...el, rotation: command.rotation }
+            ? { ...el, rotation: normalizeRotation(command.rotation) }
             : el,
         ),
       };
@@ -504,9 +538,9 @@ export function reducer(
 
     case 'REORDER_ELEMENTS': {
       const idSet = new Set(command.ids);
-      const moving = command.ids
-        .map((id) => scene.elements.find((el) => el.id === id))
-        .filter((el): el is Element => el !== undefined);
+      // In scene order, not selection order, so the moved elements keep
+      // their stacking among themselves.
+      const moving = scene.elements.filter((el) => idSet.has(el.id));
       const rest = scene.elements.filter((el) => !idSet.has(el.id));
       const clampedIdx = Math.max(
         0,
@@ -541,7 +575,9 @@ export function reducer(
         ...scene,
         elements: command.elements,
         selectedIds: new Set(),
-        viewport: command.viewport,
+        // The viewport fits the scene to the sender's window: a peer keeps
+        // its own.
+        viewport: isRemote ? scene.viewport : command.viewport,
       };
 
     case 'GROUP_ELEMENTS': {
@@ -605,16 +641,21 @@ export function reducer(
         appState: { ...scene.appState, toolLocked: command.locked },
       };
 
-    case 'SET_TEXT_MODE':
+    case 'SET_TEXT_MODE': {
+      const targets = targetIds(scene, command.ids);
       return {
         ...scene,
-        appState: { ...scene.appState, textMode: command.mode },
+        // The text tool's mode is per-user, like the default font.
+        appState: isRemote
+          ? scene.appState
+          : { ...scene.appState, textMode: command.mode },
         elements: scene.elements.map((el) =>
-          scene.selectedIds.has(el.id) && el.type === 'text'
+          targets.has(el.id) && el.type === 'text'
             ? { ...el, isCode: command.mode === 'code' }
             : el,
         ),
       };
+    }
 
     case 'APPLY_STYLE': {
       const {

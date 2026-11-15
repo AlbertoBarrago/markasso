@@ -22,6 +22,7 @@ import {
   updateCustomColorButton,
 } from './color_picker';
 import { onLiveHide, onLiveReveal } from './live_name';
+import { deleteSelection } from './style_actions';
 import { hasFillStyle, hasStrokeStyle, styleTypeOf } from './style_type';
 
 const STROKE_PRESETS = [
@@ -469,10 +470,8 @@ export function initMobileActionBar(
     propsBtn.classList.toggle('active', open);
   });
 
-  deleteBtn.addEventListener('click', () => {
-    const ids = [...history.present.selectedIds];
-    if (ids.length) history.dispatch({ type: 'DELETE_ELEMENTS', ids });
-  });
+  // Same path as the Delete key and the menus: locked elements stay.
+  deleteBtn.addEventListener('click', () => deleteSelection(history));
 
   // Close sheets on tap outside (capture so canvas taps work too)
   document.addEventListener(

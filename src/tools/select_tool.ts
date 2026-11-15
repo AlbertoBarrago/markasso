@@ -59,6 +59,25 @@ const HANDLE_CURSORS: Record<HandlePosition, string> = {
   se: 'se-resize',
 };
 
+/** Handles in clockwise order from east, 45° apart. */
+const HANDLES_CLOCKWISE: ReadonlyArray<HandlePosition> = [
+  'e',
+  'se',
+  's',
+  'sw',
+  'w',
+  'nw',
+  'n',
+  'ne',
+];
+
+/** The resize cursor of a handle, pointing the way it is drawn once rotated. */
+function handleCursor(handle: HandlePosition, rotation: number): string {
+  const steps = Math.round(rotation / (Math.PI / 4));
+  const i = HANDLES_CLOCKWISE.indexOf(handle) + steps;
+  return HANDLE_CURSORS[HANDLES_CLOCKWISE[((i % 8) + 8) % 8]!];
+}
+
 export class SelectTool implements Tool {
   private readonly handleTolerance =
     typeof window !== 'undefined' &&
@@ -116,6 +135,12 @@ export class SelectTool implements Tool {
   private endpointSide: 'start' | 'end' | null = null;
   private endpointElId: string | null = null;
   private endpointSnapTarget: ElementSnapTarget | null = null;
+  /**
+   * The end moved past the drag threshold. A click on an end handle without
+   * a drag leaves the connector as it is: it used to rewrite the binding from
+   * an empty snap target and detach the end.
+   */
+  private endpointMoved = false;
 
   /** Exposed for canvas_view to draw a snap indicator */
   endpointSnapIndicator: { worldX: number; worldY: number } | null = null;
@@ -193,8 +218,12 @@ export class SelectTool implements Tool {
     this.mouseDownScreenY = screenY;
     this.dragThresholdMet = false;
 
+    // A selection with a locked element offers no handle: they are not drawn
+    // either (see drawSelection), so the checks below only run when editable.
+    const editable = isEditable(selectedEls);
+
     // 1a. Check curve control-point handle (single curve selected — legacy CurveElement)
-    if (selectedEls.length === 1) {
+    if (editable && selectedEls.length === 1) {
       const el = selectedEls[0]!;
       if (el.type === 'curve') {
         const [scx, scy] = worldToScreen(scene.viewport, el.cx, el.cy);
@@ -211,11 +240,10 @@ export class SelectTool implements Tool {
     }
 
     // 1b. Check line midpoint control-point handle (single line selected)
-    if (selectedEls.length === 1) {
+    if (editable && selectedEls.length === 1) {
       const el = selectedEls[0]!;
       if (el.type === 'line' && el.routing !== 'elbow') {
-        const cpX = el.cx ?? (el.x + el.x2) / 2;
-        const cpY = el.cy ?? (el.y + el.y2) / 2;
+        const [cpX, cpY] = lineControlPoint(el, scene.elements);
         const [scx, scy] = worldToScreen(scene.viewport, cpX, cpY);
         if (Math.hypot(screenX - scx, screenY - scy) <= 10) {
           this.dragMode = 'line-cp';
@@ -229,14 +257,23 @@ export class SelectTool implements Tool {
     }
 
     // 1. Check endpoint handles (single line/arrow selected)
-    if (selectedEls.length === 1) {
+    if (editable && selectedEls.length === 1) {
       const el = selectedEls[0]!;
       if (el.type === 'line' || el.type === 'arrow') {
-        const endHit = hitTestEndpoint(el, scene.viewport, screenX, screenY);
+        // Where the ends are drawn: an attached end follows its shape, not
+        // the coordinates stored when it was attached.
+        const endHit = hitTestEndpoint(
+          el,
+          scene.viewport,
+          screenX,
+          screenY,
+          scene.elements,
+        );
         if (endHit) {
           this.dragMode = 'endpoint';
           this.endpointSide = endHit;
           this.endpointElId = el.id;
+          this.endpointMoved = false;
           ctx.history.beginDrag();
           return;
         }
@@ -244,7 +281,7 @@ export class SelectTool implements Tool {
     }
 
     // 2. Check rotation handle
-    if (selectedEls.length > 0) {
+    if (editable && selectedEls.length > 0) {
       const rotHandlePos = getRotationHandleScreen(
         selectedEls,
         scene.viewport,
@@ -275,8 +312,12 @@ export class SelectTool implements Tool {
     }
 
     // 3. Check if a resize handle was clicked
-    if (selectedEls.length > 0) {
-      const handles = getSelectionHandles(selectedEls, scene.viewport);
+    if (editable && selectedEls.length > 0) {
+      const handles = getSelectionHandles(
+        selectedEls,
+        scene.viewport,
+        scene.elements,
+      );
       const hitHandle = hitTestHandle(
         handles,
         screenX,
@@ -287,9 +328,15 @@ export class SelectTool implements Tool {
       if (hitHandle) {
         this.dragMode = 'resize';
         this.resizeHandle = hitHandle;
+        // Resized from where things are drawn, as the handles are: a
+        // connector from its drawn ends, inside its drawn bounds (an elbow
+        // route reaches past its ends).
         if (selectedEls.length === 1) {
-          this.resizeOrigEl = selectedEls[0]!;
-          this.resizeOrigBounds = getElementBounds(this.resizeOrigEl);
+          this.resizeOrigEl = withResolvedEnds(selectedEls[0]!, scene.elements);
+          this.resizeOrigBounds = getElementBounds(
+            selectedEls[0]!,
+            scene.elements,
+          );
         } else {
           // Multi-selection: treat union bounds as the resize surface
           this.resizeOrigEl = null;
@@ -299,8 +346,9 @@ export class SelectTool implements Tool {
             minY = Infinity,
             maxX = -Infinity,
             maxY = -Infinity;
-          for (const el of selectedEls) {
-            const b = getElementBounds(el);
+          for (const selected of selectedEls) {
+            const el = withResolvedEnds(selected, scene.elements);
+            const b = getElementBounds(selected, scene.elements);
             this.resizeOrigElBounds.set(el.id, b);
             this.resizeOrigElements.set(el.id, el);
             minX = Math.min(minX, b.x);
@@ -317,8 +365,18 @@ export class SelectTool implements Tool {
         }
         this.resizeAnchorX = anchorX(hitHandle, this.resizeOrigBounds);
         this.resizeAnchorY = anchorY(hitHandle, this.resizeOrigBounds);
-        this.resizeInitialSignX = Math.sign(worldX - this.resizeAnchorX) || 1;
-        this.resizeInitialSignY = Math.sign(worldY - this.resizeAnchorY) || 1;
+        // A rotated element is resized in its own frame, where its handles
+        // and anchor sit on the axes.
+        const [px, py] = this.resizeOrigEl
+          ? toBoxFrame(
+              this.resizeOrigEl.rotation ?? 0,
+              this.resizeOrigBounds,
+              worldX,
+              worldY,
+            )
+          : [worldX, worldY];
+        this.resizeInitialSignX = Math.sign(px - this.resizeAnchorX) || 1;
+        this.resizeInitialSignY = Math.sign(py - this.resizeAnchorY) || 1;
         ctx.history.beginDrag();
         return;
       }
@@ -404,6 +462,16 @@ export class SelectTool implements Tool {
       return;
     }
     if (this.dragMode === 'endpoint') {
+      if (!this.endpointMoved) {
+        const rect = ctx.canvas.getBoundingClientRect();
+        const sx = e.clientX - rect.left;
+        const sy = e.clientY - rect.top;
+        if (
+          Math.hypot(sx - this.mouseDownScreenX, sy - this.mouseDownScreenY) < 4
+        )
+          return;
+        this.endpointMoved = true;
+      }
       const scene = ctx.history.present;
       const el = scene.elements.find((el) => el.id === this.endpointElId);
       if (
@@ -430,14 +498,16 @@ export class SelectTool implements Tool {
         const resolvedX = snapTarget ? snapTarget.worldX : worldX;
         const resolvedY = snapTarget ? snapTarget.worldY : worldY;
 
-        // The old anchor is dropped while dragging, otherwise the pinned end
-        // would stay on its previous port instead of following the pointer.
+        // The old binding is dropped while dragging, otherwise the end would
+        // stay drawn on its previous shape instead of following the pointer.
+        // The mouseup writes the final one; a cancelled drag restores it.
         if (this.endpointSide === 'start') {
           ctx.history.dispatch({
             type: 'RESIZE_ELEMENT',
             id: el.id,
             x: resolvedX,
             y: resolvedY,
+            startElementId: null,
             startAnchor: null,
           });
         } else {
@@ -446,6 +516,7 @@ export class SelectTool implements Tool {
             id: el.id,
             x2: resolvedX,
             y2: resolvedY,
+            endElementId: null,
             endAnchor: null,
           });
         }
@@ -464,6 +535,10 @@ export class SelectTool implements Tool {
         const snapRad = (SNAP_DEG * Math.PI) / 180;
         rotation = Math.round(rotation / snapRad) * snapRad;
       }
+      // Kept within half a turn either way: each drag adds to the previous
+      // rotation, and past a full turn the element no longer passed
+      // validation, so a saved file or a live room dropped it.
+      rotation -= 2 * Math.PI * Math.round(rotation / (2 * Math.PI));
       if (this.rotateElId) {
         ctx.history.dispatch({
           type: 'SET_ROTATION',
@@ -549,6 +624,7 @@ export class SelectTool implements Tool {
               b.w * scaleX,
               b.h * scaleY,
               isCornerHandle(this.resizeHandle),
+              b,
             );
             if (resized)
               ctx.history.dispatch({
@@ -700,7 +776,7 @@ export class SelectTool implements Tool {
 
       const ids = scene.elements
         .filter((el) => {
-          const b = getElementBounds(el);
+          const b = getElementBounds(el, scene.elements);
           return (
             b.x >= wx1 && b.y >= wy1 && b.x + b.w <= wx2 && b.y + b.h <= wy2
           );
@@ -714,6 +790,7 @@ export class SelectTool implements Tool {
     // Commit endpoint connection on mouseup
     if (
       this.dragMode === 'endpoint' &&
+      this.endpointMoved &&
       this.endpointElId &&
       this.endpointSide
     ) {
@@ -769,6 +846,7 @@ export class SelectTool implements Tool {
     this.resizeOrigElements.clear();
     this.endpointSide = null;
     this.endpointElId = null;
+    this.endpointMoved = false;
     this.rotateElId = null;
   }
 
@@ -793,6 +871,7 @@ export class SelectTool implements Tool {
     this.endpointSnapIndicator = null;
     this.endpointSnapElementId = null;
     this.endpointSnapAnchor = null;
+    this.endpointMoved = false;
     this.alignGuides = [];
   }
 
@@ -831,8 +910,13 @@ export class SelectTool implements Tool {
     if (e.key === 'ArrowDown') dy = NUDGE;
     if (dx !== 0 || dy !== 0) {
       e.preventDefault();
-      const ids = [...ctx.history.present.selectedIds];
-      ctx.history.dispatch({ type: 'MOVE_ELEMENTS', ids, dx, dy });
+      // Locked elements stay put, as when dragged.
+      const { elements, selectedIds } = ctx.history.present;
+      const ids = elements
+        .filter((el) => selectedIds.has(el.id) && !el.locked)
+        .map((el) => el.id);
+      if (ids.length > 0)
+        ctx.history.dispatch({ type: 'MOVE_ELEMENTS', ids, dx, dy });
     }
   }
 
@@ -844,7 +928,7 @@ export class SelectTool implements Tool {
     );
     const [screenX, screenY] = worldToScreen(scene.viewport, worldX, worldY);
 
-    if (selectedEls.length > 0) {
+    if (selectedEls.length > 0 && isEditable(selectedEls)) {
       // Check curve control-point handle (legacy CurveElement)
       if (selectedEls.length === 1) {
         const el = selectedEls[0]!;
@@ -857,8 +941,7 @@ export class SelectTool implements Tool {
       if (selectedEls.length === 1) {
         const el = selectedEls[0]!;
         if (el.type === 'line' && el.routing !== 'elbow') {
-          const cpX = el.cx ?? (el.x + el.x2) / 2;
-          const cpY = el.cy ?? (el.y + el.y2) / 2;
+          const [cpX, cpY] = lineControlPoint(el, scene.elements);
           const [scx, scy] = worldToScreen(scene.viewport, cpX, cpY);
           if (Math.hypot(screenX - scx, screenY - scy) <= 10) return 'move';
         }
@@ -867,7 +950,13 @@ export class SelectTool implements Tool {
       if (selectedEls.length === 1) {
         const el = selectedEls[0]!;
         if (el.type === 'line' || el.type === 'arrow') {
-          const endHit = hitTestEndpoint(el, scene.viewport, screenX, screenY);
+          const endHit = hitTestEndpoint(
+            el,
+            scene.viewport,
+            screenX,
+            screenY,
+            scene.elements,
+          );
           if (endHit) return 'crosshair';
         }
       }
@@ -887,19 +976,56 @@ export class SelectTool implements Tool {
       }
 
       // Check resize handles
-      const handles = getSelectionHandles(selectedEls, scene.viewport);
+      const handles = getSelectionHandles(
+        selectedEls,
+        scene.viewport,
+        scene.elements,
+      );
       const hit = hitTestHandle(
         handles,
         screenX,
         screenY,
         this.handleTolerance,
       );
-      if (hit) return HANDLE_CURSORS[hit];
+      if (hit)
+        return handleCursor(
+          hit,
+          selectedEls.length === 1 ? (selectedEls[0]!.rotation ?? 0) : 0,
+        );
     }
 
     const hit = hitTest(scene.elements, worldX, worldY, scene.viewport);
     return hit ? 'move' : 'default';
   }
+}
+
+// ── Selection helpers ──────────────────────────────────────────────────────────
+
+/** A selection whose handles work: none of its elements is locked. */
+function isEditable(selected: ReadonlyArray<Element>): boolean {
+  return !selected.some((el) => el.locked);
+}
+
+/**
+ * The element with its ends where they are drawn. An attached connector end
+ * follows its shape, while the coordinates stored in the element are the
+ * ones from when it was attached.
+ */
+function withResolvedEnds(
+  el: Element,
+  allElements: ReadonlyArray<Element>,
+): Element {
+  if (el.type !== 'line' && el.type !== 'arrow') return el;
+  return { ...el, ...resolveArrowEndpoints(el, allElements) };
+}
+
+/** Where a line's curve handle is drawn: its control point, or the middle. */
+function lineControlPoint(
+  el: Element & { type: 'line' },
+  allElements: ReadonlyArray<Element>,
+): [number, number] {
+  const ends = resolveArrowEndpoints(el, allElements);
+  return [el.cx ?? (ends.x + ends.x2) / 2, el.cy ?? (ends.y + ends.y2) / 2];
 }
 
 // ── Resize helpers ─────────────────────────────────────────────────────────────
@@ -992,6 +1118,11 @@ function isCornerHandle(handle: HandlePosition): boolean {
   );
 }
 
+/**
+ * The element mapped from `origB`, its box before the resize, into the new
+ * box. `origB` defaults to the element's own bounds; a resize passes the
+ * bounds it started from, which for a connector are those of its drawn route.
+ */
 function scaleElement(
   el: Element,
   newX: number,
@@ -999,6 +1130,7 @@ function scaleElement(
   newW: number,
   newH: number,
   scaleText = false,
+  origB: { x: number; y: number; w: number; h: number } = getElementBounds(el),
 ): ResizePayload | null {
   switch (el.type) {
     case 'rectangle':
@@ -1018,17 +1150,25 @@ function scaleElement(
       };
     case 'line':
     case 'arrow': {
-      const origB = getElementBounds(el);
       const scaleX = origB.w > 0 ? newW / origB.w : 1;
       const scaleY = origB.h > 0 ? newH / origB.h : 1;
       const ox = newX + (el.x - origB.x) * scaleX;
       const oy = newY + (el.y - origB.y) * scaleY;
       const ox2 = newX + (el.x2 - origB.x) * scaleX;
       const oy2 = newY + (el.y2 - origB.y) * scaleY;
+      // A curved line scales its control point too, like a curve.
+      if (el.type === 'line' && el.cx !== undefined && el.cy !== undefined)
+        return {
+          x: ox,
+          y: oy,
+          x2: ox2,
+          y2: oy2,
+          cx: newX + (el.cx - origB.x) * scaleX,
+          cy: newY + (el.cy - origB.y) * scaleY,
+        };
       return { x: ox, y: oy, x2: ox2, y2: oy2 };
     }
     case 'curve': {
-      const origB = getElementBounds(el);
       const scaleX = origB.w > 0 ? newW / origB.w : 1;
       const scaleY = origB.h > 0 ? newH / origB.h : 1;
       const ox = newX + (el.x - origB.x) * scaleX;
@@ -1041,7 +1181,6 @@ function scaleElement(
     }
     case 'freehand':
     case 'polygon': {
-      const origB = getElementBounds(el);
       if (origB.w === 0 || origB.h === 0) return null;
       const scaleX = newW / origB.w;
       const scaleY = newH / origB.h;
@@ -1072,12 +1211,14 @@ export function computeResize(
   initialSignY = 1,
   zoom = 1,
 ): ResizePayload | null {
+  const rotation = el.rotation ?? 0;
+  const [lx, ly] = toBoxFrame(rotation, origBounds, curX, curY);
   const nb = newBoundsFromHandle(
     handle,
     ax,
     ay,
-    curX,
-    curY,
+    lx,
+    ly,
     origBounds,
     shiftKey || (el.type === 'text' && isCornerHandle(handle)),
     initialSignX,
@@ -1085,7 +1226,45 @@ export function computeResize(
     MIN_RESIZE_SCREEN_PX / zoom,
   );
   if (!nb) return null;
-  return scaleElement(el, nb.x, nb.y, nb.w, nb.h, isCornerHandle(handle));
+  if (rotation) {
+    // The new box turns about its own center, which has moved: shift it by
+    // (I - R)(c0 - c1) so the anchor keeps its place on screen.
+    const dx = origBounds.x + origBounds.w / 2 - (nb.x + nb.w / 2);
+    const dy = origBounds.y + origBounds.h / 2 - (nb.y + nb.h / 2);
+    const cos = Math.cos(rotation);
+    const sin = Math.sin(rotation);
+    nb.x += dx - (dx * cos - dy * sin);
+    nb.y += dy - (dx * sin + dy * cos);
+  }
+  return scaleElement(
+    el,
+    nb.x,
+    nb.y,
+    nb.w,
+    nb.h,
+    isCornerHandle(handle),
+    origBounds,
+  );
+}
+
+/**
+ * A world point in the frame of a box turned by `rotation` about its center:
+ * where the point would be if the box were not rotated.
+ */
+function toBoxFrame(
+  rotation: number,
+  box: { x: number; y: number; w: number; h: number },
+  wx: number,
+  wy: number,
+): [number, number] {
+  if (!rotation) return [wx, wy];
+  const cx = box.x + box.w / 2;
+  const cy = box.y + box.h / 2;
+  const cos = Math.cos(-rotation);
+  const sin = Math.sin(-rotation);
+  const dx = wx - cx;
+  const dy = wy - cy;
+  return [cx + dx * cos - dy * sin, cy + dx * sin + dy * cos];
 }
 
 // ── Hit testing ───────────────────────────────────────────────────────────────

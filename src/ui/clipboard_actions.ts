@@ -90,6 +90,25 @@ export function copySelection(history: History): boolean {
 /** Copies the selection, then deletes its unlocked elements. */
 export function cutSelection(history: History): void {
   if (!copySelection(history)) return;
+  deleteUnlockedSelection(history);
+}
+
+/**
+ * Cuts the selection into a clipboard event's data (Cmd/Ctrl+X): writes it,
+ * then deletes its unlocked elements. False when nothing is selected, so the
+ * browser's own cut goes ahead.
+ */
+export function cutSelectionToClipboardData(
+  history: History,
+  data: DataTransfer,
+): boolean {
+  if (!writeSelectionToClipboardData(history, data)) return false;
+  deleteUnlockedSelection(history);
+  return true;
+}
+
+/** Deletes the unlocked elements of the selection: the second half of a cut. */
+function deleteUnlockedSelection(history: History): void {
   const ids = selectedElements(history.present)
     .filter((el) => !el.locked)
     .map((el) => el.id);

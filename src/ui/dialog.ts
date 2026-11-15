@@ -160,6 +160,14 @@ export function dialog(options: DialogOptions): Promise<string | null> {
       actions.append(button);
     }
     card.append(actions);
+    // Enter in the field confirms, as the primary button does. Not while an
+    // input method composes text: there Enter commits the characters.
+    input?.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' || event.isComposing || event.keyCode === 229)
+        return;
+      event.preventDefault();
+      finish(input.value);
+    });
     modal.addEventListener('cancel', (event) => {
       event.preventDefault();
       finish(null);

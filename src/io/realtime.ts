@@ -15,12 +15,15 @@ import type {
 } from './agent_requests_protocol';
 import { randomAnimalName } from './animal_names';
 import { LICENSE_KEY } from './cloud';
+import { isValidSessionCommand } from './command_validation';
+import { createCommands, LiveOutbox } from './live_outbox';
 import {
   clearCursors,
   setLocalCursorSender,
   syncRemotePeers,
   upsertRemoteCursor,
 } from './presence';
+import { readStorage, writeStorage } from './safe_storage';
 
 export interface PeerInfo {
   id: string;
@@ -38,7 +41,16 @@ export interface LiveOptions {
   seedElements?: readonly Element[];
   onPeers?: (peers: PeerInfo[]) => void;
   onStatus?: (connected: boolean) => void;
+  /** The room ended the session for this tab; it will not reconnect. */
+  onEnded?: (reason: LiveEndReason) => void;
 }
+
+/**
+ * Why a room closed the session for good: the same browser joined it from
+ * another tab (a room holds one connection per client), or it has no place
+ * left. Reconnecting would only repeat the refusal, or evict the other tab.
+ */
+export type LiveEndReason = 'replaced' | 'full';
 
 interface InitMsg {
   type: 'init';
@@ -84,42 +96,25 @@ const CLIENT_ID_RE = /^[a-zA-Z0-9_-]{8,64}$/;
  * impersonate that peer.
  */
 export function getClientId(): string {
-  try {
-    let id = localStorage.getItem(CLIENT_ID_KEY);
-    if (!id || !CLIENT_ID_RE.test(id)) {
-      id = crypto.randomUUID();
-      localStorage.setItem(CLIENT_ID_KEY, id);
-    }
-    return id;
-  } catch {
-    return crypto.randomUUID();
-  }
+  const stored = readStorage(CLIENT_ID_KEY);
+  if (stored && CLIENT_ID_RE.test(stored)) return stored;
+  // Without storage the id is new on every call.
+  const id = crypto.randomUUID();
+  writeStorage(CLIENT_ID_KEY, id);
+  return id;
 }
 
 /** The Markasso Cloud licence stored by the cloud boards flow, if any. */
 function storedLicense(): string {
-  try {
-    return localStorage.getItem(LICENSE_KEY)?.trim() ?? '';
-  } catch {
-    return '';
-  }
+  return readStorage(LICENSE_KEY)?.trim() ?? '';
 }
 
 export function getStoredName(): string {
-  try {
-    const name = localStorage.getItem(NAME_KEY);
-    return name?.trim() ? name.trim() : '';
-  } catch {
-    return '';
-  }
+  return readStorage(NAME_KEY)?.trim() ?? '';
 }
 
 export function setStoredName(name: string): void {
-  try {
-    localStorage.setItem(NAME_KEY, name.trim());
-  } catch {
-    /* ignore quota/private mode */
-  }
+  writeStorage(NAME_KEY, name.trim());
 }
 
 export function getLiveRoomId(): string | null {
@@ -209,6 +204,11 @@ export function getLiveName(): string {
   return activeSession?.self.name ?? getStoredName();
 }
 
+/** Room of the live session this tab is in, or null outside one. */
+export function getActiveLiveRoomId(): string | null {
+  return activeSession?.roomId ?? null;
+}
+
 /**
  * Link to the live session this tab is in, or null outside one. Rebuilt from
  * the room id because a session started from the toolbar never puts it in
@@ -241,6 +241,9 @@ export function setLiveName(name: string): void {
  */
 const RECONNECT_BASE_MS = 1000;
 const RECONNECT_MAX_MS = 10000;
+/** Close codes the room uses (src/worker.ts) when it ends a session. */
+const CLOSE_REPLACED = 1000;
+const CLOSE_ROOM_FULL = 1013;
 
 export function joinLiveSession(
   history: History,
@@ -267,6 +270,10 @@ export function joinLiveSession(
   function send(msg: unknown): void {
     if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
   }
+  // Scene commands go through the outbox, paced to the room's quota.
+  const outbox = new LiveOutbox({
+    send: (command) => send({ type: 'command', command }),
+  });
 
   const emitPeers = (): void => {
     const others = [...peers.values()];
@@ -296,6 +303,8 @@ export function joinLiveSession(
   document.addEventListener('markasso-cloud-change', onLicenseChange);
 
   function leave(): void {
+    // Edits already applied here still reach the peers, socket permitting.
+    outbox.drain();
     left = true;
     ready = false;
     document.removeEventListener('markasso-cloud-change', onLicenseChange);
@@ -342,7 +351,7 @@ export function joinLiveSession(
 
   history.setOnCommand((command) => {
     if (!ready || !isSessionCommand(command)) return;
-    send({ type: 'command', command });
+    outbox.push(command);
   });
 
   function applyPeers(list: PeerInfo[]): void {
@@ -374,7 +383,6 @@ export function joinLiveSession(
     ws = socket;
 
     socket.onopen = () => {
-      reconnectAttempt = 0;
       opts.onStatus?.(true);
       send({ type: 'presence', name: self.name, color: self.color });
       // The room forgets licences on disconnect: prove it on every connect.
@@ -389,6 +397,9 @@ export function joinLiveSession(
         return;
       }
       if (msg.type === 'init') {
+        // Only now is the peer in the room: a socket the room opens and then
+        // refuses must not reset the backoff.
+        reconnectAttempt = 0;
         ready = true;
         self.id = msg.self;
 
@@ -397,7 +408,9 @@ export function joinLiveSession(
           // reconnect this also re-syncs anything missed while offline, at
           // the cost of any local edit made purely during the outage (never
           // reached the room log, so it isn't replayed).
-          history.resetForLiveReplay(msg.commands);
+          history.resetForLiveReplay(
+            msg.commands.filter(isValidSessionCommand),
+          );
         } else if (!isSeeder || seedElements.length === 0) {
           // Fresh/empty room and we have nothing to seed: start clean.
           history.resetForLiveReplay([]);
@@ -407,22 +420,25 @@ export function joinLiveSession(
         // current elements so later joiners see them. Echo is suppressed by the
         // server, so the creator keeps the view they already had.
         if (isSeeder && msg.commands.length === 0) {
-          for (const element of seedElements) {
-            send({
-              type: 'command',
-              command: {
-                type: 'CREATE_ELEMENT',
-                element,
-                select: false,
-              },
-            });
-          }
+          for (const command of createCommands(seedElements, {
+            validOnly: true,
+          }))
+            outbox.push(command);
         }
 
         applyPeers(msg.peers);
       } else if (msg.type === 'apply') {
         // Bare UNDO/REDO from an outdated client: see isSessionCommand.
-        if (isSessionCommand(msg.command)) history.applyRemote(msg.command);
+        if (
+          isSessionCommand(msg.command) &&
+          isValidSessionCommand(msg.command)
+        ) {
+          try {
+            history.applyRemote(msg.command);
+          } catch (error) {
+            console.error('Skipped a live command that failed to apply', error);
+          }
+        }
       } else if (msg.type === 'cursor') {
         upsertRemoteCursor(msg.from, {
           x: msg.x,
@@ -440,10 +456,23 @@ export function joinLiveSession(
       }
     };
 
-    socket.onclose = () => {
+    socket.onclose = (event) => {
       ready = false;
+      // Not sent: the room's log replaces this board when it reconnects.
+      outbox.clear();
       revokeAgentRequestAccess();
       clearCursors();
+      const ended: LiveEndReason | null =
+        event.code === CLOSE_REPLACED && event.reason === 'replaced'
+          ? 'replaced'
+          : event.code === CLOSE_ROOM_FULL
+            ? 'full'
+            : null;
+      if (ended) {
+        leave();
+        opts.onEnded?.(ended);
+        return;
+      }
       opts.onStatus?.(false);
       scheduleReconnect();
     };

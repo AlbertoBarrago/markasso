@@ -1,4 +1,5 @@
 import { t } from '../i18n';
+import { readStorage, writeStorage } from '../io/safe_storage';
 
 const STORAGE_KEY = 'markasso-whats-new-version';
 
@@ -22,7 +23,7 @@ const HIGHLIGHTS: readonly (readonly [string, string, string?])[] = [
  * @returns true when the notice was shown (the welcome card is then skipped).
  */
 export function initWhatsNew(appEl: HTMLElement): boolean {
-  if (localStorage.getItem(STORAGE_KEY) === WHATS_NEW_ID) return false;
+  if (readStorage(STORAGE_KEY) === WHATS_NEW_ID) return false;
 
   const overlay = document.createElement('div');
   overlay.id = 'whats-new-overlay';
@@ -43,7 +44,7 @@ export function initWhatsNew(appEl: HTMLElement): boolean {
   `;
 
   const dismiss = (): void => {
-    localStorage.setItem(STORAGE_KEY, WHATS_NEW_ID);
+    writeStorage(STORAGE_KEY, WHATS_NEW_ID);
     overlay.classList.add('wn-out');
     overlay.addEventListener('animationend', () => overlay.remove(), {
       once: true,
