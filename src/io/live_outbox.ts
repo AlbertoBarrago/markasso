@@ -57,10 +57,22 @@ export class LiveOutbox {
   }
 
   push(command: Command): void {
-    const last = this.queue.at(-1);
-    const merged = last ? mergeCommands(last, command) : null;
-    if (merged) this.queue[this.queue.length - 1] = merged;
-    else this.queue.push(command);
+    // Merge with the latest waiting command of the same element, looking
+    // past waiting commands that only touch other elements: a group resize
+    // sends one RESIZE_ELEMENT per element per move, interleaved, and must
+    // still collapse to one command per element.
+    let merged = false;
+    for (let i = this.queue.length - 1; i >= 0; i--) {
+      const waiting = this.queue[i] as Command;
+      const combined = mergeCommands(waiting, command);
+      if (combined) {
+        this.queue[i] = combined;
+        merged = true;
+        break;
+      }
+      if (!independent(waiting, command)) break;
+    }
+    if (!merged) this.queue.push(command);
     // Quiet: send now and hold the next ones for an interval.
     if (this.timer === null) this.flush();
   }
@@ -145,6 +157,30 @@ export function mergeCommands(last: Command, next: Command): Command | null {
     return last.id === next.id ? next : null;
   }
   return null;
+}
+
+/** The elements a gesture command acts on, or null for any other command. */
+function gestureTargets(command: Command): readonly string[] | null {
+  switch (command.type) {
+    case 'MOVE_ELEMENT':
+    case 'RESIZE_ELEMENT':
+    case 'SET_ROTATION':
+      return [command.id];
+    case 'MOVE_ELEMENTS':
+      return command.ids;
+    default:
+      return null;
+  }
+}
+
+/**
+ * Whether two gesture commands act on separate elements, so their order
+ * does not matter. Anything else may depend on what came before it.
+ */
+function independent(a: Command, b: Command): boolean {
+  const ta = gestureTargets(a);
+  const tb = gestureTargets(b);
+  return !!ta && !!tb && !ta.some((id) => tb.includes(id));
 }
 
 /** Elements per CREATE_ELEMENTS, well under the validation limit (5,000). */
