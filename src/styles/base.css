@@ -542,7 +542,6 @@ body.toolbar-placing * {
 /* UI hide mode (\ toggle) */
 body.ui-hidden #toolbar,
 body.ui-hidden #context-panel,
-body.ui-hidden #layers-panel,
 body.ui-hidden #mobile-actions {
   display: none !important;
 }

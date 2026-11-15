@@ -292,7 +292,13 @@ function sessions(): Array<[string, boolean, (room: Room) => void]> {
     create(a!, 'rect');
     room.flush();
     recolor(a!, '#ff0000');
-    b!.h.dispatch({ type: 'RENAME_LAYER', id: BOX, name: 'B' });
+    b!.h.dispatch({
+      type: 'SET_SHAPE_LABEL',
+      id: BOX,
+      label: 'B',
+      labelFontSize: 16,
+      labelFontFamily: 'Arial, sans-serif',
+    });
     room.flush();
     b!.h.undo();
     a!.h.undo();

@@ -40,7 +40,8 @@ describe('library insertion', () => {
 
   it('applies the default stroke style to inserted shapes', () => {
     const history = new History();
-    history.dispatch({ type: 'SET_STROKE_STYLE', style: 'dashed' });
+    // The style default, as the panel sets it with nothing selected.
+    history.dispatch({ type: 'APPLY_STYLE', ids: [], strokeStyle: 'dashed' });
     insertShape(history, 'document', { x: 0, y: 0 });
     expect(history.present.elements[0]).toMatchObject({
       strokeStyle: 'dashed',

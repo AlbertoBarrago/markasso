@@ -212,10 +212,7 @@ const CHECKS: Record<string, (c: Fields) => boolean> = {
     optionalNumber(c.width) &&
     optionalNumber(c.height),
   SET_ROTATION: (c) => isId(c.id) && isNumber(c.rotation),
-  SET_STROKE_STYLE: (c) => STROKE_STYLES.has(c.style as string),
   REORDER_ELEMENTS: (c) => isIdList(c.ids) && isNumber(c.targetIndex),
-  TOGGLE_ELEMENT_VISIBILITY: (c) => isId(c.id),
-  RENAME_LAYER: (c) => isId(c.id) && isString(c.name),
   LOAD_SCENE: (c) =>
     isElementList(c.elements) && validateViewport(c.viewport) !== null,
   GROUP_ELEMENTS: (c) => isIdList(c.ids) && isId(c.groupId),
