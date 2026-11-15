@@ -144,8 +144,37 @@ function formatRequests(requests: ReadonlyArray<LiveRequest>): string {
 }
 
 /** Runs a tool body and turns thrown errors into MCP tool errors. */
-function guarded<A>(run: (args: A) => Promise<string> | string) {
+/** Tool calls still running; shutting down waits for them. */
+let inFlight = 0;
+const onIdle: Array<() => void> = [];
+
+/** Counts a tool call while it runs (see shutDown). */
+function tracked<A, R>(run: (args: A) => Promise<R>): (args: A) => Promise<R> {
   return async (args: A) => {
+    inFlight++;
+    try {
+      return await run(args);
+    } finally {
+      inFlight--;
+      if (inFlight === 0) for (const resolve of onIdle.splice(0)) resolve();
+    }
+  };
+}
+
+/** Resolves when no tool call is running, or after `timeoutMs`. */
+function callsDone(timeoutMs: number): Promise<void> {
+  if (inFlight === 0) return Promise.resolve();
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, timeoutMs);
+    onIdle.push(() => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
+}
+
+function guarded<A>(run: (args: A) => Promise<string> | string) {
+  return tracked(async (args: A) => {
     let result: ReturnType<typeof text> | ReturnType<typeof failure>;
     try {
       result = text(await run(args));
@@ -160,7 +189,7 @@ function guarded<A>(run: (args: A) => Promise<string> | string) {
       if (first) first.text += `\n${formatRequests(requests)}`;
     }
     return result;
-  };
+  });
 }
 
 function liveSuffix(): string {
@@ -513,17 +542,19 @@ server.registerTool(
     },
     annotations: { readOnlyHint: true },
   },
-  async (args: {
-    path?: string | undefined;
-    background?: 'dark' | 'transparent' | undefined;
-    returnImage?: boolean | undefined;
-  }) => {
-    try {
-      return { content: await exportPng(diagram, args) };
-    } catch (error) {
-      return failure(error);
-    }
-  },
+  tracked(
+    async (args: {
+      path?: string | undefined;
+      background?: 'dark' | 'transparent' | undefined;
+      returnImage?: boolean | undefined;
+    }) => {
+      try {
+        return { content: await exportPng(diagram, args) };
+      } catch (error) {
+        return failure(error);
+      }
+    },
+  ),
 );
 
 server.registerTool(
@@ -655,3 +686,28 @@ server.registerTool(
 );
 
 await server.connect(new StdioServerTransport());
+
+/**
+ * The client ends the session by closing stdin; the stdio transport does not
+ * notice, and an open live socket would keep the process running as a ghost
+ * peer in the room. Let running tool calls finish (a file being saved, an
+ * answer being written), leave the room, then exit. Signals end it the same
+ * way.
+ */
+let shuttingDown = false;
+async function shutDown(): Promise<void> {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  try {
+    // A call waiting for live requests returns once the room is left, so it
+    // is not waited for longer than this.
+    await callsDone(10_000);
+    await live?.leaveAndWait();
+  } finally {
+    process.exit(0);
+  }
+}
+process.stdin.on('end', () => void shutDown());
+process.stdin.on('close', () => void shutDown());
+for (const signal of ['SIGINT', 'SIGTERM'] as const)
+  process.on(signal, () => void shutDown());
