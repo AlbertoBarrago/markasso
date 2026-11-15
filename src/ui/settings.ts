@@ -16,7 +16,6 @@ import {
   cloudLicenseStored,
   cloudSeparators,
 } from './cloud_boards';
-import { dialog } from './dialog';
 import { exportImage } from './export_actions';
 import { showImportError } from './import_error';
 import { copyToClipboard, showShareToast } from './share_actions';
