@@ -29,8 +29,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Fails on any lint or format issue instead of fixing it on the runner,
+      # where a fix would not reach the released code anyway.
       - name: Lint
-        run: pnpm lint
+        run: pnpm lint:ci
 
       - name: Test
         run: pnpm vitest run
