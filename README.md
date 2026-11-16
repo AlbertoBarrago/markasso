@@ -72,7 +72,7 @@ Claude Desktop, Gemini CLI and LM Studio use the same `npx -y @markasso/mcp@late
 
 ## Project Status
 
-Markasso is **feature-complete**. Active development of new features is paused. The tool does what it was designed to do. Bug fixes, performance improvements, and small refinements are welcome. Large feature PRs are unlikely to be merged; open an issue first to discuss.
+Markasso is **stable and actively developed**. The core (scene, reducer, renderer, tools) stays small and dependency-free on purpose; new work goes into AI agents and live collaboration: the MCP server, agents drawing on shared boards, and Markasso Cloud. Bug fixes and refinements are welcome; for larger features, open an issue first to discuss.
 
 ---
 
