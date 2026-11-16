@@ -4,6 +4,16 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [1.23.0] - 2026-11-16
+
+### Added
+- **AI agents up front ([#158](https://github.com/AlbertoBarrago/markasso/pull/158)).** The welcome card says Markasso is the whiteboard your AI agents draw on and has a Connect AI agent button under Start drawing. The page title, description and sharing previews, and the Cloud page, lead with agents too.
+
+### Changed
+- **Starting a live session ([#160](https://github.com/AlbertoBarrago/markasso/pull/160)).** The Start live session button stays in place and pulses while the room connects, instead of disappearing. Invite AI agent, People and your name then spring into the top-right bar, and "Link copied" shows after them. With reduced motion turned on, the controls appear without animation.
+
+---
+
 ## [1.22.4] - 2026-11-15
 
 ### Fixed
