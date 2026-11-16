@@ -7,11 +7,11 @@
 <p>is a zero-latency, framework-agnostic whiteboard engine. Built with vanilla TypeScript and the Canvas 2D API, it delivers a high-performance drawing experience with a zero-dependency core and a keyboard-first workflow. It’s the "Vesper" of whiteboards: dark, fast, and focused.</p>
 
 <p>
-  <a href="assets/markasso-demo.mp4">
-    <img src="assets/markasso-demo.gif" width="900" alt="Markasso demo: draw and connect shapes, move them with attached connectors, switch themes, and export a PNG." />
+  <a href="assets/markasso-agents-demo.mp4">
+    <img src="assets/markasso-agents-demo.gif" width="900" alt="Markasso demo: Claude joins a live board through the Markasso MCP and draws a checkout service architecture; a teammate asks it from the People panel to add a Redis cache, and the agent adds it, reconnects the services and replies." />
   </a>
   <br/>
-  <a href="assets/markasso-demo.mp4">Watch the 24-second demo</a>
+  <a href="assets/markasso-agents-demo.mp4">Watch the 25-second agent demo</a> · <a href="assets/markasso-demo.mp4">Drawing by hand (24 s)</a>
 </p>
 
 <a href="https://markasso.it">
