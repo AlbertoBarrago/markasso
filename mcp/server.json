@@ -20,12 +20,12 @@
       "sizes": ["512x512"]
     }
   ],
-  "version": "0.7.4",
+  "version": "0.7.5",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@markasso/mcp",
-      "version": "0.7.4",
+      "version": "0.7.5",
       "transport": {
         "type": "stdio"
       },

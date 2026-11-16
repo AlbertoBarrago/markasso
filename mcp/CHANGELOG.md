@@ -4,6 +4,13 @@ All notable changes to `@markasso/mcp` are documented here. The MCP server is ve
 
 ---
 
+## [0.7.5] - 2026-11-16
+
+### Added
+- **Listed in the official MCP Registry ([#154](https://github.com/AlbertoBarrago/markasso/pull/154)).** The server is published there as `io.github.AlbertoBarrago/markasso`, so MCP clients and directories that read the registry can find it. Claude Code users can also install it as a plugin, with a skill that knows when to draw: `claude plugin marketplace add AlbertoBarrago/markasso-plugin`, then `claude plugin install markasso@markasso`.
+
+---
+
 ## [0.7.4] - 2026-11-15
 
 ### Fixed
