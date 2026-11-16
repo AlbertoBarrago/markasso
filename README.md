@@ -11,7 +11,7 @@
     <img src="assets/markasso-agents-demo.gif" width="900" alt="Markasso demo: Claude joins a live board through the Markasso MCP and draws a checkout service architecture; a teammate asks it from the People panel to add a Redis cache, and the agent adds it, reconnects the services and replies." />
   </a>
   <br/>
-  <a href="assets/markasso-agents-demo.mp4">Watch the 25-second agent demo</a> · <a href="assets/markasso-demo.mp4">Drawing by hand (24 s)</a>
+  <a href="assets/markasso-agents-demo.mp4">Watch the 25-second agent demo</a> · <a href="assets/markasso-demo.mp4">Drawing by hand (24 s)</a> · <a href="https://markasso.it/agents/">Markasso for AI agents</a>
 </p>
 
 <a href="https://markasso.it">

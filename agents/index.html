@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Markasso: the whiteboard your AI agents draw on</title>
+    <meta name="description" content="Ask Claude, Codex or Gemini for a diagram and watch it appear on a real board you can open, edit and share. Open source, no account, MCP server for any agent." />
+    <meta name="keywords" content="MCP whiteboard, AI agent diagrams, Claude diagrams, Codex diagrams, Gemini diagrams, architecture diagrams, live whiteboard, Model Context Protocol" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://markasso.it/agents/" />
+    <meta property="og:title" content="Markasso: the whiteboard your AI agents draw on" />
+    <meta property="og:description" content="Ask Claude, Codex or Gemini for a diagram and watch it appear on a real board you can open, edit and share." />
+    <meta property="og:image" content="https://markasso.it/og-image.png" />
+    <meta property="og:site_name" content="Markasso" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Markasso: the whiteboard your AI agents draw on" />
+    <meta name="twitter:description" content="Ask Claude, Codex or Gemini for a diagram and watch it appear on a real board you can open, edit and share." />
+    <meta name="twitter:image" content="https://markasso.it/og-image.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Kode+Mono:wght@500&family=Roboto+Mono:wght@500&display=swap" rel="stylesheet" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="canonical" href="https://markasso.it/agents/" />
+    <script type="module" src="/src/agents_page.ts"></script>
+  </head>
+  <body>
+    <header><a class="brand" href="https://markasso.it"><img src="/markasso-logo-icon.svg" width="36" height="36" alt="" />Markasso</a><a href="https://markasso.it" data-i18n="agentsPageOpen">Open Markasso</a></header>
+    <main>
+      <section class="hero">
+        <h1 data-i18n="agentsPageTitle">The whiteboard your AI agents draw on</h1>
+        <p class="pitch" data-i18n="agentsPagePitch">Ask Claude, Codex or Gemini for a diagram and watch it appear on a real board, one you can open, edit and share.</p>
+        <div id="checkout">
+          <a class="checkout-link" href="https://markasso.it" data-i18n="agentsPageOpen">Open Markasso</a>
+          <a class="secondary-link" href="#connect" data-i18n="agentsPageConnect">Connect your agent</a>
+        </div>
+      </section>
+      <figure class="demo">
+        <video src="/agents/markasso-agents-demo.mp4" poster="/agents/markasso-agents-demo.jpg" width="1440" height="900" autoplay muted loop playsinline preload="metadata" aria-describedby="demo-caption"></video>
+        <figcaption id="demo-caption" data-i18n="agentsPageDemoCaption">Claude joins a live board, draws a checkout architecture, then adds a Redis cache when a teammate asks.</figcaption>
+      </figure>
+      <div class="features">
+        <section data-reveal>
+          <h2 data-i18n="agentsPageDrawTitle">Agents draw, you edit</h2>
+          <p data-i18n="agentsPageDrawText">Real diagrams, not pictures: shapes, connected arrows and icons you can move, restyle and keep editing by hand.</p>
+        </section>
+        <section data-reveal>
+          <h2 data-i18n="agentsPageLiveTitle">Live, together</h2>
+          <p data-i18n="agentsPageLiveText">People and agents on the same board. Ask the agent from the People panel and it draws the change while everyone watches.</p>
+        </section>
+        <section data-reveal>
+          <h2 data-i18n="agentsPageYoursTitle">Yours</h2>
+          <p data-i18n="agentsPageYoursText">Open source, no account. Boards stay on your device as .markasso files, and agents drawing on them are free.</p>
+        </section>
+      </div>
+      <section class="cloud-note" data-reveal>
+        <p><span data-i18n="agentsPageCloudText">Inviting agents into live sessions and syncing cloud boards are part of Markasso Cloud.</span> <a href="/cloud/" data-i18n="agentsPageCloudLink">About Markasso Cloud</a></p>
+      </section>
+      <section id="connect" class="connect" data-reveal>
+        <h2 data-i18n="agentsPageConnect">Connect your agent</h2>
+        <p data-i18n="agentsPageConnectText">Markasso works with any client that speaks MCP. Pick yours, run the command, then ask it to draw.</p>
+        <div id="mcp-tabs"></div>
+        <p class="examples-title" data-i18n="agentsPageTry">Then try:</p>
+        <ul class="terminal">
+          <li data-i18n="mcpExample1">Draw the architecture of a checkout service with icons, left to right, and give me a share link.</li>
+          <li data-i18n="mcpExample2">Turn this process into a flowchart with start, end and decision steps.</li>
+          <li data-i18n="mcpExample3">Join my live session and add the missing database to the board.</li>
+        </ul>
+        <p><a id="mcp-docs" href="https://github.com/AlbertoBarrago/markasso/blob/main/mcp/README.md" target="_blank" rel="noopener" data-i18n="mcpDocs">Full setup, tools and security notes</a></p>
+      </section>
+      <section class="closing" data-reveal>
+        <h2 data-i18n="agentsPageClosing">Your agent is one command away.</h2>
+        <p class="closing-links"><a class="checkout-link" href="https://markasso.it" data-i18n="agentsPageOpen">Open Markasso</a> <a href="https://github.com/AlbertoBarrago/markasso" target="_blank" rel="noopener" data-i18n="agentsPageGithub">Source on GitHub</a></p>
+      </section>
+    </main>
+  </body>
+</html>

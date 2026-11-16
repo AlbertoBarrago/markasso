@@ -1,0 +1,88 @@
+/* /agents page, on top of cloud-page.css (layout, type, site_fx motion). */
+
+/* Hero actions: the main button, then a quieter jump to the install steps. */
+#checkout {
+  align-items: center;
+}
+.secondary-link {
+  padding: 14px 8px;
+  font-weight: 650;
+}
+
+/* The demo, framed like the /mac screenshot. */
+.demo {
+  margin: 0 0 40px;
+}
+.demo video {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1440 / 900;
+  background: #080808;
+  border-radius: var(--radius);
+  box-shadow:
+    0 30px 80px -30px color-mix(in srgb, var(--accent) 55%, transparent),
+    0 0 0 1px var(--border);
+}
+.demo figcaption {
+  margin-top: 12px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 32px;
+  border-top: 1px solid var(--border);
+}
+.cloud-note p {
+  max-width: none;
+}
+.connect,
+.closing {
+  border-top: 1px solid var(--border);
+}
+
+/* Install snippets: the dialog's widget (mcp-tabs.css), sized for a page. */
+.connect .mcp-tabs-widget {
+  margin-block: 20px 28px;
+}
+.connect .mcp-tab {
+  font-size: 13px;
+}
+.connect .mcp-snippet pre {
+  font-size: 13px;
+}
+.examples-title {
+  margin-bottom: 8px;
+  font-weight: 650;
+}
+.connect ul.terminal li {
+  font-style: italic;
+}
+
+.closing h2 {
+  font-size: clamp(1.5rem, 4vw, 2rem);
+}
+.closing-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 24px;
+  margin-top: 20px;
+}
+
+@media (max-width: 720px) {
+  .features {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
+/* Links inside running text wrap (cloud-page.css keeps links on one line,
+   which clips the long docs link on phones). */
+.connect p a,
+.cloud-note p a {
+  white-space: normal;
+}
