@@ -66,7 +66,7 @@ codex mcp add markasso -- npx -y @markasso/mcp@latest
 
 Claude Desktop, Gemini CLI and LM Studio use the same `npx -y @markasso/mcp@latest` command in their `mcpServers` config: see [`mcp/README.md`](mcp/README.md) for every client, the tool list, building from source and the security notes.
 
-**2. Ask for a diagram**, for example: *"Draw the architecture of a checkout service with icons, lay it out left to right and give me a share link"*. For live mode, start a session with **⋯ More tools → Start live session** in Markasso, then **⋯ More tools → Invite AI agent** copies a prompt that brings the agent onto the board. **Menu → Connect AI agent** shows the setup for every client.
+**2. Ask for a diagram**, for example: *"Draw the architecture of a checkout service with icons, lay it out left to right and give me a share link"*. For live mode, start a session with **Start live session** at the top right in Markasso, then **Invite AI agent**, next to it, copies a prompt that brings the agent onto the board. **Menu → Connect AI agent** shows the setup for every client.
 
 ---
 

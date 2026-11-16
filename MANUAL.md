@@ -45,7 +45,7 @@ The **Arrow / Line** connector has its own arrow button on the toolbar (`5`), ou
 - **Routing:** switch a connector between **Straight** and **Elbow** (orthogonal) in the properties panel. See Smart Arrow Links below.
 - **Arrowhead styles:** each end can use an open head, a hollow or filled triangle, a hollow or filled diamond, or a circle.
 
-The toolbar is dedicated to drawing. On narrow windows, pen, text, sticky note and eraser progressively move into **⋯ More tools**; hand, select, basic shapes and the connector stay visible. The menu lists **Presets**, **Library**, **Import Mermaid**, **Insert image** and, in a separate group, **Start live session**. Presets insert a grouped diagram at the center of the viewport. Zoom and undo/redo live in separate panels in the bottom corners, which you can hide from Preferences.
+The toolbar is dedicated to drawing. On narrow windows, pen, text, sticky note and eraser progressively move into **⋯ More tools**; hand, select, basic shapes and the connector stay visible. The menu lists **Presets**, **Library**, **Import Mermaid** and **Insert image**. Presets insert a grouped diagram at the center of the viewport. Zoom and undo/redo live in separate panels in the bottom corners, which you can hide from Preferences.
 
 ### Moving the Toolbar
 
@@ -371,7 +371,7 @@ Choose **Menu → Share → Copy link** to encode the entire scene into a URL. T
 
 ## Live Sessions
 
-Choose **⋯ More tools → Start live session** to open a shared board. Its link is copied to the clipboard; people opening it can draw with you. Your stored name appears in the top corner, or a random animal name if you have not set one: click it to change it. A small red blinking dot beside the name indicates an active connection; it stays static when reduced motion is enabled.
+Choose **Start live session**, the button at the top right, to open a shared board. Its link is copied to the clipboard; people opening it can draw with you. While the room connects the button pulses in place, then **Invite AI agent**, **People** and your name take its place. To leave, open **People** and choose **Leave live session**. Your stored name appears in the top corner, or a random animal name if you have not set one: click it to change it. A small red blinking dot beside the name indicates an active connection; it stays static when reduced motion is enabled.
 
 ---
 
@@ -386,7 +386,7 @@ Choose **Menu → Connect AI agent**, or `⌘K` then **Connect AI agent**, for t
 
 Claude Desktop, Gemini CLI and LM Studio take the same `npx -y @markasso/mcp@latest` command in their `mcpServers` configuration. Then ask the agent to draw, for example "Draw the architecture of a checkout service with icons and give me a share link".
 
-**Drawing together with an agent:** start a live session, then choose **⋯ More tools → Invite AI agent**. A prompt with the session link is copied: paste it into your agent and it joins the board, visible in the participant list. Anyone with a live link can edit the board, the agent included, and labels written by others are content the agent reads: keep that in mind when the agent has other powerful tools. Full tool list and security notes: [mcp/README.md](https://github.com/AlbertoBarrago/markasso/blob/main/mcp/README.md).
+**Drawing together with an agent:** start a live session, then choose **Invite AI agent**, next to it at the top right. A prompt with the session link is copied: paste it into your agent and it joins the board, visible in the participant list. Anyone with a live link can edit the board, the agent included, and labels written by others are content the agent reads: keep that in mind when the agent has other powerful tools. Full tool list and security notes: [mcp/README.md](https://github.com/AlbertoBarrago/markasso/blob/main/mcp/README.md).
 
 ---
 
