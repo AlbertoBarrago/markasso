@@ -1,30 +1,19 @@
-# Contributors
+# Contributing
 
-Thank you to everyone who has contributed to Markasso.
+Thank you for helping with Markasso. Bug fixes and refinements are welcome; for larger features, [open an issue](https://github.com/AlbertoBarrago/markasso/issues) first so we can agree on the approach.
 
----
+## How to contribute
 
-## Core Team
+1. Fork the repository and create a branch from `main`: `git checkout -b feat/your-feature` (or `fix/`, `docs/`, `test/`, `chore/`)
+2. Set up and run the app: see [AGENTS.md](../AGENTS.md) for the commands, the repository layout and the coding guidelines
+3. Read [ARCHITECTURE.md](./ARCHITECTURE.md) for the data flow and the invariants
+4. Make sure `pnpm lint`, `pnpm typecheck` and `pnpm test` pass (the pre-commit hook runs them), and add tests for new behaviour
+5. New UI text goes into all 8 locale files in `src/i18n/locales/`
+6. Commit following [Conventional Commits](https://www.conventionalcommits.org/) and open a Pull Request against `main`
 
-| Name            | Role                 | Contact                    |
-|-----------------|----------------------|----------------------------|
-| Alberto Barrago | Creator & Maintainer | <albertobarrago@gmail.com> |
-| Lorenzo Cataldi | Designer             | <lorenzo@cataldi.design>       |
+Please keep PRs focused: one feature or fix per PR.
 
----
-
-## How to Contribute
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feat/your-feature`
-3. Commit your changes following [Conventional Commits](https://www.conventionalcommits.org/)
-4. Open a Pull Request against `main`
-
-Please keep PRs focused: one feature or fix per PR. Read [ARCHITECTURE.md](./ARCHITECTURE.md) first for the data flow and invariants.
-
----
-
-## Commit Convention
+## Commit convention
 
 ```
 feat:     new feature
@@ -36,8 +25,13 @@ style:    formatting, whitespace
 test:     adding or updating tests
 ```
 
----
+## Core team
+
+| Name | Role | Contact |
+|---|---|---|
+| Alberto Barrago | Creator and maintainer | <albertobarrago@gmail.com> |
+| Lorenzo Cataldi | Designer | <lorenzo@cataldi.design> |
 
 ## License
 
-By contributing you agree that your changes will be released under the project's [MIT License](../LICENSE).
+By contributing you agree that your changes are released under the project's [MIT License](../LICENSE).

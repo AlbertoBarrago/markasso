@@ -1,11 +1,11 @@
 <div align="center">
 
-<img src="public/markasso-logo-icon.svg" width="80" height="80" alt="Markasso logo" />
+<img src="../public/markasso-logo-icon.svg" width="80" height="80" alt="Markasso logo" />
 
-<h2>Markasso — Manuale utente</h2>
+<h2>Markasso: Manuale utente</h2>
 
 <p>Una lavagna dark-canvas per diagrammi, appunti e disegno a mano libera.<br/>
-<a href="https://markasso.it">Apri l'app</a> · <a href="./README.md">Torna al README</a></p>
+<a href="https://markasso.it">Apri l'app</a> · <a href="../README.md">Torna al README</a></p>
 
 </div>
 
@@ -45,7 +45,7 @@ Il connettore **Freccia / Linea** ha un pulsante dedicato con la freccia nella t
 - **Percorso:** passa un connettore da **Dritto** a **A gomito** (ortogonale) nel pannello proprietà. Vedi Smart Arrow Link più sotto.
 - **Stili delle punte:** ogni estremità può avere una punta aperta, un triangolo vuoto o pieno, un rombo vuoto o pieno, oppure un cerchio.
 
-La toolbar è dedicata al disegno. Nelle finestre strette penna, testo, nota e gomma confluiscono progressivamente nel menu **⋯ Altri strumenti**; mano, selezione, forme base e connettore restano visibili. Il menu contiene, in ordine, **Modelli**, **Libreria**, **Importa Mermaid**, **Inserisci immagine** e, in un gruppo separato, **Avvia sessione live**. I Modelli inseriscono un diagramma già raggruppato al centro della vista. Zoom e annulla/ripristina stanno in pannelli separati negli angoli inferiori, che puoi nascondere dalle Preferenze.
+La toolbar è dedicata al disegno. Nelle finestre strette penna, testo, nota e gomma confluiscono progressivamente nel menu **⋯ Altri strumenti**; mano, selezione, forme base e connettore restano visibili. Il menu contiene, in ordine, **Modelli**, **Libreria**, **Importa Mermaid** e **Inserisci immagine**. I Modelli inseriscono un diagramma già raggruppato al centro della vista. Zoom e annulla/ripristina stanno in pannelli separati negli angoli inferiori, che puoi nascondere dalle Preferenze.
 
 ### Spostare la toolbar
 
@@ -66,7 +66,7 @@ Apri direttamente le Preferenze con **⌘,** su macOS o **Ctrl+,** sugli altri s
 
 Il **pulsante a puntina** (icona puntina da disegno) accanto alla maniglia di spostamento controlla cosa succede dopo aver finito di disegnare una forma:
 
-- **Non fissato (predefinito):** lo strumento torna a Selezione e il nuovo elemento viene selezionato — il pannello proprietà si apre automaticamente per poterlo stilizzare subito.
+- **Non fissato (predefinito):** lo strumento torna a Selezione e il nuovo elemento viene selezionato: il pannello proprietà si apre automaticamente per poterlo stilizzare subito.
 - **Fissato:** lo strumento di disegno resta attivo così puoi posizionare la forma successiva senza riselezionarlo. Utile per disegnare più forme dello stesso tipo di seguito.
 
 > **Nota:** l'icona puntina (blocco strumento) è intenzionalmente diversa dall'icona lucchetto (blocco elemento) per evitare confusione: puntina = mantieni lo strumento attivo, lucchetto = l'elemento non può essere modificato.
@@ -85,7 +85,7 @@ Clicca e trascina per disegnare una forma a rombo. Tieni premuto `Shift` per vin
 Clicca per impostare il punto di partenza, trascina fino al punto finale, rilascia per confermare.
 Tieni premuto `Shift` per vincolare l'angolo a incrementi di 45°.
 
-**Collegare linee a forme (Smart Link):** passa con lo strumento linea sopra una forma qualsiasi — appare un'evidenziazione con un anello ciano sul punto del bordo più vicino. Clicca e trascina per iniziare da quel punto. Sposta l'estremità vicino a un'altra forma per collegarla. Il connettore si aggancia al bordo (non al centro) e segue le forme quando si spostano. Se abiliti le punte di freccia, la punta segue la tangente finale della curva.
+**Collegare linee a forme (Smart Link):** passa con lo strumento linea sopra una forma qualsiasi: appare un'evidenziazione con un anello ciano sul punto del bordo più vicino. Clicca e trascina per iniziare da quel punto. Sposta l'estremità vicino a un'altra forma per collegarla. Il connettore si aggancia al bordo (non al centro) e segue le forme quando si spostano. Se abiliti le punte di freccia, la punta segue la tangente finale della curva.
 
 ### Curve
 Non esiste uno strumento curva separato. Disegna una linea, poi trascina il punto di controllo (maniglia a diamante) al suo punto medio per piegarla in una curva di Bézier quadratica. Seleziona la curva e trascina una delle tre maniglie per rimodellarla.
@@ -174,13 +174,17 @@ Da sapere:
 - **Clic e trascinamento** sul canvas vuoto per una selezione a rettangolo (marquee).
 - **Ctrl+A** per selezionare tutti gli elementi.
 
+### Azioni rapide
+
+**Clic destro** su un elemento (o su una selezione) per le sue azioni rapide: taglia, copia, aggiungi testo, copia e incolla lo stile, cambia livello, raggruppa, blocca. Il clic destro su una freccia dentro un riquadro seleziona la freccia, non il riquadro.
+
 ### Spostare
 Trascina un elemento selezionato per spostarlo. Quando sono selezionati più elementi si spostano tutti insieme.
 
 **Shift+trascina per clonare:** tieni premuto `Shift` e trascina un elemento selezionato per lasciare l'originale al suo posto e trascinarne una copia. Se sono selezionati più elementi, vengono clonati tutti.
 
 ### Ridimensionare
-Seleziona un elemento — appaiono otto maniglie attorno al riquadro di selezione. Trascina una maniglia qualsiasi per ridimensionare. Tieni premuto `Shift` mentre trascini una maniglia d'angolo per mantenere le proporzioni.
+Seleziona un elemento: appaiono otto maniglie attorno al riquadro di selezione. Trascina una maniglia qualsiasi per ridimensionare. Tieni premuto `Shift` mentre trascini una maniglia d'angolo per mantenere le proporzioni.
 
 ### Ruotare
 Trascina la maniglia circolare sopra il riquadro di selezione per ruotare. Solo per elementi singoli.
@@ -246,8 +250,8 @@ Le linee, con o senza punte di freccia, possono essere collegate in modo permane
 
 **Creare un collegamento:**
 1. Seleziona lo strumento linea con `A`, `L` o `5`.
-2. Passa sopra una forma — si evidenzia e mostra un anello ciano sul bordo. Clicca per iniziare da quel punto del bordo.
-3. Trascina verso un'altra forma — anche il suo bordo si evidenzia. Rilascia per collegare.
+2. Passa sopra una forma: si evidenzia e mostra un anello ciano sul bordo. Clicca per iniziare da quel punto del bordo.
+3. Trascina verso un'altra forma: anche il suo bordo si evidenzia. Rilascia per collegare.
 4. Il connettore ora è live: sposta una delle due forme e la linea segue, agganciandosi sempre al punto corretto del bordo.
 5. Dopo aver posizionato il connettore, lo strumento torna automaticamente a Selezione.
 
@@ -273,8 +277,8 @@ Controlla quali elementi appaiono in primo piano.
 | Azione | Tastiera | Toolbar |
 |--------|----------|---------|
 | Porta in primo piano | `Ctrl+Shift+]` | pulsante primo piano |
-| Sposta avanti di uno | — | pulsante avanti |
-| Sposta indietro di uno | — | pulsante indietro |
+| Sposta avanti di uno | - | pulsante avanti |
+| Sposta indietro di uno | - | pulsante indietro |
 | Manda sullo sfondo | `Ctrl+Shift+[` | pulsante sfondo |
 
 ---
@@ -304,15 +308,17 @@ Con un elemento selezionato, il **pannello Proprietà** (icona a cursori nella t
 - **Spessore del tratto**
 - **Stile del tratto:** solido, tratteggiato, punteggiato
 - **Terminazione linea:** piatta / arrotondata / quadrata (linee, frecce, curve, disegno a mano libera)
-- **Opacità** (0–100%)
-- **Imprecisione** — 0 = nitido, valori più alti = aspetto disegnato a mano / abbozzato
-- **Ombra** — sfocatura, colore e offset per un'ombra portata
-- **Bordi** — Squadrati o Arrotondati (solo rettangoli)
+- **Opacità** (0-100%)
+- **Imprecisione**: 0 = nitido, valori più alti = aspetto disegnato a mano / abbozzato
+- **Ombra**: sfocatura, colore e offset per un'ombra portata
+- **Bordi**: Squadrati o Arrotondati (solo rettangoli)
 - **Font** e **dimensione font** (elementi testo)
-- **Formattazione** — Grassetto, Corsivo, Sottolineato, Barrato (elementi testo)
-- **Allineamento** — sinistra / centro / destra (elementi testo)
-- **Modalità codice** — blocco monospace con sfondo scuro (elementi testo)
-- **Colore nota** — palette predefinita (note adesive)
+- **Formattazione**: Grassetto, Corsivo, Sottolineato, Barrato (elementi testo)
+- **Allineamento**: sinistra / centro / destra (elementi testo)
+- **Modalità codice**: blocco monospace con sfondo scuro (elementi testo)
+- **Colore nota**: palette predefinita (note adesive)
+
+**Barra di stile flottante:** in **Menu → Preferenze → Controlli di stile** scegli **Barra di stile flottante** per mostrare gli stili principali subito sopra la selezione o lo strumento che stai usando, senza aprire il pannello. **Altri stili** nella barra apre comunque il pannello completo.
 
 ---
 
@@ -335,13 +341,13 @@ Con un elemento selezionato, il **pannello Proprietà** (icona a cursori nella t
 | Zoom avanti / indietro | `Ctrl+Più` / `Ctrl+Meno` |
 | Reimposta zoom al 100% | `Shift+0` |
 | Mostra/nascondi tutti i pannelli | `\` (backslash) |
-| Minimappa | Angolo in basso a destra — clicca o trascina la minimappa per spostare la vista |
+| Minimappa | Angolo in basso a destra: clicca o trascina la minimappa per spostare la vista |
 
 ---
 
 ## Riquadro comandi
 
-Premi `Ctrl+K` per aprire il riquadro comandi. Digita per cercare con ricerca fuzzy tutte le azioni disponibili — formati di esportazione, cambio strumento, livelli di zoom, cambio tema, impostazioni di lingua e operazioni di allineamento. Usa `↑` / `↓` per navigare ed `Invio` per eseguire. Premi `Esc` per chiudere.
+Premi `Ctrl+K` per aprire il riquadro comandi. Digita per cercare con ricerca fuzzy tutte le azioni disponibili: formati di esportazione, cambio strumento, livelli di zoom, cambio tema, impostazioni di lingua e operazioni di allineamento. Usa `↑` / `↓` per navigare ed `Invio` per eseguire. Premi `Esc` per chiudere.
 
 ---
 
@@ -365,13 +371,13 @@ Dopo circa 20 secondi senza attività compare sopra la toolbar un breve suggerim
 
 ## Link di condivisione
 
-Scegli **Menu → Condividi → Copia link** per codificare l'intera scena in un URL. Il link viene copiato automaticamente negli appunti. Condividilo — chiunque apra l'URL vede lo stesso canvas, pronto per continuare a modificarlo.
+Scegli **Menu → Condividi** per pubblicare un'istantanea della lavagna e copiare negli appunti un link breve. Chiunque lo apra vede lo stesso canvas, pronto per continuare a modificare la propria copia. I link di condivisione restano su markasso.it per 90 giorni; se il server non è raggiungibile, l'intera scena viene codificata nel link.
 
 ---
 
 ## Sessioni live
 
-Scegli **⋯ Altri strumenti → Avvia sessione live** per aprire una lavagna condivisa. Il link viene copiato negli appunti; le persone che lo aprono possono disegnare insieme a te. Il nome salvato compare nell’angolo superiore, oppure un nome di animale casuale se non ne hai impostato uno: fai clic per cambiarlo. Un pallino rosso lampeggiante accanto al nome indica la connessione attiva; resta fisso con la preferenza di movimento ridotto.
+Scegli **Avvia sessione live**, il bottone in alto a destra, per aprire una lavagna condivisa. Il link viene copiato negli appunti; le persone che lo aprono possono disegnare insieme a te. Mentre la stanza si connette il bottone pulsa al suo posto, poi lo sostituiscono **Invita agente AI**, **Persone** e il tuo nome. Per uscire, apri **Persone** e scegli **Esci dalla sessione live**. Il nome salvato compare nell’angolo superiore, oppure un nome di animale casuale se non ne hai impostato uno: fai clic per cambiarlo. Un pallino rosso lampeggiante accanto al nome indica la connessione attiva; resta fisso con la preferenza di movimento ridotto. Una stanza viene conservata per 7 giorni dall'ultima attività.
 
 ---
 
@@ -386,7 +392,37 @@ Scegli **Menu → Collega un agente AI**, oppure `⌘K` e poi **Collega un agent
 
 Claude Desktop, Gemini CLI e LM Studio usano lo stesso comando `npx -y @markasso/mcp@latest` nella configurazione `mcpServers`. Poi chiedi all’agente di disegnare, per esempio "Disegna l’architettura di un servizio di checkout con le icone e dammi un link di condivisione".
 
-**Disegnare insieme a un agente:** avvia una sessione live, poi scegli **⋯ Altri strumenti → Invita agente AI**. Viene copiato un prompt con il link della sessione: incollalo nel tuo agente e l’agente entra nella lavagna, visibile nell’elenco dei partecipanti. Chiunque abbia un link live può modificare la lavagna, agente compreso, e le etichette scritte da altri sono contenuto che l’agente legge: tienilo presente se l’agente ha altri strumenti potenti. Elenco completo degli strumenti e note di sicurezza: [mcp/README.md](https://github.com/AlbertoBarrago/markasso/blob/main/mcp/README.md).
+**Disegnare insieme a un agente:** avvia una sessione live, poi scegli **Invita agente AI**, lì accanto in alto a destra. Viene copiato un prompt con il link della sessione: incollalo nel tuo agente e l’agente entra nella lavagna, visibile nell’elenco dei partecipanti. Chiunque abbia un link live può modificare la lavagna, agente compreso, e le etichette scritte da altri sono contenuto che l’agente legge: tienilo presente se l’agente ha altri strumenti potenti. Elenco completo degli strumenti e note di sicurezza: [mcp/README.md](https://github.com/AlbertoBarrago/markasso/blob/main/mcp/README.md).
+
+**Chiedere all'agente dalla stanza:** con una licenza Markasso Cloud salvata nell'app, chi è nella stanza vede il pulsante **Chiedi** accanto all'agente in **Persone**. Scrivi la richiesta e premi `Invio` (`Shift+Invio` per andare a capo): lo stato passa da Inviata a Vista dall'agente a Risposta, e la risposta dell'agente compare sotto il suo nome. Ognuno può inviare fino a 6 richieste al minuto, di 2000 caratteri al massimo.
+
+Invitare un agente in una sessione live richiede Markasso Cloud; gli agenti che disegnano sulle tue lavagne fuori dalle sessioni live sono gratis. Altro su [markasso.it/agents](https://markasso.it/agents/).
+
+---
+
+## Markasso Cloud
+
+Markasso Cloud tiene le tue lavagne sincronizzate tra il browser e l'app per Mac, e ti permette di invitare agenti AI nelle sessioni live. Costa 5 € al mese o 48 € all'anno, senza account: ricevi una chiave di licenza. Dettagli su [markasso.it/cloud](https://markasso.it/cloud/).
+
+- **Licenza:** incolla la chiave in **Menu → Cloud → Licenza cloud**. La trovi nel portale clienti Polar, raggiungibile dall'email di acquisto. Nell'app per Mac: **Markasso → Impostazioni → Licenza cloud**.
+- **Salva nel cloud:** **Menu → Cloud → Salva nel cloud** trasforma la lavagna corrente in una lavagna cloud. Da lì le modifiche si salvano da sole; un pulsante di stato in alto a destra dice se è tutto salvato, in sincronizzazione, offline o in conflitto.
+- **Link:** **Copia link di lettura** mostra la lavagna a chi ha il link; **Copia link di modifica** permette a chi lo ha di modificarla. Le lavagne cloud sono pubbliche tramite link: tieni privato il link di modifica.
+- **Altri dispositivi:** apri il link di modifica in un altro browser o nell'app per Mac (**Apri nell’app per Mac**). Un link di lettura apre la lavagna in sola lettura: **Duplica come nuova lavagna** ne crea una copia tua.
+- **Conflitti:** se la lavagna è cambiata su un altro dispositivo mentre la modificavi, scegli **Mantieni la mia**, **Usa la loro** o **Salva una copia**.
+- **Lavagne:** **Menu → Cloud → Le mie board** elenca le lavagne cloud aperte in questo browser.
+- **Limiti:** una lavagna cloud può arrivare a 10 MB e viene cancellata dopo un anno senza modifiche.
+
+---
+
+## App per Mac
+
+Markasso è anche un'app nativa per Mac (macOS 26 o successivo): documenti `.markasso` veri con Quick Look e Spotlight, schede e lavagne cloud sincronizzate con il web. Scaricala da **Menu → Markasso per Mac** o da [markasso.it/mac](https://markasso.it/mac/).
+
+---
+
+## Segnala un problema
+
+**Menu → Segnala un problema** apre un breve modulo (titolo, categoria, descrizione, passaggi). Inviandolo si apre una issue pubblica su GitHub e ti viene mostrato il link.
 
 ---
 
@@ -410,7 +446,7 @@ Passa tra i temi **Scuro**, **Chiaro** e **Sistema** da **Menu → Tema**. La tu
 - **Esporta PNG:** scarica un PNG a 2× ritagliato al riquadro che racchiude tutti gli elementi.
 - **Esporta SVG:** scarica un SVG pulito ritagliato al riquadro che racchiude gli elementi.
 - **Esporta HTML:** scarica un file `.html` autonomo con il canvas incorporato come immagine.
-- **Salvataggio automatico:** il canvas si salva automaticamente in `localStorage` — il tuo lavoro sopravvive ai refresh della pagina.
+- **Salvataggio automatico:** il canvas si salva automaticamente in `localStorage`: il tuo lavoro sopravvive ai refresh della pagina.
 
 ---
 

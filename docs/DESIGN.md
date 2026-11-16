@@ -1,77 +1,54 @@
-# Markasso — Design Reference
+# Markasso: Design Reference
+
+The visual language of the app and of the static pages. The source of truth is the CSS: dark theme tokens in `src/styles/base.css` (`:root`), light theme overrides in `src/styles/theme.css` (`[data-theme="light"]`). Update this file when a token changes.
 
 ## Concept
 
-The Markasso UI theme is inspired by Pablo Picasso's **Le Rêve** (The Dream, 1932).
-The palette draws from the painting's bold, saturated tones — deep crimsons, forest greens, gold, slate blue — darkened and desaturated to serve a professional dark-mode canvas application.
+Dark first, fast and quiet: the canvas is the hero and the chrome fades into it. The palette started from Pablo Picasso's **Le Rêve** (1932): one saturated crimson accent over warm near-blacks. The accent has since moved to a crimson leaning towards magenta, which keeps its contrast in both themes.
 
----
+## Color tokens
 
-## Color Palette
+| Token | Dark (`base.css`) | Light (`theme.css`) | Used for |
+|---|---|---|---|
+| `--accent` | `#c42059` | `#af145a` | Active tools, selection, focus rings, primary buttons, links |
+| `--accent-light` | `rgb(196 32 89 / 0.2)` | `rgb(175 20 90 / 0.2)` | Active button fill, selected tab |
+| `--alert` | `#fa0101` | `#cb0303` | Destructive actions |
+| `--warning` | `#f59e0b` | `#8a6000` | Warnings |
+| `--bg-island` | `rgb(21 21 21 / 0.98)` | `#f5f5f5` | Toolbar islands, panels, menus |
+| `--island-border` | `rgba(255,255,255,0.18)` | `#767676` | Island outlines (light value meets 4.5:1 on white) |
+| `--bg-hover` | `rgba(255,255,255,0.07)` | `rgba(169,1,27,0.08)` | Hover states |
+| `--border` | same as `--island-border` | `#767676` | Dividers, inputs |
+| `--text` | `#e8d4d4` | `#000000` | Primary text (warm off-white in dark) |
+| `--text-muted` | `rgb(141 141 141)` | `#4d4d4d` | Secondary and hint text |
+| `--false-white` | `#fffadf` | `#000000` | Dialog titles |
+| `--scrim` | `rgba(0,0,0,0.5)` | `rgba(0,0,0,0.25)` | Behind modal dialogs |
+| `--default-ink` | `#e2e2ef` | `#000000` | Default stroke of new elements |
 
-### Source painting: Le Rêve (Picasso, 1932)
-
-| Role in painting        | Raw color   | Notes                            |
-|-------------------------|-------------|----------------------------------|
-| Armchair / vivid red    | `#C42020`   | Primary accent                   |
-| Wallpaper / deep red    | `#7A1A1A`   | Darker accent, active states     |
-| Bordeaux shadow         | `#3D0A0A`   | Deep UI backgrounds              |
-| Background stripes      | `#2D5A27`   | Forest green (secondary palette) |
-| Dark foliage            | `#1A3314`   | Deep green shadow                |
-| Necklace / amber        | `#C8931A`   | Gold highlight (future use)      |
-| Skirt / slate blue      | `#3D6070`   | Cool contrast (future use)       |
-
-### Applied to the UI
-
-| CSS variable        | Value                      | Usage                                 |
-|---------------------|----------------------------|---------------------------------------|
-| `--accent`          | `#c42020`                  | Active tools, selections, focus rings |
-| `--accent-light`    | `rgba(196,32,32,0.18)`     | Active button fill                    |
-| `--bg-island`       | `rgba(22, 12, 12, 0.97)`   | Toolbar islands, panels               |
-| `--island-border`   | `rgba(255,255,255,0.08)`   | Island outlines                       |
-| `--island-shadow`   | multi-layer                | Depth / elevation                     |
-| `--bg-hover`        | `rgba(255,255,255,0.07)`   | Hover states                          |
-| `--border`          | `rgba(255,255,255,0.08)`   | Dividers, input borders               |
-| `--text`            | `#e8d4d4`                  | Primary text (warm off-white)         |
-| `--text-muted`      | `rgba(232,212,212,0.45)`   | Secondary / hint text                 |
-| Canvas background   | `#120a0a`                  | Deep warm near-black workspace        |
-| Context panel bg    | `#1d1212`                  | Properties panel                      |
-| Slider / active btn | `#9b1717`                  | Form controls in active state         |
-
-### Hardcoded accent values in CSS
-
-These appear inline rather than via variable (legacy, to be consolidated):
-
-| Value            | Replaces           | Location                          |
-|------------------|--------------------|-----------------------------------|
-| `#c42020`        | was `#7c63d4`      | Swatch active border, slider      |
-| `#9b1717`        | was `#5c4fa3`      | Btn active border, slider thumb   |
-| `rgba(155,23,23,0.35)` | was `rgba(92,79,163,0.35)` | Active button fill       |
-| `rgba(196,32,32,0.12)` | was `rgba(124,99,212,0.12)` | Font size input focus   |
-
----
+**Canvas background:** `#080808` (dark) or `#ffffff` (light) by default. **Menu → Canvas background** offers swatches per theme (dark: `#141414`, `#1a1a2e`, `#0d1117`, `#1e1e1e`, `#12100e`, `#0f1923`), applied through `--canvas-bg`.
 
 ## Typography
 
-- Font: `system-ui, -apple-system, sans-serif`
-- Primary text: `#e8d4d4` — warm white, derived from the painting's cream skin tones
-- Muted text: 45% opacity of the primary text color
-
----
+- **App UI:** `system-ui, -apple-system, sans-serif`
+- **Static pages** (`/agents`, `/cloud`, `/mac`): headings in **Kode Mono** 500, terminal-style lists and counters in **Roboto Mono** 500, body in the system font
+- **Board text:** the fonts chosen per element in the style panel; text metrics for export and the MCP come from `scripts/build-font-metrics.mjs`
 
 ## Geometry
 
-| Token              | Value  | Usage                     |
-|--------------------|--------|---------------------------|
-| `--island-radius`  | `12px` | Floating islands          |
-| `--radius`         | `8px`  | Buttons, inputs, swatches |
-| Island padding     | `4px`  | Internal button spacing   |
+| Token | Value | Usage |
+|---|---|---|
+| `--island-radius` | `12px` | Floating islands |
+| `--radius` | `8px` | Buttons, inputs, swatches |
+| Island padding | `4px` | Space around island buttons |
+| Toolbar button | `36 × 36px` | Tool and island buttons (`44px` minimum on touch) |
 
----
+## Motion
 
-## Design principles
+- Short, purposeful transitions; springs (`cubic-bezier(0.34, 1.56, 0.64, 1)`) for controls that appear, such as the live controls at the top right (`src/ui/morph_row.ts`)
+- Every animation has a `prefers-reduced-motion` fallback that shows the final state at once
 
-- **Dark first.** The canvas is the hero. All UI chrome fades into the background.
-- **Warm shadows.** Island backgrounds use `rgba(22, 12, 12, …)` — a dark warm near-black — rather than cool blue-grays, echoing the deep reds of the painting.
-- **One accent.** Crimson `#c42020` is the single highlight color for interactive focus, selection, and active states. No competing hues in the chrome.
-- **Restraint.** The gold and slate blue from the painting are reserved as future accent possibilities, not currently used in the UI, to avoid visual noise.
+## Principles
+
+- **Dark first.** The canvas is the hero; UI chrome stays low-contrast until it is needed.
+- **One accent.** The crimson accent is the only highlight for focus, selection and active states.
+- **Accessible contrast.** Light theme borders and text meet WCAG AA (4.5:1) against their background.
+- **Follow established patterns.** Menus, panels and shortcuts behave like Excalidraw and draw.io, with no hidden affordances.

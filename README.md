@@ -21,7 +21,7 @@
 <br/><br/>
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?logo=typescript&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-5.x-646cff?logo=vite&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-8.x-646cff?logo=vite&logoColor=white)
 ![Vitest](https://img.shields.io/badge/Tested-Vitest-6e9f18?logo=vitest&logoColor=white)
 ![Coverage](https://img.shields.io/badge/coverage-80%25-brightgreen)
 ![Status](https://img.shields.io/badge/status-stable-blue)
@@ -38,7 +38,7 @@
 
 ## Featured in
 
-[TypeScript.fm — Episode 87](https://typescript.fm/87) · October 29, 2026
+[TypeScript.fm, Episode 87](https://typescript.fm/87) · October 29, 2026
 
 Markasso was featured in **Library Watch**. [Listen at 25:49](https://typescript.fm/87#t=25m49s).
 
@@ -93,7 +93,9 @@ The core (scene, reducer, renderer, tools) stays dependency-free. A dependency i
 - **Diagram libraries**: flowchart shapes, generic architecture icons, the Kubernetes icon set, and official AWS, Azure and Google Cloud packs imported from their ZIP (kept local, never redistributed)
 - **Realtime collaboration**: live sessions over a Cloudflare Durable Object, with remote cursors and shared undo
 - **AI agents**: an MCP server lets agents build diagrams or draw live on a shared board (see above)
-- **Import & export**: `.markasso` files, Mermaid (flowchart, sequence, class, state, ER as native elements), images, PNG, SVG, standalone HTML, share links encoded in the URL
+- **Markasso Cloud** (optional, paid): cloud boards synced between web and Mac, AI agents invited into live sessions
+- **Mac app**: a native macOS app with real `.markasso` documents ([markasso.it/mac](https://markasso.it/mac/))
+- **Import & export**: `.markasso` files, Mermaid (flowchart, sequence, class, state, ER as native elements), images, PNG, SVG, standalone HTML, short share links
 - **Keyboard-first**: command palette (`Ctrl+K`), element search (`Ctrl+F`), one-key tools, hide all panels with `\`
 - **Canvas**: infinite pan and zoom, dot, line and millimeter grids, minimap, dark and light themes, auto-save to `localStorage`
 
@@ -124,9 +126,9 @@ pnpm test       # Run Vitest unit tests
 pnpm mcp:build  # Build the MCP server → mcp/dist/markasso-mcp.js
 ```
 
-No `.env` files. No API keys. No containerization required. Cloud boards and licensing are off in local builds (`VITE_CLOUD_ENABLED`).
+Local development needs no `.env` file, API key or container. Cloud boards and licensing are off unless `VITE_CLOUD_ENABLED=true` (set in `.env.production` for release builds). `pnpm preview` serves the production build together with the worker through `wrangler dev`.
 
-`pnpm coverage` runs the suite and updates the coverage badge. UI and rendering modules need a browser and are excluded from Node tests by design. How the code is organized is described in [ARCHITECTURE.md](./docs/ARCHITECTURE.md).
+`pnpm coverage` runs the suite and updates the coverage badge. UI and rendering modules need a browser and are excluded from Node tests by design. How the code is organized: [AGENTS.md](./AGENTS.md) (repository and module map, conventions) and [ARCHITECTURE.md](./docs/ARCHITECTURE.md) (data flow, realtime, backend).
 
 ---
 
