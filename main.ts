@@ -197,7 +197,7 @@ async function bootstrap(): Promise<void> {
   const showedWhatsNew = !invited && initWhatsNew(appEl);
   const showedWelcome =
     !invited && !showedWhatsNew && !session && !sharedElements;
-  if (showedWelcome) initWelcome(appEl, hist);
+  if (showedWelcome) initWelcome(appEl, hist, () => mcpSetup.open());
   // One announcement at a time: the What's New card already presents the Mac
   // app, so the Mac banner waits for a visit without a card.
   if (!showedWhatsNew && !showedWelcome) initMacBanner();
