@@ -654,9 +654,29 @@ body.ui-hidden #mobile-actions {
     opacity: 0.25;
   }
 }
+/* Start live session while the room connects: the button holds its place in
+   the island (toolbar.ts refreshLiveControls) and breathes until the live
+   controls replace it. */
+.tb-btn.tb-btn--connecting,
+.tb-btn.tb-btn--connecting:hover {
+  cursor: progress;
+  color: var(--text);
+  background: transparent;
+  animation: tb-connecting 1.1s ease-in-out infinite;
+}
+@keyframes tb-connecting {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .tb-name-chip::before,
-  .mobile-name-chip::before {
+  .mobile-name-chip::before,
+  .tb-btn.tb-btn--connecting {
     animation: none;
   }
 }
