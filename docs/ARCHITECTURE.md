@@ -1,6 +1,6 @@
 # Architecture
 
-How Markasso is built, for contributors. For what the app does, see the [User Manual](./MANUAL.md); for the module map and coding guidelines, see [AGENTS.md](./AGENTS.md).
+How Markasso is built, for contributors. For what the app does, see the [User Manual](./MANUAL.md); for the module map and coding guidelines, see [AGENTS.md](../AGENTS.md).
 
 ## Data Flow
 

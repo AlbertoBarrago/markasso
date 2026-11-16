@@ -40,4 +40,4 @@ test:     adding or updating tests
 
 ## License
 
-By contributing you agree that your changes will be released under the project's [MIT License](./LICENSE).
+By contributing you agree that your changes will be released under the project's [MIT License](../LICENSE).

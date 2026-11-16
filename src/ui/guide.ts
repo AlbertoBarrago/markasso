@@ -1,5 +1,5 @@
-import manualMarkdownIt from '../../MANUAL.it.md?raw';
-import manualMarkdownEn from '../../MANUAL.md?raw';
+import manualMarkdownIt from '../../docs/MANUAL.it.md?raw';
+import manualMarkdownEn from '../../docs/MANUAL.md?raw';
 import { getLocale, t } from '../i18n';
 import { renderMarkdown } from './markdown';
 

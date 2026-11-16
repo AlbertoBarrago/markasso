@@ -7,11 +7,11 @@
 <p>is a zero-latency, framework-agnostic whiteboard engine. Built with vanilla TypeScript and the Canvas 2D API, it delivers a high-performance drawing experience with a zero-dependency core and a keyboard-first workflow. It’s the "Vesper" of whiteboards: dark, fast, and focused.</p>
 
 <p>
-  <a href="assets/markasso-agents-demo.mp4">
-    <img src="assets/markasso-agents-demo.gif" width="900" alt="Markasso demo: Claude joins a live board through the Markasso MCP and draws a checkout service architecture; a teammate asks it from the People panel to add a Redis cache, and the agent adds it, reconnects the services and replies." />
+  <a href="docs/media/markasso-agents-demo.mp4">
+    <img src="docs/media/markasso-agents-demo.gif" width="900" alt="Markasso demo: Claude joins a live board through the Markasso MCP and draws a checkout service architecture; a teammate asks it from the People panel to add a Redis cache, and the agent adds it, reconnects the services and replies." />
   </a>
   <br/>
-  <a href="assets/markasso-agents-demo.mp4">Watch the 25-second agent demo</a> · <a href="assets/markasso-demo.mp4">Drawing by hand (24 s)</a> · <a href="https://markasso.it/agents/">Markasso for AI agents</a>
+  <a href="docs/media/markasso-agents-demo.mp4">Watch the 25-second agent demo</a> · <a href="docs/media/markasso-demo.mp4">Drawing by hand (24 s)</a> · <a href="https://markasso.it/agents/">Markasso for AI agents</a>
 </p>
 
 <a href="https://markasso.it">
@@ -30,7 +30,7 @@
 
 <br/>
 
-[User Manual](./MANUAL.md) · [Guide](./GUIDA.md) · [MCP for AI agents](./mcp/README.md) · [Architecture](./ARCHITECTURE.md) · [Contributing](./CONTRIBUTORS.md) · [Report an Issue](https://github.com/AlbertoBarrago/markasso/issues)
+[User Manual](./docs/MANUAL.md) · [MCP for AI agents](./mcp/README.md) · [Architecture](./docs/ARCHITECTURE.md) · [Contributing](./docs/CONTRIBUTING.md) · [Report an Issue](https://github.com/AlbertoBarrago/markasso/issues)
 
 </div>
 
@@ -97,7 +97,7 @@ The core (scene, reducer, renderer, tools) stays dependency-free. A dependency i
 - **Keyboard-first**: command palette (`Ctrl+K`), element search (`Ctrl+F`), one-key tools, hide all panels with `\`
 - **Canvas**: infinite pan and zoom, dot, line and millimeter grids, minimap, dark and light themes, auto-save to `localStorage`
 
-Every tool, option and shortcut is documented in the [User Manual](./MANUAL.md) (see the [keyboard shortcut reference](./MANUAL.md#keyboard-shortcut-reference)).
+Every tool, option and shortcut is documented in the [User Manual](./docs/MANUAL.md) (see the [keyboard shortcut reference](./docs/MANUAL.md#keyboard-shortcut-reference)).
 
 ---
 
@@ -126,13 +126,13 @@ pnpm mcp:build  # Build the MCP server → mcp/dist/markasso-mcp.js
 
 No `.env` files. No API keys. No containerization required. Cloud boards and licensing are off in local builds (`VITE_CLOUD_ENABLED`).
 
-`pnpm coverage` runs the suite and updates the coverage badge. UI and rendering modules need a browser and are excluded from Node tests by design. How the code is organized is described in [ARCHITECTURE.md](./ARCHITECTURE.md).
+`pnpm coverage` runs the suite and updates the coverage badge. UI and rendering modules need a browser and are excluded from Node tests by design. How the code is organized is described in [ARCHITECTURE.md](./docs/ARCHITECTURE.md).
 
 ---
 
 ## Contributing
 
-See [CONTRIBUTORS.md](./CONTRIBUTORS.md) for guidelines.
+See [CONTRIBUTING.md](./docs/CONTRIBUTING.md) for guidelines.
 
 ## License
 

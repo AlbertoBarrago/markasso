@@ -4,9 +4,13 @@ node_modules/
 # Build output
 dist/
 
+# Test coverage (generated; scripts/update-badge.mjs reads it after `pnpm coverage`)
+coverage/
+
 # IDE
 .idea/
 .vscode/
+.openidea/
 
 # OS
 .DS_Store
@@ -18,7 +22,7 @@ dist/
 # Local notes (never push)
 TODO.local.md
 
-# Claude Code (AI assistant config — keep local)
+# Claude Code (AI assistant config, keep local)
 CLAUDE.md
 .claude/
 
