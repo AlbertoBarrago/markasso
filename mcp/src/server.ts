@@ -608,7 +608,7 @@ server.registerTool(
         .string()
         .min(1)
         .describe(
-          'Live session link from Markasso (⋯ More tools > Start live session, or the prompt from Invite AI agent)',
+          'Live session link from Markasso (Start live session at the top right, or the prompt from Invite AI agent)',
         ),
       name: z
         .string()

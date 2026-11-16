@@ -18,7 +18,7 @@ Also listed in the official MCP Registry as `io.github.AlbertoBarrago/markasso`.
 
 - [Markasso for AI agents](https://markasso.it/agents/): what agents can do, the demo, install commands
 - [MCP server README](https://github.com/AlbertoBarrago/markasso/blob/main/mcp/README.md): every tool, live mode, layout warnings, security notes
-- [User manual](https://github.com/AlbertoBarrago/markasso/blob/main/MANUAL.md): the app, shortcuts, live sessions, import and export
+- [User manual](https://github.com/AlbertoBarrago/markasso/blob/main/docs/MANUAL.md): the app, shortcuts, live sessions, import and export
 - [Claude Code plugin](https://github.com/AlbertoBarrago/markasso-plugin): MCP server and `diagram` skill
 
 ## How agents draw

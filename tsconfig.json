@@ -13,7 +13,7 @@
     "noEmit": true,
     "types": ["vite/client"]
   },
-  "include": ["src", "main.ts", "vite.config.ts", "tests"],
+  "include": ["src", "vite.config.ts", "tests"],
   "exclude": [
     "src/worker.ts",
     "src/worker",

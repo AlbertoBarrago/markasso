@@ -1,6 +1,6 @@
 /**
  * Minimal Markdown-to-HTML renderer covering only the subset of syntax used
- * by MANUAL.md (headings, tables, lists, blockquotes, hr, bold/code/links).
+ * by docs/MANUAL.md (headings, tables, lists, blockquotes, hr, bold/code/links).
  * Not a general-purpose parser — kept deliberately small to avoid pulling in
  * a Markdown dependency for a single in-app document.
  */

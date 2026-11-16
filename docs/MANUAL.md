@@ -1,11 +1,11 @@
 <div align="center">
 
-<img src="public/markasso-logo-icon.svg" width="80" height="80" alt="Markasso logo" />
+<img src="../public/markasso-logo-icon.svg" width="80" height="80" alt="Markasso logo" />
 
-<h2>Markasso — User Manual</h2>
+<h2>Markasso: User Manual</h2>
 
 <p>A dark-canvas whiteboard for diagrams, notes, and freehand drawing.<br/>
-<a href="https://markasso.it">Open the app</a> · <a href="./README.md">Back to README</a></p>
+<a href="https://markasso.it">Open the app</a> · <a href="../README.md">Back to README</a></p>
 
 </div>
 
@@ -45,7 +45,7 @@ The **Arrow / Line** connector has its own arrow button on the toolbar (`5`), ou
 - **Routing:** switch a connector between **Straight** and **Elbow** (orthogonal) in the properties panel. See Smart Arrow Links below.
 - **Arrowhead styles:** each end can use an open head, a hollow or filled triangle, a hollow or filled diamond, or a circle.
 
-The toolbar is dedicated to drawing. On narrow windows, pen, text, sticky note and eraser progressively move into **⋯ More tools**; hand, select, basic shapes and the connector stay visible. The menu lists **Presets**, **Library**, **Import Mermaid**, **Insert image** and, in a separate group, **Start live session**. Presets insert a grouped diagram at the center of the viewport. Zoom and undo/redo live in separate panels in the bottom corners, which you can hide from Preferences.
+The toolbar is dedicated to drawing. On narrow windows, pen, text, sticky note and eraser progressively move into **⋯ More tools**; hand, select, basic shapes and the connector stay visible. The menu lists **Presets**, **Library**, **Import Mermaid** and **Insert image**. Presets insert a grouped diagram at the center of the viewport. Zoom and undo/redo live in separate panels in the bottom corners, which you can hide from Preferences.
 
 ### Moving the Toolbar
 
@@ -66,10 +66,10 @@ Open Preferences directly with **Cmd+,** on macOS or **Ctrl+,** on other systems
 
 The **pin button** (thumbtack icon) next to the move handle controls what happens after you finish drawing a shape:
 
-- **Unpinned (default):** the tool reverts to Select and the new element is selected — the properties panel opens automatically so you can style it immediately.
+- **Unpinned (default):** the tool reverts to Select and the new element is selected: the properties panel opens automatically so you can style it immediately.
 - **Pinned:** the drawing tool stays active so you can place the next shape without re-selecting the tool. Useful for drawing many shapes of the same type in a row.
 
-> **Note:** The pin icon (tool lock) is intentionally different from the padlock icon (element lock) to avoid confusion — pin = keep tool active, padlock = element cannot be edited.
+> **Note:** The pin icon (tool lock) is intentionally different from the padlock icon (element lock) to avoid confusion: pin = keep tool active, padlock = element cannot be edited.
 
 ---
 
@@ -85,7 +85,7 @@ Click and drag to draw a diamond shape. Hold `Shift` to constrain to an equilate
 Click to set the start point, drag to the end point, release to confirm.
 Hold `Shift` to snap the angle to 45° increments.
 
-**Connecting lines to shapes (Smart Links):** hover the line tool over any shape — a highlight and cyan ring appear on the nearest border point. Click and drag to start from that point. Move the end near another shape to connect it. The connector attaches to the border (not the center) and follows the shapes as they move. If you enable arrowheads, the tip follows the final tangent of the bend.
+**Connecting lines to shapes (Smart Links):** hover the line tool over any shape: a highlight and cyan ring appear on the nearest border point. Click and drag to start from that point. Move the end near another shape to connect it. The connector attaches to the border (not the center) and follows the shapes as they move. If you enable arrowheads, the tip follows the final tangent of the bend.
 
 ### Curves
 There is no separate curve tool. Draw a line, then drag the control point (diamond handle) at its midpoint to bend it into a quadratic bezier. Select the curve and drag any of the three handles to reshape it.
@@ -174,13 +174,17 @@ Good to know:
 - **Click and drag** on empty canvas for a marquee (box) selection.
 - **Ctrl+A** to select all elements.
 
+### Quick actions
+
+**Right-click** an element (or a selection) for its quick actions: cut, copy, add text, copy and paste its style, change its layer, group, lock. Right-clicking an arrow inside a box selects the arrow, not the box.
+
 ### Moving
 Drag any selected element to move it. When multiple elements are selected they all move together.
 
 **Shift+drag to clone:** hold `Shift` and drag a selected element to leave the original in place and drag a copy. If multiple elements are selected, all of them are cloned.
 
 ### Resizing
-Select an element — eight handles appear around the bounding box. Drag any handle to resize. Hold `Shift` while dragging a corner handle to preserve aspect ratio.
+Select an element: eight handles appear around the bounding box. Drag any handle to resize. Hold `Shift` while dragging a corner handle to preserve aspect ratio.
 
 ### Rotating
 Drag the circular handle above the selection box to rotate. Single elements only.
@@ -246,8 +250,8 @@ Lines with or without arrowheads can be permanently connected to shapes.
 
 **Creating a link:**
 1. Select the line tool with `A`, `L`, or `5`.
-2. Hover over a shape — it highlights and shows a cyan ring on the border. Click to start from that border point.
-3. Drag to another shape — its border highlights too. Release to connect.
+2. Hover over a shape: it highlights and shows a cyan ring on the border. Click to start from that border point.
+3. Drag to another shape: its border highlights too. Release to connect.
 4. The connector is now live: move either shape and the line follows, always attaching at the correct border point.
 5. After the connector is placed the tool automatically returns to Select.
 
@@ -273,8 +277,8 @@ Control which elements appear on top.
 | Action | Keyboard | Toolbar |
 |--------|----------|---------|
 | Bring to front | `Ctrl+Shift+]` | front button |
-| Move forward one | — | forward button |
-| Move back one | — | back button |
+| Move forward one | - | forward button |
+| Move back one | - | back button |
 | Send to back | `Ctrl+Shift+[` | back button |
 
 ---
@@ -304,15 +308,17 @@ With an element selected, the **Properties panel** (slider icon in the context t
 - **Stroke width**
 - **Stroke style:** solid, dashed, dotted
 - **Line cap:** flat / round / square (lines, arrows, curves, freehand)
-- **Opacity** (0–100%)
-- **Roughness** — 0 = crisp, higher = hand-drawn / sketchy look
-- **Shadow** — blur, color, and offset for a drop shadow
-- **Corners** — Sharp or Rounded (rectangles only)
+- **Opacity** (0 to 100%)
+- **Roughness**: 0 = crisp, higher = hand-drawn / sketchy look
+- **Shadow**: blur, color, and offset for a drop shadow
+- **Corners**: Sharp or Rounded (rectangles only)
 - **Font** and **font size** (text elements)
-- **Formatting** — Bold, Italic, Underline, Strikethrough (text elements)
-- **Alignment** — left / center / right (text elements)
-- **Code mode** — monospace block with dark background (text elements)
-- **Note color** — preset palette (sticky notes)
+- **Formatting**: Bold, Italic, Underline, Strikethrough (text elements)
+- **Alignment**: left / center / right (text elements)
+- **Code mode**: monospace block with dark background (text elements)
+- **Note color**: preset palette (sticky notes)
+
+**Floating style bar:** in **Menu → Preferences → Style controls**, choose **Floating style bar** to show the main styles right above the selection or the tool you are using, without opening the panel. **More styles** in the bar still opens the full panel.
 
 ---
 
@@ -335,13 +341,13 @@ With an element selected, the **Properties panel** (slider icon in the context t
 | Fit all elements | `F` |
 | Reset zoom to 100% | `Shift+0` |
 | Toggle all panels | `\` (backslash) |
-| Minimap | Bottom-right corner — click or drag the minimap to pan |
+| Minimap | Bottom-right corner: click or drag the minimap to pan |
 
 ---
 
 ## Command Palette
 
-Press `Ctrl+K` to open the command palette. Type to fuzzy-search all available actions — export formats, tool switches, zoom levels, theme changes, language settings, and alignment operations. Use `↑` / `↓` to navigate and `Enter` to execute. Press `Escape` to dismiss.
+Press `Ctrl+K` to open the command palette. Type to fuzzy-search all available actions: export formats, tool switches, zoom levels, theme changes, language settings, and alignment operations. Use `↑` / `↓` to navigate and `Enter` to execute. Press `Escape` to dismiss.
 
 ---
 
@@ -365,13 +371,13 @@ After about 20 seconds without activity, a short tip appears above the toolbar: 
 
 ## Share Link
 
-Choose **Menu → Share → Copy link** to encode the entire scene into a URL. The link is copied to your clipboard automatically. Share it — anyone who opens the URL sees the same canvas, ready to continue editing.
+Choose **Menu → Share** to publish a snapshot of the board and copy a short link to the clipboard. Anyone who opens it sees the same canvas, ready to keep editing their own copy. Share links are stored on markasso.it for 90 days; when the server cannot be reached, the whole scene is encoded in the link instead.
 
 ---
 
 ## Live Sessions
 
-Choose **⋯ More tools → Start live session** to open a shared board. Its link is copied to the clipboard; people opening it can draw with you. Your stored name appears in the top corner, or a random animal name if you have not set one: click it to change it. A small red blinking dot beside the name indicates an active connection; it stays static when reduced motion is enabled.
+Choose **Start live session**, the button at the top right, to open a shared board. Its link is copied to the clipboard; people opening it can draw with you. While the room connects the button pulses in place, then **Invite AI agent**, **People** and your name take its place. To leave, open **People** and choose **Leave live session**. Your stored name appears in the top corner, or a random animal name if you have not set one: click it to change it. A small red blinking dot beside the name indicates an active connection; it stays static when reduced motion is enabled. A room is kept for 7 days after its last activity.
 
 ---
 
@@ -386,7 +392,37 @@ Choose **Menu → Connect AI agent**, or `⌘K` then **Connect AI agent**, for t
 
 Claude Desktop, Gemini CLI and LM Studio take the same `npx -y @markasso/mcp@latest` command in their `mcpServers` configuration. Then ask the agent to draw, for example "Draw the architecture of a checkout service with icons and give me a share link".
 
-**Drawing together with an agent:** start a live session, then choose **⋯ More tools → Invite AI agent**. A prompt with the session link is copied: paste it into your agent and it joins the board, visible in the participant list. Anyone with a live link can edit the board, the agent included, and labels written by others are content the agent reads: keep that in mind when the agent has other powerful tools. Full tool list and security notes: [mcp/README.md](https://github.com/AlbertoBarrago/markasso/blob/main/mcp/README.md).
+**Drawing together with an agent:** start a live session, then choose **Invite AI agent**, next to it at the top right. A prompt with the session link is copied: paste it into your agent and it joins the board, visible in the participant list. Anyone with a live link can edit the board, the agent included, and labels written by others are content the agent reads: keep that in mind when the agent has other powerful tools. Full tool list and security notes: [mcp/README.md](https://github.com/AlbertoBarrago/markasso/blob/main/mcp/README.md).
+
+**Asking the agent from the room:** with a Markasso Cloud licence stored in the app, people in the room see an **Ask** button next to the agent in **People**. Type the request and press `Enter` (`Shift+Enter` for a new line): its status goes from Sent to Seen by the agent to Answered, and the agent's reply shows under its name. Each person can send up to 6 requests a minute, 2000 characters each.
+
+Inviting an agent into a live session needs Markasso Cloud; agents drawing on your own boards outside live sessions are free. More on [markasso.it/agents](https://markasso.it/agents/).
+
+---
+
+## Markasso Cloud
+
+Markasso Cloud keeps your boards in sync between the browser and the Mac app, and lets you invite AI agents into live sessions. It costs 5 € a month or 48 € a year, with no account: you get a licence key. Details on [markasso.it/cloud](https://markasso.it/cloud/).
+
+- **Licence:** paste your key in **Menu → Cloud → Cloud licence**. The key is in the Polar customer portal linked from your purchase email. In the Mac app: **Markasso → Settings → Cloud licence**.
+- **Save to cloud:** **Menu → Cloud → Save to cloud** turns the current board into a cloud board. From then on changes are saved automatically; a status button at the top right says whether everything is saved, syncing, offline or in conflict.
+- **Links:** **Copy read link** shows the board to anyone who has it; **Copy edit link** lets anyone who has it change the board. Cloud boards are public by link: keep the edit link private.
+- **Other devices:** open the edit link in another browser or in the Mac app (**Open in the Mac app**). A read link opens the board read-only: **Duplicate as a new board** makes your own copy.
+- **Conflicts:** if the board changed on another device while you were editing, choose **Keep mine**, **Take theirs** or **Save a copy**.
+- **Boards:** **Menu → Cloud → Boards** lists the cloud boards opened in this browser.
+- **Limits:** a cloud board can be up to 10 MB and is deleted after a year without changes.
+
+---
+
+## Mac App
+
+Markasso is also a native Mac app (macOS 26 or later): real `.markasso` documents with Quick Look and Spotlight, tabs, and cloud boards synced with the web. Download it from **Menu → Markasso for Mac** or [markasso.it/mac](https://markasso.it/mac/).
+
+---
+
+## Report a Problem
+
+**Menu → Report a problem** opens a short form (title, category, description, steps). Sending it opens a public issue on GitHub and shows you its link.
 
 ---
 
@@ -410,7 +446,7 @@ Switch between **Dark**, **Light**, and **System** themes from **Menu → Theme*
 - **Export PNG:** downloads a 2× PNG cropped to the bounding box of all elements.
 - **Export SVG:** downloads a clean SVG cropped to the bounding box.
 - **Export HTML:** downloads a standalone `.html` file with the canvas embedded as an image.
-- **Auto-save:** the canvas saves automatically to `localStorage` — your work survives page refreshes.
+- **Auto-save:** the canvas saves automatically to `localStorage`: your work survives page refreshes.
 
 ---
 

@@ -1,49 +1,49 @@
-import { CLOUD_ENABLED } from './src/config/features';
-import type { Scene } from './src/core/scene';
-import { createScene } from './src/core/scene';
-import { fitToElements } from './src/core/viewport';
-import { History } from './src/engine/history';
-import { t } from './src/i18n';
-import { parseBoardUrl } from './src/io/cloud';
+import { CLOUD_ENABLED } from './config/features';
+import type { Scene } from './core/scene';
+import { createScene } from './core/scene';
+import { fitToElements } from './core/viewport';
+import { History } from './engine/history';
+import { t } from './i18n';
+import { parseBoardUrl } from './io/cloud';
 import {
   getActiveLiveRoomId,
   getLiveRoomId,
   joinLiveSession,
-} from './src/io/realtime';
-import { initSession, loadSession } from './src/io/session';
-import { decodeScene, isShareHash } from './src/io/share';
-import { initCanvasView } from './src/ui/canvas_view';
-import { initCloudBoards } from './src/ui/cloud_boards';
-import { initCommandPalette } from './src/ui/command_palette';
-import { initContextMenu } from './src/ui/context_menu';
-import { initContextPanel } from './src/ui/context_panel';
-import { confirmDialog } from './src/ui/dialog';
-import { initElementSearch } from './src/ui/element_search';
-import { initFloatingStyleBar } from './src/ui/floating_style_bar';
-import { initGuide } from './src/ui/guide';
-import { initHintBar } from './src/ui/hint_bar';
-import { initIdleTips } from './src/ui/idle_tips';
-import { initImageImport } from './src/ui/image_import';
-import { initLibraryPanel } from './src/ui/library_panel';
-import { setLiveUI } from './src/ui/live_name';
-import { initMacBanner } from './src/ui/mac_banner';
-import { initMcpSetup } from './src/ui/mcp_setup';
-import { initMinimap } from './src/ui/minimap';
-import { initMobileActionBar } from './src/ui/mobile_action_bar';
-import { initReportForm } from './src/ui/report_form';
-import { applySettings, initSettings, loadSettings } from './src/ui/settings';
+} from './io/realtime';
+import { initSession, loadSession } from './io/session';
+import { decodeScene, isShareHash } from './io/share';
+import { initCanvasView } from './ui/canvas_view';
+import { initCloudBoards } from './ui/cloud_boards';
+import { initCommandPalette } from './ui/command_palette';
+import { initContextMenu } from './ui/context_menu';
+import { initContextPanel } from './ui/context_panel';
+import { confirmDialog } from './ui/dialog';
+import { initElementSearch } from './ui/element_search';
+import { initFloatingStyleBar } from './ui/floating_style_bar';
+import { initGuide } from './ui/guide';
+import { initHintBar } from './ui/hint_bar';
+import { initIdleTips } from './ui/idle_tips';
+import { initImageImport } from './ui/image_import';
+import { initLibraryPanel } from './ui/library_panel';
+import { setLiveUI } from './ui/live_name';
+import { initMacBanner } from './ui/mac_banner';
+import { initMcpSetup } from './ui/mcp_setup';
+import { initMinimap } from './ui/minimap';
+import { initMobileActionBar } from './ui/mobile_action_bar';
+import { initReportForm } from './ui/report_form';
+import { applySettings, initSettings, loadSettings } from './ui/settings';
 import {
   showLiveEndedToast,
   showLiveRejectedToast,
   showLiveStatusToast,
-} from './src/ui/share_actions';
-import { initShortcuts } from './src/ui/shortcuts';
-import { initShortcutsHelp } from './src/ui/shortcuts_help';
-import { initStarCta } from './src/ui/star_cta';
-import { initToolbar } from './src/ui/toolbar';
-import { initUpdateBanner } from './src/ui/update_banner';
-import { initWelcome } from './src/ui/welcome';
-import { initWhatsNew } from './src/ui/whats_new';
+} from './ui/share_actions';
+import { initShortcuts } from './ui/shortcuts';
+import { initShortcutsHelp } from './ui/shortcuts_help';
+import { initStarCta } from './ui/star_cta';
+import { initToolbar } from './ui/toolbar';
+import { initUpdateBanner } from './ui/update_banner';
+import { initWelcome } from './ui/welcome';
+import { initWhatsNew } from './ui/whats_new';
 
 function printConsoleGreeting(): void {
   const reset = 'color: inherit; font-size: 13px;';
