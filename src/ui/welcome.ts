@@ -23,7 +23,17 @@ const SHORTCUTS: {
   { icon: '↪', label: t('redoLabel'), key: isMac ? '⌘⇧Z' : 'Ctrl+Y' },
 ];
 
-export function initWelcome(appEl: HTMLElement, history: History): void {
+/**
+ * The first-visit card on an empty board: what Markasso is for (drawing with
+ * AI agents), where drawings are kept, the main shortcuts, and two ways in:
+ * drawing, or connecting an agent through `onConnectAgent` (the "Connect AI
+ * agent" dialog). It closes itself as soon as something is drawn.
+ */
+export function initWelcome(
+  appEl: HTMLElement,
+  history: History,
+  onConnectAgent: () => void,
+): void {
   if (history.present.elements.length > 0) return;
 
   const overlay = document.createElement('div');
@@ -35,6 +45,7 @@ export function initWelcome(appEl: HTMLElement, history: History): void {
         <img width="140" height="140" src="/markasso-logo-icon.svg" alt="Markasso logo"/>
         <span class="wl-name">Markasso</span>
       </div>
+      <p class="wl-pitch">${t('welcomePitch')}</p>
       <p class="wl-tagline" id="welcome-desc">
         ${t('welcomeTagline').replace('\n', '<br>')}
       </p>
@@ -49,7 +60,10 @@ export function initWelcome(appEl: HTMLElement, history: History): void {
         `,
         ).join('')}
       </ul>
-      <button class="wl-cta">${t('startDrawing')}</button>
+      <div class="wl-actions">
+        <button class="wl-agent">${t('connectAiAgent')}</button>
+        <button class="wl-cta">${t('startDrawing')}</button>
+      </div>
     </div>
   `;
 
@@ -67,6 +81,10 @@ export function initWelcome(appEl: HTMLElement, history: History): void {
   };
 
   overlay.querySelector('.wl-cta')!.addEventListener('click', dismiss);
+  overlay.querySelector('.wl-agent')!.addEventListener('click', () => {
+    dismiss();
+    onConnectAgent();
+  });
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) dismiss();
   });
