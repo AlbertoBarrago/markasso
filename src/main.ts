@@ -194,7 +194,9 @@ async function bootstrap(): Promise<void> {
   // People arriving through a shared or live link see the board first; the
   // notice stays unseen and shows on their next plain visit.
   const invited = !!cloudRoute || sharedElements !== null || joinLive;
-  const showedWhatsNew = !invited && initWhatsNew(appEl);
+  // A first visit (nothing drawn, no notice seen) gets the welcome card, not
+  // the release highlights.
+  const showedWhatsNew = !invited && initWhatsNew(appEl, session !== null);
   const showedWelcome =
     !invited && !showedWhatsNew && !session && !sharedElements;
   if (showedWelcome) initWelcome(appEl, hist, () => mcpSetup.open());

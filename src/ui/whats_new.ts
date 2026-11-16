@@ -7,7 +7,7 @@ const STORAGE_KEY = 'markasso-whats-new-version';
  * Release whose highlights are shown. Bump it only when the list below
  * changes, so patch releases don't reopen the same notice.
  */
-const WHATS_NEW_ID = '1.22';
+export const WHATS_NEW_ID = '1.22';
 const RELEASE_URL = 'https://github.com/AlbertoBarrago/markasso/releases';
 
 /** [title, text, optional link]: the link opens in a new tab. */
@@ -19,11 +19,36 @@ const HIGHLIGHTS: readonly (readonly [string, string, string?])[] = [
 ];
 
 /**
- * Shows the release highlights once per WHATS_NEW_ID.
+ * What to do with the notice on this visit:
+ * - `skip`: these highlights were already seen;
+ * - `markSeen`: a first visit (no notice ever seen, nothing drawn yet). Its
+ *   "new" features are not news to someone who never used Markasso, so the
+ *   welcome card shows instead and these highlights count as seen;
+ * - `show`: a returning visitor who has not seen these highlights. Someone
+ *   with a saved drawing but no stored version predates the notice.
+ */
+export function whatsNewAction(
+  stored: string | null,
+  hasSavedWork: boolean,
+): 'show' | 'skip' | 'markSeen' {
+  if (stored === WHATS_NEW_ID) return 'skip';
+  if (stored === null && !hasSavedWork) return 'markSeen';
+  return 'show';
+}
+
+/**
+ * Shows the release highlights once per WHATS_NEW_ID, to returning visitors
+ * only (see {@link whatsNewAction}).
+ * @param hasSavedWork whether this browser has a saved drawing.
  * @returns true when the notice was shown (the welcome card is then skipped).
  */
-export function initWhatsNew(appEl: HTMLElement): boolean {
-  if (readStorage(STORAGE_KEY) === WHATS_NEW_ID) return false;
+export function initWhatsNew(
+  appEl: HTMLElement,
+  hasSavedWork: boolean,
+): boolean {
+  const action = whatsNewAction(readStorage(STORAGE_KEY), hasSavedWork);
+  if (action === 'markSeen') writeStorage(STORAGE_KEY, WHATS_NEW_ID);
+  if (action !== 'show') return false;
 
   const overlay = document.createElement('div');
   overlay.id = 'whats-new-overlay';
