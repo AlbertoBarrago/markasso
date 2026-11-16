@@ -88,8 +88,7 @@ function git(...args: string[]): string {
 }
 
 /**
- * The web commit the fixtures describe. In the colocated jj repo git's HEAD is
- * the parent of the working-copy commit. When the commits between main and
+ * The web commit the fixtures describe. When the commits between main and
  * HEAD only touch the generator itself (`scripts/`, `package.json`), the code
  * under test is main's, so the fork point is reported; otherwise HEAD is.
  */
