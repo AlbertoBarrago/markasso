@@ -476,6 +476,7 @@
   "updateBannerReload": "Aggiorna la pagina",
   "updateBannerDismiss": "Chiudi",
   "menuMac": "Markasso per Mac",
+  "menuAgents": "Markasso per agenti AI",
   "importFailedTitle": "Importazione non riuscita",
   "markassoInvalidFile": "Questo file non sembra un file .markasso valido.",
   "markassoUnreadableFile": "Impossibile leggere il file. Potrebbe essere danneggiato.",
