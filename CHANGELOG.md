@@ -4,6 +4,21 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [1.24.0] - 2026-11-16
+
+### Added
+- **A page for AI agents ([#163](https://github.com/AlbertoBarrago/markasso/pull/163)).** [markasso.it/agents](https://markasso.it/agents/) shows what Markasso does with AI agents: the live demo, how agents and people draw together, and the command to connect Claude Code, Codex, Claude Desktop, Gemini CLI or LM Studio. The install tabs are the same as in the Connect AI agent dialog.
+- **Find it from the app and from search ([#164](https://github.com/AlbertoBarrago/markasso/pull/164)).** The main menu has Markasso for AI agents next to Markasso for Mac, and the site now has a sitemap.
+
+### Fixed
+- **Live session hints ([#163](https://github.com/AlbertoBarrago/markasso/pull/163)).** The Connect AI agent dialog and the Draw together tip point to the controls at the top right, where live sessions start, instead of the More tools menu.
+- **robots.txt ([#164](https://github.com/AlbertoBarrago/markasso/pull/164)).** It ended with the app's page; it now lists the sitemap.
+
+### Changed
+- **Tests ([#162](https://github.com/AlbertoBarrago/markasso/pull/162)).** The flowchart symbol tool and the Shift and cancel cases of the shape tools are covered: statement coverage is above 80%.
+
+---
+
 ## [1.23.0] - 2026-11-16
 
 ### Added
