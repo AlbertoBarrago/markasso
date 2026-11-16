@@ -1,0 +1,3 @@
+# Cloudflare's managed robots.txt (AI crawler rules, content signals) is
+# prepended to this file in production; this file adds the sitemap.
+Sitemap: https://markasso.it/sitemap.xml

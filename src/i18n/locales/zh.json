@@ -476,6 +476,7 @@
   "updateBannerReload": "刷新页面",
   "updateBannerDismiss": "关闭",
   "menuMac": "Markasso Mac 版",
+  "menuAgents": "面向 AI 代理的 Markasso",
   "importFailedTitle": "导入失败",
   "markassoInvalidFile": "此文件似乎不是有效的 .markasso 文件。",
   "markassoUnreadableFile": "无法读取该文件，文件可能已损坏。",

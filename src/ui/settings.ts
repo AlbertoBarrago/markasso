@@ -220,6 +220,10 @@ const ICONS = {
   ),
   zoomReset: svg(`<circle cx="9" cy="9" r="5.5"/>${p('M13 13l4 4M7 9h4')}`),
   guide: svg(p('M10 2a8 8 0 100 16A8 8 0 0010 2zM10 7v4M10 13h.01')),
+  // Four-point spark: the /agents page, apart from the robot of Connect AI agent.
+  agents: svg(
+    p('M10 2l1.8 4.7 4.7 1.8-4.7 1.8L10 15l-1.8-4.7-4.7-1.8 4.7-1.8z'),
+  ),
   agent: svg(
     p(
       'M4 7h12a2 2 0 012 2v5a2 2 0 01-2 2H4a2 2 0 01-2-2V9a2 2 0 012-2zM10 4v3M7.5 11.5h.01M12.5 11.5h.01',
@@ -462,6 +466,7 @@ export function initSettings(
       ${separator}
       ${item('menu-guide', ICONS.guide, t('guide'))}
       ${item('menu-mac', ICONS.cloudMac, t('menuMac'))}
+      ${item('menu-agents', ICONS.agents, t('menuAgents'))}
       ${item('menu-mcp', ICONS.agent, t('connectAiAgent'))}
       ${item('menu-report', ICONS.report, t('reportProblem'))}
       ${separator}
@@ -854,6 +859,9 @@ export function initSettings(
 
   onActivate('#menu-guide', openGuide);
   onActivate('#menu-mac', () => window.open('/mac/', '_blank', 'noopener'));
+  onActivate('#menu-agents', () =>
+    window.open('/agents/', '_blank', 'noopener'),
+  );
   onActivate('#menu-mcp', openMcpSetup);
   onActivate('#menu-report', openReportForm);
   // The link opens itself; this only closes the menu.
