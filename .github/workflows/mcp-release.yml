@@ -3,6 +3,8 @@ name: MCP Release
 # Publishes @markasso/mcp to npm on tags like mcp-v0.2.0. Independent from the
 # app release (tags v*.*.*): the MCP server has its own semver.
 # Auth uses npm trusted publishing (OIDC), so no NPM_TOKEN secret is needed.
+# Then publishes mcp/server.json to the official MCP Registry
+# (registry.modelcontextprotocol.io), also through GitHub OIDC.
 
 on:
   push:
@@ -43,6 +45,14 @@ jobs:
             echo "Tag $GITHUB_REF_NAME does not match mcp/package.json version $pkg_version" >&2
             exit 1
           fi
+          # The registry entry names the npm version it installs.
+          for field in .version '.packages[0].version'; do
+            server_version="$(jq -r "$field" mcp/server.json)"
+            if [ "$tag_version" != "$server_version" ]; then
+              echo "Tag $GITHUB_REF_NAME does not match mcp/server.json $field $server_version" >&2
+              exit 1
+            fi
+          done
 
       - name: Lint
         run: pnpm lint:ci
@@ -78,6 +88,43 @@ jobs:
             echo "@markasso/mcp@$version is already on npm, skipping publish"
           else
             npm publish --ignore-scripts
+          fi
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      # Pinned and signature-checked, as the registry's guide recommends:
+      # bump MCP_PUBLISHER_VERSION deliberately, never use releases/latest.
+      - name: Download and verify mcp-publisher
+        env:
+          MCP_PUBLISHER_VERSION: v1.8.1
+        run: |
+          set -euo pipefail
+          archive="mcp-publisher_linux_amd64.tar.gz"
+          base_url="https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}"
+          curl --fail --location --silent --show-error --output "$archive" "$base_url/$archive"
+          curl --fail --location --silent --show-error --output "$archive.sigstore.json" "$base_url/$archive.sigstore.json"
+          cosign verify-blob \
+            --bundle "$archive.sigstore.json" \
+            --certificate-identity "https://github.com/modelcontextprotocol/registry/.github/workflows/release.yml@refs/tags/${MCP_PUBLISHER_VERSION}" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$archive"
+          tar xzf "$archive" -C mcp mcp-publisher
+          rm -f "$archive" "$archive.sigstore.json"
+
+      - name: Publish to the MCP Registry
+        working-directory: mcp
+        run: |
+          version="${GITHUB_REF_NAME#mcp-v}"
+          ./mcp-publisher validate
+          # Re-running the workflow must not fail on a version already listed.
+          name="$(jq -r .name server.json)"
+          if curl --fail --silent --output /dev/null \
+            "https://registry.modelcontextprotocol.io/v0/servers/$(jq -rn --arg n "$name" '$n|@uri')/versions/$version"; then
+            echo "$name $version is already in the MCP Registry, skipping publish"
+          else
+            ./mcp-publisher login github-oidc
+            ./mcp-publisher publish
           fi
 
       - name: Create or update GitHub Release

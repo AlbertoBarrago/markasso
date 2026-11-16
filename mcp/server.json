@@ -1,0 +1,49 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.AlbertoBarrago/markasso",
+  "title": "Markasso",
+  "description": "Let AI agents draw and edit Markasso diagrams, offline or live on a shared whiteboard.",
+  "websiteUrl": "https://markasso.it",
+  "repository": {
+    "url": "https://github.com/AlbertoBarrago/markasso",
+    "source": "github",
+    "subfolder": "mcp"
+  },
+  "icons": [
+    {
+      "src": "https://markasso.it/markasso-logo-icon.svg",
+      "mimeType": "image/svg+xml"
+    },
+    {
+      "src": "https://markasso.it/android-chrome-512x512.png",
+      "mimeType": "image/png",
+      "sizes": ["512x512"]
+    }
+  ],
+  "version": "0.7.4",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@markasso/mcp",
+      "version": "0.7.4",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "MARKASSO_LICENSE",
+          "description": "Markasso Cloud licence key, needed only to join live sessions (live_join). Everything else is free.",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "MARKASSO_URL",
+          "description": "Markasso instance to use (default https://markasso.it).",
+          "isRequired": false,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}
