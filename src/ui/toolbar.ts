@@ -25,6 +25,7 @@ import {
   setNameChipText,
 } from './live_name';
 import { buildLiveInvitePrompt } from './mcp_clients';
+import { createRowMorph } from './morph_row';
 import { initPeopleList } from './people_list';
 import {
   copyToClipboard,
@@ -323,21 +324,31 @@ export function initToolbar(
     );
   });
   liveIsland.append(liveStartBtn, inviteAgentBtn);
+  // The top-right row (live, people and name islands) springs into its new
+  // layout when a session connects or ends. Resolved lazily: the island is
+  // placed in the row further down.
+  const liveRowMorph = createRowMorph(() => {
+    const row = liveIsland.parentElement;
+    return row ? [...row.children, ...liveIsland.children] : [];
+  });
   let liveActive = false;
   function inviteAgentLocked(): boolean {
     if (!CLOUD_ENABLED) return false;
     return !readStorage(LICENSE_KEY);
   }
   /**
-   * Start shows while this tab is in no session (a reconnecting session still
-   * counts as one); Invite shows once the session is connected. The island
-   * hides when neither applies, e.g. while a new session connects.
+   * Start shows until the session is connected; Invite takes its place once
+   * it is. While a session connects (or reconnects) Start stays in place in a
+   * busy state, so the island never blinks out between the two.
    */
   function refreshLiveControls(): void {
-    const inSession = !!getLiveSessionUrl();
-    liveStartBtn.style.display = inSession ? 'none' : '';
+    const connecting = !!getLiveSessionUrl() && !liveActive;
+    liveRowMorph.capture();
+    liveStartBtn.style.display = liveActive ? 'none' : '';
+    liveStartBtn.disabled = connecting;
+    liveStartBtn.classList.toggle('tb-btn--connecting', connecting);
+    liveStartBtn.setAttribute('aria-busy', String(connecting));
     inviteAgentBtn.style.display = liveActive ? '' : 'none';
-    liveIsland.style.display = !inSession || liveActive ? '' : 'none';
     const label = inviteAgentLocked()
       ? `${t('inviteAiAgent')} (${t('inviteAiAgentLocked')})`
       : t('inviteAiAgent');
@@ -364,10 +375,15 @@ export function initToolbar(
   refreshLiveControls();
   async function startLiveSession(): Promise<void> {
     liveStartBtn.disabled = true;
+    liveStartBtn.classList.add('tb-btn--connecting');
     const roomId = generateRoomId();
     const url = buildLiveRoomUrl(roomId);
     const copied = await copyToClipboard(url);
-    showShareToast(copied, url, t('shareLiveCopied'));
+    // "Link copied" waits for the first connection, so it lands after the
+    // new controls instead of under an empty corner. The fallback with the
+    // URL to copy by hand is needed right away.
+    let linkNoticePending = copied;
+    if (!copied) showShareToast(false, url);
     joinLiveSession(history, {
       roomId,
       // No name: the session uses the stored one or a random animal name.
@@ -375,6 +391,10 @@ export function initToolbar(
       onStatus: (connected) => {
         setLiveUI(connected);
         showLiveStatusToast(connected);
+        if (connected && linkNoticePending) {
+          linkNoticePending = false;
+          showShareToast(true, url, t('shareLiveCopied'));
+        }
       },
       onEnded: (reason) => {
         setLiveUI(false);
@@ -382,7 +402,6 @@ export function initToolbar(
       },
       onRejected: showLiveRejectedToast,
     });
-    liveStartBtn.disabled = false;
     refreshLiveControls();
   }
 
@@ -747,11 +766,13 @@ export function initToolbar(
   const nameIsland = div('tb-island tb-live-name-island');
   nameIsland.style.display = 'none';
   const showNameChip = (): void => {
+    liveRowMorph.capture();
     nameIsland.style.display = '';
     nameChip.style.display = '';
     setNameChipText(nameChip, getLiveName());
   };
   const hideNameChip = (): void => {
+    liveRowMorph.capture();
     nameIsland.style.display = 'none';
     nameChip.style.display = 'none';
   };
@@ -847,9 +868,11 @@ export function initToolbar(
   // People is the way out of a session, so it shows for the whole session,
   // even alone (the list then says only you are here).
   onLiveReveal(() => {
+    liveRowMorph.capture();
     peopleIsland.style.display = '';
   });
   onLiveHide(() => {
+    liveRowMorph.capture();
     peopleIsland.style.display = 'none';
     closePeoplePanel();
   });
