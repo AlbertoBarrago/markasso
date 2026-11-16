@@ -43,6 +43,7 @@ export default defineConfig(({ mode }) => {
             input: {
               app: 'index.html',
               mac: 'mac/index.html',
+              agents: 'agents/index.html',
               ...(cloudEnabled ? { cloud: 'cloud/index.html' } : {}),
             },
           },

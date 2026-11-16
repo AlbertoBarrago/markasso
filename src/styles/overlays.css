@@ -1849,71 +1849,6 @@ select.report-input {
   color: var(--text-muted);
 }
 
-.mcp-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  border-bottom: 1px solid var(--island-border);
-  padding-bottom: 8px;
-}
-.mcp-tab {
-  padding: 6px 10px;
-  font: 600 12px / 1.2 inherit;
-  color: var(--text-muted);
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  cursor: pointer;
-}
-.mcp-tab:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-.mcp-tab[aria-selected="true"] {
-  color: var(--text);
-  background: var(--accent-light);
-  border-color: var(--accent);
-}
-
-.mcp-where {
-  margin: 0 0 6px;
-  font-size: 12px;
-  color: var(--text-muted);
-}
-.mcp-snippet {
-  position: relative;
-}
-.mcp-snippet pre {
-  margin: 0;
-  padding: 12px 84px 12px 12px;
-  overflow-x: auto;
-  background: var(--bg-hover);
-  border: 1px solid var(--island-border);
-  border-radius: 8px;
-  font:
-    12px / 1.5 ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    monospace;
-  color: var(--text);
-  user-select: text;
-}
-.mcp-copy {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  padding: 5px 10px;
-  font: 600 12px / 1.2 inherit;
-  color: #fff;
-  background: var(--accent);
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-.mcp-copy:hover {
-  opacity: 0.88;
-}
-
 .mcp-subtitle {
   margin: 4px 0 0;
   font-size: 13px;
@@ -1947,9 +1882,6 @@ select.report-input {
     border-radius: 0;
     padding: calc(14px + env(safe-area-inset-top)) 16px
       calc(14px + env(safe-area-inset-bottom));
-  }
-  .mcp-tab {
-    min-height: 44px;
   }
 }
 /* Card text colour with an accent underline: the accent alone is too dark
