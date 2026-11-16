@@ -53,7 +53,11 @@ Markasso ships an [MCP](https://modelcontextprotocol.io) server: Claude, Codex, 
 **1. Connect your agent** (Node 22+):
 
 ```bash
-# Claude Code
+# Claude Code: the plugin adds the server and a skill that knows when to draw
+claude plugin marketplace add AlbertoBarrago/markasso-plugin
+claude plugin install markasso@markasso
+
+# Claude Code, server only
 claude mcp add markasso -- npx -y @markasso/mcp@latest
 
 # Codex CLI

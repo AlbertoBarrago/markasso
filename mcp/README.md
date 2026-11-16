@@ -15,6 +15,15 @@ Published on npm as [`@markasso/mcp`](https://www.npmjs.com/package/@markasso/mc
 
 **Claude Code**
 
+The [Markasso plugin](https://github.com/AlbertoBarrago/markasso-plugin) adds this server and a `diagram` skill that tells Claude when to draw and how; it asks for the optional licence key and keeps it in the system's credential store:
+
+```bash
+claude plugin marketplace add AlbertoBarrago/markasso-plugin
+claude plugin install markasso@markasso
+```
+
+Or the server alone:
+
 ```bash
 claude mcp add markasso -- npx -y @markasso/mcp@latest
 ```
@@ -70,9 +79,13 @@ pnpm mcp:build   # → mcp/dist/markasso-mcp.js
 
 Then use `node /absolute/path/to/Markasso/mcp/dist/markasso-mcp.js` as the command in any of the configs above.
 
+## Registry
+
+Listed in the official [MCP Registry](https://registry.modelcontextprotocol.io) as `io.github.AlbertoBarrago/markasso` ([`server.json`](server.json)). The MCP release workflow publishes each version there after npm, so `server.json`'s two `version` fields must match `package.json` (the workflow checks it).
+
 ## Releasing
 
-Bump `version` in `mcp/package.json`, add the entry to `mcp/CHANGELOG.md`, merge, then push a `mcp-v<version>` tag: the `MCP Release` workflow tests, builds and publishes to npm (trusted publishing, with provenance) and creates a GitHub release.
+Bump `version` in `mcp/package.json` and both `version` fields in `mcp/server.json`, add the entry to `mcp/CHANGELOG.md`, merge, then push a `mcp-v<version>` tag: the `MCP Release` workflow tests, builds and publishes to npm (trusted publishing, with provenance), then to the MCP Registry, and creates a GitHub release.
 
 ## Tools
 
