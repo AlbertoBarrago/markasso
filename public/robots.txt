@@ -1,3 +1,9 @@
-# Cloudflare's managed robots.txt (AI crawler rules, content signals) is
-# prepended to this file in production; this file adds the sitemap.
+# Markasso is open source and wants to be found by people and AI agents:
+# search, AI answers and AI training are all welcome (Content Signals:
+# https://contentsignals.org/). Cloudflare's AI crawler policies for this
+# zone are set to allow, so this file is served as is.
+User-agent: *
+Content-Signal: search=yes, ai-input=yes, ai-train=yes
+Allow: /
+
 Sitemap: https://markasso.it/sitemap.xml
