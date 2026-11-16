@@ -123,6 +123,16 @@ jobs:
             "https://registry.modelcontextprotocol.io/v0/servers/$(jq -rn --arg n "$name" '$n|@uri')/versions/$version"; then
             echo "$name $version is already in the MCP Registry, skipping publish"
           else
+            # The registry checks the npm version, which npm serves a few
+            # minutes after the publish above: wait for it (up to 10 min).
+            for attempt in $(seq 1 40); do
+              if npm view "@markasso/mcp@$version" version >/dev/null 2>&1; then break; fi
+              if [ "$attempt" = 40 ]; then
+                echo "@markasso/mcp@$version is still not visible on npm" >&2
+                exit 1
+              fi
+              sleep 15
+            done
             ./mcp-publisher login github-oidc
             ./mcp-publisher publish
           fi
