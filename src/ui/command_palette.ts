@@ -13,6 +13,7 @@ import type { HistoryActions } from './canvas_gesture';
 import { clearCanvas } from './clear_canvas';
 import {
   CLOUD_ACTIONS,
+  type CloudAction,
   cloudAction,
   cloudActionAvailable,
 } from './cloud_boards';
@@ -30,6 +31,11 @@ interface PaletteItem {
   icon: string;
   execute: () => void;
 }
+
+/** Keyboard hints for the cloud actions that have a shortcut. */
+const CLOUD_HINTS: Partial<Record<CloudAction, string>> = {
+  cloudBoards: 'Ctrl+Shift+O',
+};
 
 /** Palette actions that act on the drawing, offered only when it has elements. */
 const NEEDS_ELEMENTS: ReadonlySet<string> = new Set([
@@ -428,6 +434,7 @@ export function initCommandPalette(
       items.push({
         id: `action:${action}`,
         label: t(action),
+        ...(CLOUD_HINTS[action] ? { hint: CLOUD_HINTS[action] } : {}),
         category: 'action',
         icon: '☁',
         execute: () => cloudAction(history, action),

@@ -409,7 +409,7 @@ Markasso Cloud keeps your boards in sync between the browser and the Mac app, an
 - **Links:** **Copy read link** shows the board to anyone who has it; **Copy edit link** lets anyone who has it change the board. Cloud boards are public by link: keep the edit link private.
 - **Other devices:** open the edit link in another browser or in the Mac app (**Open in the Mac app**). A read link opens the board read-only: **Duplicate as a new board** makes your own copy.
 - **Conflicts:** if the board changed on another device while you were editing, choose **Keep mine**, **Take theirs** or **Save a copy**.
-- **Boards:** **Menu → Cloud → Boards** lists the cloud boards opened in this browser.
+- **Boards:** **Menu → Cloud → Boards** lists the cloud boards opened in this browser. Shortcut: `Ctrl+Shift+O` (`⌘⇧O` on Mac), available once a licence key is stored; the welcome card lists it too.
 - **Limits:** a cloud board can be up to 10 MB and is deleted after a year without changes.
 
 ---
@@ -478,6 +478,7 @@ Switch between **Dark**, **Light**, and **System** themes from **Menu → Theme*
 | `Cmd+,` / `Ctrl+,` | Open Preferences directly |
 | `Ctrl+K` | Open command palette |
 | `Ctrl+F` | Open element search |
+| `Ctrl+Shift+O` | Open your cloud boards (Markasso Cloud) |
 | `Ctrl+Z` | Undo |
 | `Ctrl+Y` | Redo |
 | `Ctrl+A` | Select all |

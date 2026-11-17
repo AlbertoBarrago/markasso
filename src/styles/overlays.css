@@ -65,8 +65,12 @@
 /* Full size when the window is tall enough, smaller as it gets shorter, so
    the shortcuts keep fitting between the reserved toolbar bands. */
 .wl-brand img {
-  width: clamp(56px, calc(100dvh - 790px), 140px);
+  width: clamp(56px, calc(100dvh - var(--wl-logo-offset, 790px)), 140px);
   height: auto;
+}
+/* The Markasso Cloud row makes the card one row taller. */
+.wl-card:has(.wl-shortcut-row--cloud) {
+  --wl-logo-offset: 830px;
 }
 
 .wl-name {
@@ -228,6 +232,11 @@
 /* A short laptop window: the shortcuts go, the pitch and the actions stay. */
 @media (max-height: 760px) {
   .wl-shortcuts {
+    display: none;
+  }
+}
+@media (max-height: 800px) {
+  .wl-card:has(.wl-shortcut-row--cloud) .wl-shortcuts {
     display: none;
   }
 }

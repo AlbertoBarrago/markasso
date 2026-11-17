@@ -50,6 +50,7 @@ const SECTIONS: ShortcutSection[] = [
     title: 'View',
     items: [
       { label: 'Preferences', key: `${mod},` },
+      { label: 'Cloud boards', key: `${mod}⇧O` },
       { label: 'Toggle grid', key: 'G' },
       { label: 'Toggle minimap', key: 'M' },
       { label: 'Fit to content', key: 'F' },
