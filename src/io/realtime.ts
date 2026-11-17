@@ -277,6 +277,11 @@ export function joinLiveSession(
   const peers = new Map<string, PeerInfo>();
   const isSeeder = opts.seedElements !== undefined;
   const seedElements = opts.seedElements ?? [];
+  // The starting board seeds the room only on the first `init`. A reconnect
+  // that finds the room empty (cleared and compacted, or reclaimed while the
+  // tab slept) republishes the board as it is now: replaying the starting
+  // board would bring back shapes deleted since then.
+  let seeded = false;
   const self: PeerInfo = {
     id: '',
     name: opts.name ?? (getStoredName() || randomName()),
@@ -432,8 +437,9 @@ export function joinLiveSession(
           history.resetForLiveReplay(
             msg.commands.filter(isValidSessionCommand),
           );
-        } else if (!isSeeder || seedElements.length === 0) {
-          // Fresh/empty room and we have nothing to seed: start clean.
+        } else if (!isSeeder) {
+          // Fresh/empty room and we have nothing to seed: start clean. The
+          // seeder keeps its board, which it publishes below.
           history.resetForLiveReplay([]);
         }
 
@@ -441,11 +447,11 @@ export function joinLiveSession(
         // current elements so later joiners see them. Echo is suppressed by the
         // server, so the creator keeps the view they already had.
         if (isSeeder && msg.commands.length === 0) {
-          for (const command of createCommands(seedElements, {
-            validOnly: true,
-          }))
+          const elements = seeded ? history.present.elements : seedElements;
+          for (const command of createCommands(elements, { validOnly: true }))
             outbox.push(command);
         }
+        seeded = true;
 
         applyPeers(msg.peers);
       } else if (msg.type === 'apply') {
