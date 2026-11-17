@@ -24,7 +24,8 @@ TODO.local.md
 
 # Claude Code (AI assistant config, keep local)
 CLAUDE.md
-.claude/
+.claude/*
+!.claude/skills/
 
 # wrangler files
 .wrangler
