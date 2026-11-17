@@ -6,6 +6,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  /* The docked toolbar's band is reserved on both sides, so the card stays
+     centred on the page and never reaches the toolbar, top or bottom. */
+  box-sizing: border-box;
+  padding-block: max(
+    16px,
+    var(--toolbar-panel-top, 0px),
+    var(--toolbar-panel-bottom, 0px)
+  );
   pointer-events: all;
   animation: wl-in 0.25s ease both;
 }
@@ -40,7 +48,7 @@
   padding: 32px 36px 28px;
   width: min(400px, calc(100vw - 32px));
   /* Short windows scroll the card instead of clipping its actions. */
-  max-height: calc(100dvh - 32px);
+  max-height: 100%;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -52,6 +60,13 @@
   flex-direction: column;
   gap: 8px;
   align-items: center;
+}
+
+/* Full size when the window is tall enough, smaller as it gets shorter, so
+   the shortcuts keep fitting between the reserved toolbar bands. */
+.wl-brand img {
+  width: clamp(56px, calc(100dvh - 790px), 140px);
+  height: auto;
 }
 
 .wl-name {
@@ -190,6 +205,23 @@
   }
   .wl-name {
     font-size: 1.2rem;
+  }
+}
+
+/* Below this the smallest logo is not enough: tighten the spacing too. */
+@media (max-height: 860px) {
+  .wl-card {
+    padding-block: 24px 20px;
+    gap: 12px;
+  }
+  .wl-brand {
+    gap: 4px;
+  }
+  .wl-shortcuts {
+    padding-top: 10px;
+  }
+  .wl-shortcut-row {
+    padding-block: 5px;
   }
 }
 
