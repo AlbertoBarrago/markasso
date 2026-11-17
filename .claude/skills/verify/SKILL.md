@@ -58,7 +58,7 @@ Canvas flow (draw a rectangle):
        () => (JSON.parse(localStorage.getItem('markasso-session') ?? '{"elements":[]}').elements).map((e) => ({ type: e.type, x: Math.round(e.x), y: Math.round(e.y), w: Math.round(e.width), h: Math.round(e.height) }))
 
    Expected: exactly one element of type `rectangle`, about 140 x 100.
-7. `browser_take_screenshot` as evidence. Playwright MCP only writes under its output directory (`.playwright-mcp/` in the session's working directory): leave the file name to it and report the path it returns.
+7. `browser_take_screenshot` as evidence. Playwright MCP only writes under its output directory (`~/.cache/playwright-mcp`, set with `--output-dir` in `~/.claude.json`): leave the file name to it and report the path it returns.
 
 Flows for the changed area: `docs/MANUAL.md` is the feature map (tools, shortcuts, menus). Pick the flows that cover the diff and drive them the same way: keyboard shortcuts and coordinates on the canvas, state checks through `localStorage` or the DOM.
 
