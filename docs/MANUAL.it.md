@@ -409,7 +409,7 @@ Markasso Cloud tiene le tue lavagne sincronizzate tra il browser e l'app per Mac
 - **Link:** **Copia link di lettura** mostra la lavagna a chi ha il link; **Copia link di modifica** permette a chi lo ha di modificarla. Le lavagne cloud sono pubbliche tramite link: tieni privato il link di modifica.
 - **Altri dispositivi:** apri il link di modifica in un altro browser o nell'app per Mac (**Apri nell’app per Mac**). Un link di lettura apre la lavagna in sola lettura: **Duplica come nuova lavagna** ne crea una copia tua.
 - **Conflitti:** se la lavagna è cambiata su un altro dispositivo mentre la modificavi, scegli **Mantieni la mia**, **Usa la loro** o **Salva una copia**.
-- **Lavagne:** **Menu → Cloud → Le mie board** elenca le lavagne cloud aperte in questo browser.
+- **Lavagne:** **Menu → Cloud → Le mie board** elenca le lavagne cloud aperte in questo browser. Scorciatoia: `Ctrl+Shift+O` (`⌘⇧O` su Mac), attiva quando hai salvato una chiave di licenza; compare anche nella schermata di benvenuto.
 - **Limiti:** una lavagna cloud può arrivare a 10 MB e viene cancellata dopo un anno senza modifiche.
 
 ---
@@ -478,6 +478,7 @@ Passa tra i temi **Scuro**, **Chiaro** e **Sistema** da **Menu → Tema**. La tu
 | `⌘,` / `Ctrl+,` | Apri direttamente le Preferenze |
 | `Ctrl+K` | Apri il riquadro comandi |
 | `Ctrl+F` | Apri la ricerca elementi |
+| `Ctrl+Shift+O` | Apri le tue board cloud (Markasso Cloud) |
 | `Ctrl+Z` | Annulla |
 | `Ctrl+Y` | Ripristina |
 | `Ctrl+A` | Seleziona tutto |

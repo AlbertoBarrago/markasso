@@ -11,7 +11,9 @@ import {
   pasteElementPayload,
   writeSelectionToClipboardData,
 } from './clipboard_actions';
+import { cloudAction, cloudActionAvailable } from './cloud_boards';
 import {
+  boardsShortcut,
   browserOwnsClipboard,
   fileShortcut,
   isEditableTarget,
@@ -135,6 +137,18 @@ export function initShortcuts(
       if (isModalDialogOpen()) return;
       if (fileAction === 'open') openFile();
       else exportMarkasso(history.present);
+      return;
+    }
+    // Without Markasso Cloud, or while typing, the combo keeps the browser's
+    // own meaning. The welcome card handles it itself (see welcome.ts).
+    if (
+      boardsShortcut(e) &&
+      !isEditableTarget(e.target) &&
+      cloudActionAvailable(history, 'cloudBoards')
+    ) {
+      e.preventDefault();
+      if (isModalDialogOpen()) return;
+      cloudAction(history, 'cloudBoards');
       return;
     }
     // Don't capture shortcuts when typing in an input/textarea/select/contenteditable

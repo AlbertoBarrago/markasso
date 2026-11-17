@@ -103,6 +103,18 @@ export function fileShortcut(
   return null;
 }
 
+/**
+ * Cmd/Ctrl+Shift+O opens the cloud boards list, next to Cmd/Ctrl+O for a
+ * file. Matched by character only, not physical key: on Dvorak the QWERTY O
+ * key types R, and Ctrl+Shift+R must stay the browser's hard reload.
+ */
+export function boardsShortcut(
+  e: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey'>,
+): boolean {
+  if (!(e.ctrlKey || e.metaKey) || e.altKey || !e.shiftKey) return false;
+  return e.key.toLowerCase() === 'o';
+}
+
 type KeyFields = Pick<
   KeyboardEvent,
   'key' | 'code' | 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey'

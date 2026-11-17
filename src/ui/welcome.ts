@@ -1,15 +1,25 @@
 import type { History } from '../engine/history';
 import { t } from '../i18n';
+import {
+  type CloudAction,
+  cloudAction,
+  cloudActionAvailable,
+} from './cloud_boards';
+import { boardsShortcut } from './keyboard_utils';
 
 const isMac = navigator.platform.toUpperCase().includes('MAC');
 const mod = isMac ? '⌘' : 'Ctrl+';
 
-const SHORTCUTS: {
+interface Shortcut {
   icon: string;
   label: string;
   key: string;
   iconClass?: string;
-}[] = [
+  /** The cloud action the shortcut runs: the row shows only when it is available. */
+  cloud?: CloudAction;
+}
+
+const SHORTCUTS: Shortcut[] = [
   { icon: '⌘', label: t('commandPalette'), key: `${mod}K` },
   {
     icon: '⌕',
@@ -19,6 +29,12 @@ const SHORTCUTS: {
   },
   { icon: '📂', label: t('openFile'), key: `${mod}O` },
   { icon: '💾', label: t('saveFile'), key: `${mod}S` },
+  {
+    icon: '☁',
+    label: t('cloudBoards'),
+    key: `${mod}⇧O`,
+    cloud: 'cloudBoards',
+  },
   { icon: '↩', label: t('undoLabel'), key: `${mod}Z` },
   { icon: '↪', label: t('redoLabel'), key: isMac ? '⌘⇧Z' : 'Ctrl+Y' },
 ];
@@ -35,6 +51,9 @@ export function initWelcome(
   onConnectAgent: () => void,
 ): void {
   if (history.present.elements.length > 0) return;
+  const shortcuts = SHORTCUTS.filter(
+    (s) => !s.cloud || cloudActionAvailable(history, s.cloud),
+  );
 
   const overlay = document.createElement('div');
   overlay.id = 'welcome-overlay';
@@ -50,15 +69,17 @@ export function initWelcome(
         ${t('welcomeTagline').replace('\n', '<br>')}
       </p>
       <ul class="wl-shortcuts">
-        ${SHORTCUTS.map(
-          (s) => `
-          <li class="wl-shortcut-row">
+        ${shortcuts
+          .map(
+            (s) => `
+          <li class="wl-shortcut-row${s.cloud ? ' wl-shortcut-row--cloud' : ''}">
             <span class="wl-shortcut-icon${s.iconClass ? ` ${s.iconClass}` : ''}">${s.icon}</span>
             <span class="wl-shortcut-label">${s.label}</span>
             <kbd class="wl-kbd">${s.key}</kbd>
           </li>
         `,
-        ).join('')}
+          )
+          .join('')}
       </ul>
       <div class="wl-actions">
         <button class="wl-agent">${t('connectAiAgent')}</button>
@@ -78,6 +99,14 @@ export function initWelcome(
 
   const onKey = (e: KeyboardEvent): void => {
     if (e.key === 'Escape') dismiss();
+    // The card is modal, so the global handler would ignore the shortcut it
+    // advertises: close the card and open the boards from here instead.
+    if (boardsShortcut(e) && cloudActionAvailable(history, 'cloudBoards')) {
+      e.preventDefault();
+      e.stopPropagation();
+      dismiss();
+      cloudAction(history, 'cloudBoards');
+    }
   };
 
   overlay.querySelector('.wl-cta')!.addEventListener('click', dismiss);

@@ -44,6 +44,7 @@ const ALL_CLOUD_ACTIONS = [
   'cloudLicense',
   'cloudSubscription',
 ] as const;
+export type CloudAction = (typeof ALL_CLOUD_ACTIONS)[number];
 export const CLOUD_ACTIONS = CLOUD_ENABLED ? ALL_CLOUD_ACTIONS : [];
 /**
  * How menus group the cloud actions: saving, the hand-off to the Mac app,
