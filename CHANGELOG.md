@@ -4,6 +4,20 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [1.25.0] - 2026-11-17
+
+### Added
+- **llms.txt ([#168](https://github.com/AlbertoBarrago/markasso/pull/168)).** [markasso.it/llms.txt](https://markasso.it/llms.txt) tells AI agents and crawlers what Markasso is and where its docs, agent page and MCP server live, and robots.txt now allows search, AI input and training ([#167](https://github.com/AlbertoBarrago/markasso/pull/167)).
+
+### Fixed
+- **Deleted shapes coming back in live sessions ([#175](https://github.com/AlbertoBarrago/markasso/pull/175)).** If you started a session from your board, cleared it, and your connection dropped later, the reconnect sent your starting board again: the deleted shapes came back for everyone else. A reconnect now sends the board as it is now.
+- **Welcome card on a first visit ([#171](https://github.com/AlbertoBarrago/markasso/pull/171)).** A first visit showed What's New instead of the welcome card, so newcomers never saw the Connect AI agent button. What's New is now for returning visitors.
+
+### Changed
+- **Documentation ([#170](https://github.com/AlbertoBarrago/markasso/pull/170)).** The docs live in docs/ and describe the app as it is today.
+
+---
+
 ## [1.24.0] - 2026-11-16
 
 ### Added
