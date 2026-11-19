@@ -27,7 +27,6 @@
 ![Status](https://img.shields.io/badge/status-stable-blue)
 ![Zero-dependency core](https://img.shields.io/badge/core%20dependencies-0-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
-<a href="https://mcprush.com/to/markasso-mcp?ref=badge"><img height="20" src="https://mcprush.com/badge/markasso-mcp/score.svg" alt="Markasso MCP on mcprush" /></a>
 
 <br/>
 

@@ -1,5 +1,7 @@
 # Markasso MCP
 
+<a href="https://mcprush.com/to/markasso-mcp?ref=badge"><img height="20" src="https://mcprush.com/badge/markasso-mcp/score.svg" alt="Markasso MCP on mcprush" /></a>
+
 An [MCP](https://modelcontextprotocol.io) server that lets AI agents (Claude, Codex, Gemini, local models such as Gemma) **create, read and edit Markasso diagrams**:
 
 - **Document mode:** build a diagram, then save it as `.markasso`, export it as SVG, or publish a markasso.it link.
