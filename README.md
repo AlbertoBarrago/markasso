@@ -50,6 +50,8 @@ Thanks to Erik Onarheim and Kamran Ayub for the shout-out!
 
 Markasso ships an [MCP](https://modelcontextprotocol.io) server: Claude, Codex, Gemini and local models (e.g. Gemma in LM Studio) can create, read and edit diagrams, and even draw live on a shared board.
 
+[![Markasso MCP server](https://mcprush.com/badge/markasso-mcp/card.svg)](https://mcprush.com/to/markasso-mcp?ref=badge)
+
 **1. Connect your agent** (Node 22+):
 
 ```bash
