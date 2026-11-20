@@ -41,6 +41,35 @@ On a live board, people with a Markasso Cloud licence can send you requests: the
 /** Same range as the font size field of the app's properties panel. */
 const fontSizeSchema = z.number().min(6).max(400).optional();
 
+/*
+ * Shared parameter schemas. Every parameter carries a short description:
+ * the model sees only the schema, and directories that score MCP servers
+ * (e.g. VerifyMCP) count undescribed parameters against tool coverage.
+ */
+const colorSchema = z
+  .enum(Object.keys(NODE_COLORS) as [string, ...string[]])
+  .optional()
+  .describe('Color name');
+const xSchema = z.number().optional().describe('Left edge in px');
+const ySchema = z.number().optional().describe('Top edge in px');
+const widthSchema = z
+  .number()
+  .positive()
+  .max(4000)
+  .optional()
+  .describe('Width in px');
+const heightSchema = z
+  .number()
+  .positive()
+  .max(4000)
+  .optional()
+  .describe('Height in px');
+const dashedSchema = z.boolean().optional().describe('Dashed line');
+const backgroundSchema = z
+  .enum(['dark', 'transparent'])
+  .optional()
+  .describe('Canvas background (default dark)');
+
 const nodeSchema = z.object({
   key: z
     .string()
@@ -65,20 +94,24 @@ const nodeSchema = z.object({
     .describe(
       'Icon for kind "icon": "database", "generic/server", "k8s/pod" (see icons_search)',
     ),
-  color: z.enum(Object.keys(NODE_COLORS) as [string, ...string[]]).optional(),
+  color: colorSchema,
   fontSize: fontSizeSchema.describe(
     'Text size in px (text nodes default 20, shape labels 16, icon labels 14). Auto-sized nodes grow to fit.',
   ),
-  x: z.number().optional(),
-  y: z.number().optional(),
-  width: z.number().positive().max(4000).optional(),
-  height: z.number().positive().max(4000).optional(),
+  x: xSchema,
+  y: ySchema,
+  width: widthSchema.describe(
+    'Width in px (default: fits the label; icons 64)',
+  ),
+  height: heightSchema.describe(
+    'Height in px (default: fits the label; icons 64)',
+  ),
 });
 
 const edgeSchema = z.object({
   from: z.string().describe('Key of the start node'),
   to: z.string().describe('Key of the end node'),
-  label: z.string().max(200).optional(),
+  label: z.string().max(200).optional().describe('Text on the connection'),
   routing: z
     .enum(['straight', 'elbow'])
     .optional()
@@ -87,13 +120,16 @@ const edgeSchema = z.object({
     .enum(['none', 'start', 'end', 'both'])
     .optional()
     .describe('Which ends get a head (default end)'),
-  startHead: z.enum(ARROW_HEAD_STYLES).optional(),
+  startHead: z
+    .enum(ARROW_HEAD_STYLES)
+    .optional()
+    .describe('Head style at the start'),
   endHead: z
     .enum(ARROW_HEAD_STYLES)
     .optional()
     .describe('triangle/diamond for UML (inheritance, aggregation)'),
-  dashed: z.boolean().optional(),
-  color: z.enum(Object.keys(NODE_COLORS) as [string, ...string[]]).optional(),
+  dashed: dashedSchema,
+  color: colorSchema,
   fontSize: fontSizeSchema.describe('Label text size in px (default 12)'),
 });
 
@@ -258,8 +294,13 @@ server.registerTool(
   {
     title: 'Open diagram',
     description:
-      'Open a .markasso file path or a Markasso share link (https://markasso.it/#s=...). Replaces the current diagram.',
-    inputSchema: { source: z.string().min(1) },
+      'Open a .markasso file path or a Markasso share link (https://markasso.it/#s=...). Replaces the current diagram. Example: source="/Users/me/flow.markasso".',
+    inputSchema: {
+      source: z
+        .string()
+        .min(1)
+        .describe('Absolute .markasso path or markasso.it share link'),
+    },
   },
   guarded(async ({ source }: { source: string }) => {
     const elements = /^https?:\/\//.test(source)
@@ -294,8 +335,10 @@ server.registerTool(
   {
     title: 'Add nodes',
     description:
-      'Add one or more nodes in a single step. Give each a short unique key. Positions are optional: call diagram_layout afterwards.',
-    inputSchema: { nodes: z.array(nodeSchema).min(1).max(100) },
+      'Add one or more nodes in a single step. Give each a short unique key. Positions are optional: call diagram_layout afterwards. Example: nodes=[{key:"api",label:"API"},{key:"db",kind:"database"}].',
+    inputSchema: {
+      nodes: z.array(nodeSchema).min(1).max(100).describe('Nodes to add'),
+    },
   },
   guarded(async ({ nodes }: { nodes: z.infer<typeof nodeSchema>[] }) => {
     const keys = await diagram.addNodes(
@@ -311,8 +354,10 @@ server.registerTool(
   {
     title: 'Connect nodes',
     description:
-      'Connect nodes by key with arrows or lines, in a single step. Connectors follow the nodes when they move.',
-    inputSchema: { edges: z.array(edgeSchema).min(1).max(200) },
+      'Connect nodes by key with arrows or lines, in a single step. Connectors follow the nodes when they move. Example: edges=[{from:"api",to:"db",label:"SQL"}].',
+    inputSchema: {
+      edges: z.array(edgeSchema).min(1).max(200).describe('Connections to add'),
+    },
   },
   guarded(({ edges }: { edges: z.infer<typeof edgeSchema>[] }) => {
     const count = diagram.connect(edges as Parameters<Diagram['connect']>[0]);
@@ -326,18 +371,16 @@ server.registerTool(
   {
     title: 'Update node',
     description:
-      "Change a node's label, color, font size, position (top-left x/y) or size.",
+      'Change a node\'s label, color, font size, position (top-left x/y) or size. Example: key="api", label="Gateway".',
     inputSchema: {
-      key: z.string(),
-      label: z.string().max(500).optional(),
-      color: z
-        .enum(Object.keys(NODE_COLORS) as [string, ...string[]])
-        .optional(),
+      key: z.string().describe('Key of the node to change'),
+      label: z.string().max(500).optional().describe('New label'),
+      color: colorSchema,
       fontSize: nodeSchema.shape.fontSize,
-      x: z.number().optional(),
-      y: z.number().optional(),
-      width: z.number().positive().max(4000).optional(),
-      height: z.number().positive().max(4000).optional(),
+      x: xSchema,
+      y: ySchema,
+      width: widthSchema,
+      height: heightSchema,
     },
   },
   guarded((args: { key: string } & Record<string, unknown>) => {
@@ -352,8 +395,15 @@ server.registerTool(
   'diagram_remove',
   {
     title: 'Remove nodes',
-    description: 'Remove nodes by key; their connections are removed too.',
-    inputSchema: { keys: z.array(z.string()).min(1).max(200) },
+    description:
+      'Remove nodes by key; their connections are removed too. Example: keys=["cache"].',
+    inputSchema: {
+      keys: z
+        .array(z.string())
+        .min(1)
+        .max(200)
+        .describe('Keys of the nodes to remove'),
+    },
     annotations: { destructiveHint: true },
   },
   guarded(({ keys }: { keys: string[] }) => {
@@ -367,9 +417,13 @@ server.registerTool(
   {
     title: 'Remove connections',
     description:
-      'Remove connections, each by id (see diagram_read) or by from/to keys. The nodes stay.',
+      'Remove connections, each by id (see diagram_read) or by from/to keys. The nodes stay. Example: edges=[{from:"api",to:"db"}].',
     inputSchema: {
-      edges: z.array(z.object(edgeRefSchema)).min(1).max(200),
+      edges: z
+        .array(z.object(edgeRefSchema))
+        .min(1)
+        .max(200)
+        .describe('Connections to remove'),
     },
     annotations: { destructiveHint: true },
   },
@@ -388,7 +442,7 @@ server.registerTool(
   {
     title: 'Update connection',
     description:
-      "Change a connection's label (empty string removes it), label font size, routing, heads, dash or color. Pick it by id or by from/to keys.",
+      'Change a connection\'s label (empty string removes it), label font size, routing, heads, dash or color. Pick it by id or by from/to keys. Example: from="api", to="db", dashed=true.',
     inputSchema: {
       ...edgeRefSchema,
       newLabel: z.string().max(200).optional().describe('New label'),
@@ -396,7 +450,7 @@ server.registerTool(
       arrow: edgeSchema.shape.arrow,
       startHead: edgeSchema.shape.startHead,
       endHead: edgeSchema.shape.endHead,
-      dashed: z.boolean().optional(),
+      dashed: edgeSchema.shape.dashed,
       color: edgeSchema.shape.color,
       fontSize: edgeSchema.shape.fontSize,
     },
@@ -430,9 +484,12 @@ server.registerTool(
   {
     title: 'Auto layout',
     description:
-      'Arrange nodes in layers following their connections (TB = top to bottom, LR = left to right). Use after adding nodes. Reports layout warnings (connections through nodes, overlaps, crossings) when there are any.',
+      'Arrange nodes in layers following their connections (TB = top to bottom, LR = left to right). Use after adding nodes. Reports layout warnings (connections through nodes, overlaps, crossings) when there are any. Example: direction="LR".',
     inputSchema: {
-      direction: z.enum(['TB', 'LR']).optional(),
+      direction: z
+        .enum(['TB', 'LR'])
+        .optional()
+        .describe('Flow direction (default TB)'),
       keys: z
         .array(z.string())
         .optional()
@@ -467,7 +524,13 @@ server.registerTool(
         .describe(
           'e.g. "database", "queue", "pod", "ingress"; empty lists all',
         ),
-      limit: z.number().int().min(1).max(100).optional(),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(100)
+        .optional()
+        .describe('Max results (default 30)'),
     },
     annotations: { readOnlyHint: true },
   },
@@ -517,7 +580,7 @@ server.registerTool(
     description: 'Export the diagram as an SVG image file.',
     inputSchema: {
       path: z.string().min(1).describe('Absolute path ending in .svg'),
-      background: z.enum(['dark', 'transparent']).optional(),
+      background: backgroundSchema,
     },
   },
   guarded(
@@ -552,7 +615,7 @@ server.registerTool(
         .min(1)
         .optional()
         .describe('Absolute path ending in .png (optional)'),
-      background: z.enum(['dark', 'transparent']).optional(),
+      background: backgroundSchema,
       returnImage: z
         .boolean()
         .optional()
@@ -584,7 +647,9 @@ server.registerTool(
     description:
       'Publish the diagram and return a markasso.it link anyone can open. The answer says when the link expires.',
     inputSchema: {},
-    annotations: { openWorldHint: true },
+    // Publishing creates a new link and changes nothing that exists, so it is
+    // declared non-destructive: with no hint the MCP spec assumes destructive.
+    annotations: { destructiveHint: false, openWorldHint: true },
   },
   guarded(async () => {
     if (diagram.elements.length === 0)
@@ -695,7 +760,11 @@ server.registerTool(
       'Answer a request from a person in the live room. The answer appears under your name in their participant list. Keep it short; the board itself shows what you changed.',
     inputSchema: {
       requestId: z.string().min(1).max(64).describe('Id of the request'),
-      text: z.string().min(1).max(MAX_AGENT_REPLY_CHARS),
+      text: z
+        .string()
+        .min(1)
+        .max(MAX_AGENT_REPLY_CHARS)
+        .describe('Short answer shown to the person'),
     },
   },
   guarded(({ requestId, text }: { requestId: string; text: string }) => {
