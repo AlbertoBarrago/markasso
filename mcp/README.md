@@ -1,6 +1,7 @@
 # Markasso MCP
 
 <a href="https://mcprush.com/to/markasso-mcp?ref=badge"><img height="20" src="https://mcprush.com/badge/markasso-mcp/score.svg" alt="Markasso MCP on mcprush" /></a>
+[![M8ven Score](https://m8ven.ai/badge/mcp/albertobarrago-markasso-plugin-11tlsa?v=63135e66be2fd1f63d57e713ce4b42e4)](https://m8ven.ai/mcp/albertobarrago-markasso-plugin-11tlsa?s=readme)
 
 An [MCP](https://modelcontextprotocol.io) server that lets AI agents (Claude, Codex, Gemini, local models such as Gemma) **create, read and edit Markasso diagrams**:
 

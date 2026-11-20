@@ -52,6 +52,8 @@ Markasso ships an [MCP](https://modelcontextprotocol.io) server: Claude, Codex, 
 
 [![Markasso MCP server](https://mcprush.com/badge/markasso-mcp/card.svg)](https://mcprush.com/to/markasso-mcp?ref=badge)
 
+[![M8ven Score](https://m8ven.ai/badge/mcp/albertobarrago-markasso-plugin-11tlsa?v=63135e66be2fd1f63d57e713ce4b42e4)](https://m8ven.ai/mcp/albertobarrago-markasso-plugin-11tlsa?s=readme)
+
 **1. Connect your agent** (Node 22+):
 
 ```bash
