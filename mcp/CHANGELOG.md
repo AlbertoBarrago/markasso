@@ -4,6 +4,13 @@ All notable changes to `@markasso/mcp` are documented here. The MCP server is ve
 
 ---
 
+## [0.7.6] - 2026-11-20
+
+### Changed
+- **Clearer tool schemas ([#182](https://github.com/AlbertoBarrago/markasso/pull/182)).** Every tool parameter now has a description, and the main tools end their description with a one-line usage example, so agents fill in arguments right the first time. `diagram_share` declares that it is not destructive: it only publishes a new link.
+
+---
+
 ## [0.7.5] - 2026-11-16
 
 ### Added
