@@ -150,6 +150,15 @@ const RESIZE_NUMBERS = [
 ];
 
 /** One check per relayed command type; a type missing here is refused. */
+
+/** Per-text boxes measured by the sender (font size and family changes). */
+const optionalTextBounds = optional((bounds) =>
+  isListOf(
+    bounds,
+    (box) => isId(box.id) && isNumber(box.width) && isNumber(box.height),
+  ),
+);
+
 const CHECKS: Record<string, (c: Fields) => boolean> = {
   CREATE_ELEMENT: (c) => isValidElement(c.element) && optionalBoolean(c.select),
   CREATE_ELEMENTS: (c) => isElementList(c.elements),
@@ -199,16 +208,12 @@ const CHECKS: Record<string, (c: Fields) => boolean> = {
     isString(c.label) &&
     optionalNumber(c.labelFontSize) &&
     optionalString(c.labelFontFamily),
-  SET_FONT_FAMILY: (c) => isString(c.family) && optionalIdList(c.ids),
+  SET_FONT_FAMILY: (c) =>
+    isString(c.family) && optionalIdList(c.ids) && optionalTextBounds(c.bounds),
   SET_FONT_SIZE: (c) =>
     isNumber(c.size) &&
     optionalIdList(c.ids) &&
-    optional((bounds) =>
-      isListOf(
-        bounds,
-        (box) => isId(box.id) && isNumber(box.width) && isNumber(box.height),
-      ),
-    )(c.bounds) &&
+    optionalTextBounds(c.bounds) &&
     optionalNumber(c.width) &&
     optionalNumber(c.height),
   SET_ROTATION: (c) => isId(c.id) && isNumber(c.rotation),

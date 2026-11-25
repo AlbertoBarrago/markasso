@@ -14,6 +14,7 @@ import {
 } from './color_picker';
 import type { ContextPanelHandle } from './context_panel';
 import {
+  applyFontFamily,
   applyFontSize,
   applyStrokeOrLabelColor,
   deleteSelection,
@@ -360,7 +361,7 @@ export function initFloatingStyleBar(
         '',
         'fontFamily',
         f.family,
-        () => history.dispatch({ type: 'SET_FONT_FAMILY', family: f.family }),
+        () => applyFontFamily(history, f.family),
       );
       btn.textContent = f.label;
       btn.style.fontFamily = f.family;
