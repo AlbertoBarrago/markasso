@@ -551,19 +551,6 @@
     "hover": {
       "$value": "{color.overlay-1}"
     },
-    "hover-legacy": {
-      "$type": "color",
-      "$value": {
-        "colorSpace": "srgb",
-        "components": [
-          1,
-          1,
-          1
-        ],
-        "hex": "#ffffff",
-        "alpha": 0.07
-      }
-    },
     "scrim": {
       "$type": "color",
       "$value": {

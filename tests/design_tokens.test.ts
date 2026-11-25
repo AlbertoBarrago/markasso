@@ -1,20 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { renderCss, renderFigma } from '../src/design/render_tokens';
-import {
-  DARK,
-  LEGACY_ALIASES,
-  LEGACY_LITERALS,
-  LIGHT,
-  SHARED,
-} from '../src/design/tokens';
+import { DARK, LIGHT, SHARED } from '../src/design/tokens';
 
 const set = {
   shared: SHARED,
   dark: DARK,
   light: LIGHT,
-  aliases: LEGACY_ALIASES,
-  literals: LEGACY_LITERALS,
 };
 const read = (p: string) =>
   readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
@@ -28,13 +20,6 @@ describe('design tokens', () => {
 
   it('defines every theme token in both themes', () => {
     expect(Object.keys(LIGHT).sort()).toEqual(Object.keys(DARK).sort());
-  });
-
-  it('points every legacy alias at an existing token', () => {
-    const defined = new Set([...Object.keys(SHARED), ...Object.keys(DARK)]);
-    for (const target of Object.values(LEGACY_ALIASES)) {
-      expect(defined, target).toContain(target);
-    }
   });
 
   it('references only defined tokens inside token values', () => {
@@ -60,12 +45,7 @@ describe('design tokens', () => {
       'fsb-swatch',
       'i',
     ]);
-    const defined = new Set([
-      ...Object.keys(SHARED),
-      ...Object.keys(DARK),
-      ...Object.keys(LEGACY_ALIASES),
-      ...Object.keys(LEGACY_LITERALS),
-    ]);
+    const defined = new Set([...Object.keys(SHARED), ...Object.keys(DARK)]);
     const css = read('src/styles/tokens.css');
     expect(css).toContain('--color-canvas:');
     const used = new Set<string>();

@@ -560,19 +560,6 @@
       },
       "$description": "color-mix(in oklab, var(--color-accent) 8%, transparent)"
     },
-    "hover-legacy": {
-      "$type": "color",
-      "$value": {
-        "colorSpace": "srgb",
-        "components": [
-          0.6627450980392157,
-          0.00392156862745098,
-          0.10588235294117647
-        ],
-        "hex": "#a9011b",
-        "alpha": 0.08
-      }
-    },
     "scrim": {
       "$type": "color",
       "$value": {

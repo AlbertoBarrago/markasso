@@ -41,8 +41,7 @@ jobs:
       - name: Lint
         run: pnpm lint:ci
 
-      # Warnings only while the token migration is in progress (#184): the
-      # run lists them without failing; rules turn into errors per file.
+      # Design token scales and colors (#184).
       - name: Lint CSS
         run: pnpm lint:css
 

@@ -136,11 +136,11 @@ describe('stylelint token rules', () => {
     ]);
   });
 
-  it('only warns while the migration is in progress', async () => {
+  it('fails the lint on any off-scale value', async () => {
     const { results } = await stylelint.lint({
       code: 'a { padding: 6px; }',
       configFile: new URL('../stylelint.config.mjs', import.meta.url).pathname,
     });
-    expect(results[0]?.warnings[0]?.severity).toBe('warning');
+    expect(results[0]?.warnings[0]?.severity).toBe('error');
   });
 });
