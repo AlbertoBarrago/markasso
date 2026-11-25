@@ -37,12 +37,16 @@ export const DARK: ThemeTokens = {
   'color-text': '#e8d4d4',
   'color-text-strong': '#fffadf',
   'color-text-muted': 'rgb(141 141 141)',
+  'color-text-on-accent': '#ffffff',
 
   'color-surface-island': 'rgb(21 21 21 / 0.98)',
   'color-border': 'rgb(255 255 255 / 0.18)',
   'color-border-subtle': 'rgb(255 255 255 / 0.08)',
   'color-border-input': 'rgb(89 89 89 / 0.4)',
-  'color-hover': 'rgb(255 255 255 / 0.07)',
+  'color-hover': 'var(--color-overlay-1)',
+  // Pre-#184 hover, kept for `--bg-hover` while unmigrated CSS still uses it:
+  // removed with the legacy aliases when the migration ends.
+  'color-hover-legacy': 'rgb(255 255 255 / 0.07)',
   'color-scrim': 'rgb(0 0 0 / 0.5)',
   'color-scrollbar': 'rgb(255 255 255 / 0.1)',
 
@@ -58,6 +62,9 @@ export const DARK: ThemeTokens = {
     'inset 1px -1px 2px 0 rgb(0 0 0 / 0.9), inset -1px 1px 1px 0 rgb(255 255 255 / 0.2)',
   'shadow-modal':
     '0 8px 48px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.04)',
+  'shadow-popover': '0 8px 32px rgb(0 0 0 / 0.4)',
+  // Small raised controls, such as a slider thumb.
+  'shadow-control': '0 1px 3px rgb(0 0 0 / 0.3)',
 };
 
 /** Light theme (`[data-theme="light"]`). Same keys as {@link DARK}. */
@@ -74,6 +81,7 @@ export const LIGHT: ThemeTokens = {
   'color-text-strong': '#000000',
   // Keeps a hierarchy: 7.8:1 on #f5f5f5, still AAA.
   'color-text-muted': '#4d4d4d',
+  'color-text-on-accent': '#ffffff',
 
   'color-surface-island': '#f5f5f5',
   // 4.5:1 against white.
@@ -81,9 +89,10 @@ export const LIGHT: ThemeTokens = {
   'color-border-subtle': 'rgb(0 0 0 / 0.12)',
   // Blends to about #737373 on white: 4.6:1.
   'color-border-input': 'rgb(0 0 0 / 0.55)',
-  // Still the old red hover: it turns magenta in the pilot migration (#184,
-  // decision 3), together with the screens the designer reviews.
-  'color-hover': 'rgb(169 1 27 / 0.08)',
+  // The accent at 8% (#184, decision 3).
+  'color-hover': 'color-mix(in oklab, var(--color-accent) 8%, transparent)',
+  // The old red hover behind `--bg-hover`, see DARK.
+  'color-hover-legacy': 'rgb(169 1 27 / 0.08)',
   'color-scrim': 'rgb(0 0 0 / 0.25)',
   'color-scrollbar': 'rgb(0 0 0 / 0.2)',
 
@@ -98,6 +107,10 @@ export const LIGHT: ThemeTokens = {
   'shadow-island':
     'inset 1px -1px 2px 0 rgb(0 0 0 / 0.35), inset -1px 1px 3px 0 rgb(255 255 255 / 0.9)',
   'shadow-modal': '0 8px 32px rgb(0 0 0 / 0.16), 0 0 0 1px rgb(0 0 0 / 0.04)',
+  // Same as dark for now: the light theme overrides some popovers in
+  // theme.css until their areas are migrated.
+  'shadow-popover': '0 8px 32px rgb(0 0 0 / 0.4)',
+  'shadow-control': '0 1px 3px rgb(0 0 0 / 0.3)',
 };
 
 /**
@@ -202,7 +215,9 @@ export const LEGACY_ALIASES: Readonly<Record<string, string>> = {
   border: 'color-border',
   'modal-border': 'color-border-subtle',
   'input-border': 'color-border-input',
-  'bg-hover': 'color-hover',
+  // Points at the pre-#184 value, not at `color-hover`, so the CSS outside
+  // the migrated files keeps its look; goes away with the other aliases.
+  'bg-hover': 'color-hover-legacy',
   scrim: 'color-scrim',
   'scrollbar-thumb': 'color-scrollbar',
   'default-ink': 'color-ink-default',

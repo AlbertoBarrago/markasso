@@ -116,6 +116,38 @@ describe('design tokens', () => {
     }
   });
 
+  it('resolves a color-mix fade of a token to its color with scaled alpha', () => {
+    const light = JSON.parse(renderFigma(set, 'light'));
+    expect(light.color.hover).toEqual({
+      $type: 'color',
+      $value: {
+        colorSpace: 'srgb',
+        components: [175 / 255, 20 / 255, 90 / 255],
+        hex: '#af145a',
+        alpha: 0.08,
+      },
+      $description: LIGHT['color-hover'],
+    });
+    const dark = JSON.parse(renderFigma(set, 'dark'));
+    expect(dark.color.hover.$value).toBe('{color.overlay-1}');
+  });
+
+  it('fades an already translucent token by multiplying its alpha', () => {
+    const faded = {
+      ...set,
+      light: {
+        ...LIGHT,
+        'color-hover':
+          'color-mix(in srgb, var(--color-accent-subtle) 50%, transparent)',
+      },
+    };
+    const light = JSON.parse(renderFigma(faded, 'light'));
+    expect(light.color.hover.$value).toMatchObject({
+      hex: '#af145a',
+      alpha: 0.1,
+    });
+  });
+
   it('renders shadows as typed DTCG layers', () => {
     const light = JSON.parse(renderFigma(set, 'light'));
     expect(light.shadow.island.$type).toBe('shadow');

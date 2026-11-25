@@ -1,11 +1,11 @@
 /* ── Menu panel (settings dropdown) ─────────────────────────────────── */
 .settings-panel {
   position: fixed;
-  z-index: 200;
+  z-index: var(--z-panel);
   width: 256px;
-  background: var(--bg-island);
-  border: 1px solid var(--island-border);
-  border-radius: var(--island-radius);
+  background: var(--color-surface-island);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   opacity: 0;
@@ -27,7 +27,7 @@
    the panel) are not clipped by it. */
 .menu-body {
   min-height: 0;
-  padding: 4px;
+  padding: calc(var(--spacing) * 1);
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -43,14 +43,14 @@
   box-sizing: border-box;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: calc(var(--spacing) * 2);
   width: 100%;
-  padding: 8px 10px;
+  padding: calc(var(--spacing) * 2);
   background: none;
   border: none;
-  border-radius: 7px;
-  color: var(--text);
-  font-size: 13px;
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-size: var(--text-sm);
   font-family: inherit;
   cursor: pointer;
   text-align: left;
@@ -60,7 +60,7 @@
 .menu-item:hover:not(:disabled, [aria-disabled="true"]),
 .menu-item:focus-visible,
 .menu-item[aria-expanded="true"] {
-  background: var(--bg-hover);
+  background: var(--color-hover);
 }
 .menu-item:disabled,
 .menu-item[aria-disabled="true"] {
@@ -77,29 +77,29 @@
   flex: 1;
 }
 .menu-item--danger {
-  color: var(--alert) !important;
+  color: var(--color-danger) !important;
 }
 .menu-item--danger .menu-item-label {
-  color: var(--alert) !important;
+  color: var(--color-danger) !important;
 }
 .menu-item--danger svg {
   opacity: 0.85;
 }
 .menu-item-hint {
-  font-size: 11px;
-  color: var(--text-muted);
+  font-size: var(--text-2xs);
+  color: var(--color-text-muted);
 }
 .menu-item-kbd {
   min-width: 18px;
-  padding: 1px 5px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
+  padding: 1px calc(var(--spacing) * 1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
   font-family: inherit;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.4;
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--leading-snug);
   text-align: center;
-  color: var(--text-muted);
+  color: var(--color-text-muted);
 }
 .menu-arrow {
   display: flex;
@@ -116,7 +116,7 @@
   visibility: hidden;
 }
 .menu-item[aria-checked="true"] .menu-check {
-  color: var(--accent);
+  color: var(--color-accent);
 }
 .menu-item[aria-checked="true"] .menu-check svg {
   opacity: 1;
@@ -125,14 +125,14 @@
 /* Submenus open on the right of the panel; settings.ts positions them */
 .menu-sub {
   position: absolute;
-  z-index: 1;
+  z-index: calc(var(--z-base) + 1);
   min-width: 200px;
   max-height: calc(100vh - 16px);
-  padding: 4px;
+  padding: calc(var(--spacing) * 1);
   overflow-y: auto;
-  background: var(--bg-island);
-  border: 1px solid var(--island-border);
-  border-radius: var(--island-radius);
+  background: var(--color-surface-island);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
 }
 /* No room beside the panel (phones): the submenu expands inline below its
    item, inside the scrolling list, instead of covering the panel. */
@@ -140,7 +140,7 @@
   position: static;
   min-width: 0;
   max-height: none;
-  padding: 0 0 0 18px;
+  padding: 0 0 0 calc(var(--spacing) * 4);
   overflow: visible;
   background: none;
   border: none;
@@ -153,79 +153,80 @@
 
 .menu-divider {
   height: 1px;
-  background: var(--border);
-  margin: 4px;
+  background: var(--color-border);
+  margin: calc(var(--spacing) * 1);
 }
 
 .menu-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 6px 12px;
+  gap: calc(var(--spacing) * 2);
+  padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3);
 }
 .menu-version {
-  font-size: 11px;
-  margin-left: 4px;
-  color: var(--text-muted);
+  font-size: var(--text-2xs);
+  margin-left: calc(var(--spacing) * 1);
+  color: var(--color-text-muted);
   letter-spacing: 0.04em;
 }
 .menu-footer-link {
   text-decoration: none;
   display: flex;
-  padding: 4px;
-  border-radius: 6px;
-  color: var(--text-muted);
+  padding: calc(var(--spacing) * 1);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
   transition:
     background 0.1s,
     color 0.1s;
 }
 .menu-footer-link:hover {
-  background: var(--bg-hover);
-  color: var(--text);
+  background: var(--color-hover);
+  color: var(--color-text);
 }
 .menu-footer-coffee {
   border: none;
   background: none;
   cursor: pointer;
-  color: var(--warning);
+  color: var(--color-warning);
 }
 .menu-footer-coffee svg {
-  margin-right: 4px;
+  margin-right: calc(var(--spacing) * 1);
 }
 .menu-footer-coffee:hover {
-  color: color-mix(in srgb, var(--warning) 80%, var(--text));
+  color: color-mix(in srgb, var(--color-warning) 80%, var(--color-text));
 }
 
 .menu-section-label {
-  padding: 8px 12px 4px;
-  font-size: 10px;
-  font-weight: 700;
+  padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3)
+    calc(var(--spacing) * 1);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-bold);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--text-muted);
+  color: var(--color-text-muted);
 }
 .menu-bg-swatches {
   display: flex;
-  gap: 6px;
-  padding: 0 10px 8px;
+  gap: calc(var(--spacing) * 2);
+  padding: 0 calc(var(--spacing) * 2) calc(var(--spacing) * 2);
 }
 .sp-preset {
   width: 30px;
   height: 30px;
-  border-radius: 8px;
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--color-border-subtle);
   cursor: pointer;
   transition:
     border-color 0.1s,
     transform 0.1s;
 }
 .sp-preset:hover {
-  border-color: var(--text-muted);
+  border-color: var(--color-text-muted);
   transform: scale(1.1);
 }
 .sp-preset.active {
-  border-color: var(--accent) !important;
+  border-color: var(--color-accent) !important;
 }
 
 @media (pointer: coarse) {
@@ -240,13 +241,13 @@
   }
 
   .tb-island-topright {
-    top: 12px;
-    right: 12px;
+    top: calc(var(--spacing) * 3);
+    right: calc(var(--spacing) * 3);
   }
 
   .tb-island-topleft {
-    top: 12px;
-    left: 12px;
+    top: calc(var(--spacing) * 3);
+    left: calc(var(--spacing) * 3);
   }
 
   /* The live name chip lives in the bottom action bar on touch; dropping the
@@ -262,8 +263,8 @@
 
   /* Context panel: full-width on mobile, below top-left settings */
   #context-panel {
-    top: 62px;
-    left: 16px;
+    top: calc(var(--spacing) * 16);
+    left: calc(var(--spacing) * 4);
     width: calc(100vw - 32px);
     max-width: 320px;
     max-height: calc(100vh - 160px);
@@ -281,15 +282,15 @@
   width: 100vw;
   height: 100vh;
   pointer-events: none;
-  z-index: 10000;
+  z-index: var(--z-toast);
 }
 /* Cloud submenu note shown until a licence is stored (settings.ts). */
 .menu-cloud-note {
   max-width: 240px;
-  padding: 6px 10px 8px;
-  font-size: 11px;
-  line-height: 1.4;
-  color: var(--text-muted);
+  padding: calc(var(--spacing) * 2);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-snug);
+  color: var(--color-text-muted);
 }
 .menu-cloud-note[hidden] {
   display: none;
@@ -301,25 +302,27 @@
 /* "Markasso for Mac" banner (mac_banner.ts): top centre, between the corner islands. */
 .mac-banner {
   position: fixed;
-  top: 14px;
+  top: calc(var(--spacing) * 4);
   left: 50%;
   transform: translateX(-50%);
-  z-index: 11;
+  /* Just above the toolbar islands (raised). */
+  z-index: calc(var(--z-raised) + 1);
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 6px 6px 14px;
-  border: 1px solid var(--island-border, var(--border));
-  border-radius: 999px;
-  background: var(--bg-island);
-  color: var(--text);
-  font-size: 13px;
+  gap: calc(var(--spacing) * 2);
+  padding: calc(var(--spacing) * 2) calc(var(--spacing) * 2)
+    calc(var(--spacing) * 2) calc(var(--spacing) * 3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-island);
+  color: var(--color-text);
+  font-size: var(--text-sm);
   white-space: nowrap;
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
+  box-shadow: var(--shadow-popover);
 }
 .mac-banner a {
-  color: var(--accent);
-  font-weight: 600;
+  color: var(--color-accent);
+  font-weight: var(--font-weight-semibold);
   text-decoration: none;
 }
 .mac-banner-close {
@@ -328,14 +331,14 @@
   border: none;
   border-radius: 50%;
   background: none;
-  color: var(--text-muted);
-  font-size: 16px;
+  color: var(--color-text-muted);
+  font-size: var(--text-base);
   cursor: pointer;
 }
 .mac-banner-close:hover {
-  background: var(--bg-hover);
+  background: var(--color-hover);
 }
-@media (max-width: 700px) {
+@media (width < 48rem) {
   .mac-banner {
     display: none;
   }
@@ -344,41 +347,42 @@
    banner, which it replaces while shown. */
 .update-banner {
   position: fixed;
-  top: 14px;
+  top: calc(var(--spacing) * 4);
   left: 50%;
   transform: translateX(-50%);
-  z-index: 12;
+  z-index: calc(var(--z-raised) + 2);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: calc(var(--spacing) * 3);
   max-width: calc(100vw - 32px);
-  padding: 8px 8px 8px 14px;
-  border: 1px solid var(--island-border, var(--border));
-  border-radius: 14px;
-  background: var(--bg-island);
-  color: var(--text);
-  font-size: 14px;
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
+  padding: calc(var(--spacing) * 2) calc(var(--spacing) * 2)
+    calc(var(--spacing) * 2) calc(var(--spacing) * 3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface-island);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  box-shadow: var(--shadow-popover);
   animation: update-banner-in 0.25s ease-out;
 }
 .update-banner-icon {
   display: flex;
   flex-shrink: 0;
-  color: var(--accent);
+  color: var(--color-accent);
 }
 .update-banner-text {
-  line-height: 1.35;
+  line-height: var(--leading-snug);
 }
 .update-banner-reload {
   flex-shrink: 0;
-  padding: 8px 14px;
+  padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3);
   border: none;
-  border-radius: 9px;
-  background: var(--accent);
-  color: #fff;
+  border-radius: var(--radius-lg);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
   font-family: inherit;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
   white-space: nowrap;
   cursor: pointer;
 }
@@ -392,12 +396,12 @@
   border: none;
   border-radius: 50%;
   background: none;
-  color: var(--text-muted);
-  font-size: 18px;
+  color: var(--color-text-muted);
+  font-size: var(--text-lg);
   cursor: pointer;
 }
 .update-banner-close:hover {
-  background: var(--bg-hover);
+  background: var(--color-hover);
 }
 @keyframes update-banner-in {
   from {
@@ -405,12 +409,11 @@
     transform: translate(-50%, -8px);
   }
 }
-@media (max-width: 700px) {
+@media (width < 48rem) {
   /* Below the corner islands, which share the top row on narrow screens. */
   .update-banner {
-    top: 72px;
+    top: calc(var(--spacing) * 20);
     width: calc(100vw - 32px);
-    font-size: 13px;
   }
   .update-banner-text {
     flex: 1;
@@ -425,26 +428,24 @@
 /* ── Right-click menu of the canvas (context_menu.ts) ────────────────── */
 .context-menu {
   position: fixed;
-  z-index: 210;
+  /* Above the menu panel. */
+  z-index: calc(var(--z-panel) + 10);
   min-width: 232px;
   max-height: calc(100vh - 16px);
   overflow-y: auto;
-  padding: 4px;
-  background: var(--bg-island);
-  border: 1px solid var(--island-border);
-  border-radius: var(--island-radius);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  padding: calc(var(--spacing) * 1);
+  background: var(--color-surface-island);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-popover);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
 .context-menu[hidden] {
   display: none;
 }
-.context-menu .menu-item {
-  padding: 6px 10px;
-}
 .context-menu .menu-item-hint {
-  margin-left: 24px;
+  margin-left: calc(var(--spacing) * 6);
 }
 .context-menu:focus {
   outline: none;

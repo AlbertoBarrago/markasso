@@ -113,6 +113,31 @@ function dtcgColor(value: string): Json {
   throw new Error(`Unsupported color "${value}"`);
 }
 
+/**
+ * `color-mix(in <space>, var(--token) P%, transparent)`, a token faded to
+ * P%, as a DTCG color: the token's color with its alpha scaled by P. Mixing
+ * with `transparent` interpolates premultiplied, so the hue stays the
+ * token's in any color space. DTCG aliases cannot carry an alpha, hence the
+ * resolved value; the description keeps the CSS source for the designer.
+ */
+const FADE =
+  /^color-mix\(in [a-z]+, var\(--([a-z0-9-]+)\) ([\d.]+)%, transparent\)$/;
+
+function fadedColor(
+  value: string,
+  lookup: Readonly<Record<string, string>>,
+): Group | undefined {
+  const m = FADE.exec(value);
+  if (!m?.[1] || m[2] === undefined) return undefined;
+  const source = lookup[m[1]];
+  if (source === undefined) throw new Error(`Unknown token "${m[1]}"`);
+  const color = dtcgColor(source) as Group;
+  const alpha = typeof color.alpha === 'number' ? color.alpha : 1;
+  // Rounded so float noise (0.08000000000000002) stays out of the file.
+  color.alpha = Math.round(alpha * Number(m[2]) * 1e4) / 1e6;
+  return { $type: 'color', $value: color, $description: value };
+}
+
 function dimension(value: string): Json {
   // `calc(infinity * 1px)` (a pill radius) has no DTCG form: Figma clamps.
   if (value.startsWith('calc(infinity')) return { value: 9999, unit: 'px' };
@@ -121,8 +146,16 @@ function dimension(value: string): Json {
   return { value: Number(m[1]), unit: m[2] as string };
 }
 
-/** One DTCG token for a CSS value. `var(--x-y)` becomes a `{x.y}` alias. */
-function dtcgToken(ns: string, value: string): Group {
+/**
+ * One DTCG token for a CSS value. `var(--x-y)` becomes a `{x.y}` alias;
+ * `lookup` (every token of the theme) resolves the colors that a
+ * `color-mix()` derives from another token.
+ */
+function dtcgToken(
+  ns: string,
+  value: string,
+  lookup: Readonly<Record<string, string>>,
+): Group {
   const ref = /^var\(--([a-z0-9-]+)\)$/.exec(value);
   if (ref?.[1]) {
     const [rns, rkey] = split(ref[1]);
@@ -130,7 +163,12 @@ function dtcgToken(ns: string, value: string): Group {
   }
   switch (ns) {
     case 'color':
-      return { $type: 'color', $value: dtcgColor(value) };
+      return (
+        fadedColor(value, lookup) ?? {
+          $type: 'color',
+          $value: dtcgColor(value),
+        }
+      );
     case 'spacing':
     case 'text':
     case 'radius':
@@ -196,11 +234,15 @@ function shadowLayers(value: string): Json[] {
   });
 }
 
-function group(tokens: Readonly<Record<string, string>>, into: Group): void {
+function group(
+  tokens: Readonly<Record<string, string>>,
+  into: Group,
+  lookup: Readonly<Record<string, string>>,
+): void {
   for (const [name, value] of Object.entries(tokens)) {
     const [ns, key] = split(name);
     const g = (into[ns] ?? {}) as Group;
-    g[key] = dtcgToken(ns, value) as Json;
+    g[key] = dtcgToken(ns, value, lookup) as Json;
     into[ns] = g;
   }
 }
@@ -211,7 +253,9 @@ function group(tokens: Readonly<Record<string, string>>, into: Group): void {
  */
 export function renderFigma(set: TokenSet, theme: 'dark' | 'light'): string {
   const root: Group = {};
-  group(set.shared, root);
-  group(theme === 'dark' ? set.dark : set.light, root);
+  const themed = theme === 'dark' ? set.dark : set.light;
+  const lookup = { ...set.shared, ...themed };
+  group(set.shared, root, lookup);
+  group(themed, root, lookup);
   return `${JSON.stringify(root, null, 2)}\n`;
 }

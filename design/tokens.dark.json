@@ -404,6 +404,18 @@
         "hex": "#8d8d8d"
       }
     },
+    "text-on-accent": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          1,
+          1,
+          1
+        ],
+        "hex": "#ffffff"
+      }
+    },
     "surface-island": {
       "$type": "color",
       "$value": {
@@ -457,6 +469,9 @@
       }
     },
     "hover": {
+      "$value": "{color.overlay-1}"
+    },
+    "hover-legacy": {
       "$type": "color",
       "$value": {
         "colorSpace": "srgb",
@@ -693,6 +708,74 @@
           },
           "spread": {
             "value": 1,
+            "unit": "px"
+          },
+          "inset": false
+        }
+      ]
+    },
+    "popover": {
+      "$type": "shadow",
+      "$value": [
+        {
+          "color": {
+            "colorSpace": "srgb",
+            "components": [
+              0,
+              0,
+              0
+            ],
+            "hex": "#000000",
+            "alpha": 0.4
+          },
+          "offsetX": {
+            "value": 0,
+            "unit": "px"
+          },
+          "offsetY": {
+            "value": 8,
+            "unit": "px"
+          },
+          "blur": {
+            "value": 32,
+            "unit": "px"
+          },
+          "spread": {
+            "value": 0,
+            "unit": "px"
+          },
+          "inset": false
+        }
+      ]
+    },
+    "control": {
+      "$type": "shadow",
+      "$value": [
+        {
+          "color": {
+            "colorSpace": "srgb",
+            "components": [
+              0,
+              0,
+              0
+            ],
+            "hex": "#000000",
+            "alpha": 0.3
+          },
+          "offsetX": {
+            "value": 0,
+            "unit": "px"
+          },
+          "offsetY": {
+            "value": 1,
+            "unit": "px"
+          },
+          "blur": {
+            "value": 3,
+            "unit": "px"
+          },
+          "spread": {
+            "value": 0,
             "unit": "px"
           },
           "inset": false
