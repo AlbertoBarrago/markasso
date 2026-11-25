@@ -125,6 +125,6 @@
   --default-ink: var(--color-ink-default);
   --island-shadow: var(--shadow-island);
   --modal-shadow: var(--shadow-modal);
-  --radius: var(--radius-lg);
-  --island-radius: var(--radius-xl);
+  --radius: 8px;
+  --island-radius: 12px;
 }

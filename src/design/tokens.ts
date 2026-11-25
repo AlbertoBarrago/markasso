@@ -208,6 +208,16 @@ export const LEGACY_ALIASES: Readonly<Record<string, string>> = {
   'default-ink': 'color-ink-default',
   'island-shadow': 'shadow-island',
   'modal-shadow': 'shadow-modal',
-  radius: 'radius-lg',
-  'island-radius': 'radius-xl',
+};
+
+/**
+ * Pre-#184 names kept at their old literal value instead of aliasing a
+ * token: the radius tokens are in rem (Tailwind's unit), so an alias would
+ * make today's 8px and 12px corners scale with the browser's default font
+ * size. Their consumers move to `--radius-lg` / `--radius-xl` during the
+ * migration, deliberately.
+ */
+export const LEGACY_LITERALS: Readonly<Record<string, string>> = {
+  radius: '8px',
+  'island-radius': '12px',
 };

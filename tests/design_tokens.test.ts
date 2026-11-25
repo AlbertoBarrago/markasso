@@ -1,13 +1,20 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { renderCss, renderFigma } from '../src/design/render_tokens';
-import { DARK, LEGACY_ALIASES, LIGHT, SHARED } from '../src/design/tokens';
+import {
+  DARK,
+  LEGACY_ALIASES,
+  LEGACY_LITERALS,
+  LIGHT,
+  SHARED,
+} from '../src/design/tokens';
 
 const set = {
   shared: SHARED,
   dark: DARK,
   light: LIGHT,
   aliases: LEGACY_ALIASES,
+  literals: LEGACY_LITERALS,
 };
 const read = (p: string) =>
   readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
@@ -57,6 +64,7 @@ describe('design tokens', () => {
       ...Object.keys(SHARED),
       ...Object.keys(DARK),
       ...Object.keys(LEGACY_ALIASES),
+      ...Object.keys(LEGACY_LITERALS),
     ]);
     const css = read('src/styles/tokens.css');
     expect(css).toContain('--color-canvas:');
@@ -87,5 +95,35 @@ describe('design tokens', () => {
     expect(dark.radius.full.$value).toEqual({ value: 9999, unit: 'px' });
     expect(dark.color['focus-ring'].$value).toBe('{color.accent}');
     expect(dark.color.accent.$value.hex).toBe('#c42059');
+  });
+
+  it('gives every Figma token a DTCG type or an alias', () => {
+    for (const theme of ['dark', 'light'] as const) {
+      const root = JSON.parse(renderFigma(set, theme)) as Record<
+        string,
+        Record<string, { $type?: string; $value: unknown }>
+      >;
+      for (const [group, tokens] of Object.entries(root)) {
+        for (const [key, token] of Object.entries(tokens)) {
+          const isAlias =
+            typeof token.$value === 'string' && token.$value.startsWith('{');
+          expect(
+            isAlias || token.$type,
+            `${theme} ${group}.${key}`,
+          ).toBeTruthy();
+        }
+      }
+    }
+  });
+
+  it('renders shadows as typed DTCG layers', () => {
+    const light = JSON.parse(renderFigma(set, 'light'));
+    expect(light.shadow.island.$type).toBe('shadow');
+    expect(light.shadow.island.$value[0]).toMatchObject({
+      inset: true,
+      offsetX: { value: 1, unit: 'px' },
+      offsetY: { value: -1, unit: 'px' },
+      color: { hex: '#000000', alpha: 0.35 },
+    });
   });
 });

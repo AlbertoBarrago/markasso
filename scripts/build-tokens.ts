@@ -10,13 +10,20 @@
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { renderCss, renderFigma } from '../src/design/render_tokens.ts';
-import { DARK, LEGACY_ALIASES, LIGHT, SHARED } from '../src/design/tokens.ts';
+import {
+  DARK,
+  LEGACY_ALIASES,
+  LEGACY_LITERALS,
+  LIGHT,
+  SHARED,
+} from '../src/design/tokens.ts';
 
 const set = {
   shared: SHARED,
   dark: DARK,
   light: LIGHT,
   aliases: LEGACY_ALIASES,
+  literals: LEGACY_LITERALS,
 };
 const root = (p: string) => fileURLToPath(new URL(`../${p}`, import.meta.url));
 
