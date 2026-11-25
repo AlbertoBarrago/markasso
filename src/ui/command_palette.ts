@@ -17,6 +17,7 @@ import {
   cloudAction,
   cloudActionAvailable,
 } from './cloud_boards';
+import { isCompactLayout, onCompactLayoutEnter } from './compact_layout';
 import { exportImage } from './export_actions';
 import { insertStencil } from './library_insert';
 import { SHAPE_KIND_LABEL_KEYS, shapeKindIcon } from './shape_icons';
@@ -612,8 +613,13 @@ export function initCommandPalette(
   });
 
   // ── Global Ctrl+K shortcut ────────────────────────────────────────────────
+  // The compact layout hides the palette (overlays.css): there the shortcut
+  // does nothing, so the browser keeps the key.
+  onCompactLayoutEnter(() => {
+    if (isOpen()) closePalette();
+  });
   window.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k' && !isCompactLayout()) {
       e.preventDefault();
       if (isOpen()) {
         closePalette();
