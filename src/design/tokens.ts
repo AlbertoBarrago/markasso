@@ -83,6 +83,11 @@ export const DARK: ThemeTokens = {
   'color-text-on-warning': '#000000',
   // Floating chrome over the canvas: toasts, the hint bar, the minimap.
   'shadow-float': '0 4px 24px rgb(0 0 0 / 0.5)',
+
+  // core migration
+  // Resting fill of a control on an island (buttons, chips, inputs): an
+  // overlay in dark, plain white over the light island surface.
+  'color-surface-control': 'var(--color-overlay-1)',
 };
 
 /** Light theme (`[data-theme="light"]`). Same keys as {@link DARK}. */
@@ -146,6 +151,9 @@ export const LIGHT: ThemeTokens = {
   // White on the dark amber: 5.6:1.
   'color-text-on-warning': '#ffffff',
   'shadow-float': '0 2px 12px rgb(0 0 0 / 0.15)',
+
+  // core migration
+  'color-surface-control': '#ffffff',
 };
 
 /**

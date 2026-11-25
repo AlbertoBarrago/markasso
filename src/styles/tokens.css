@@ -85,6 +85,7 @@
   --shadow-control: 0 1px 3px rgb(0 0 0 / 0.3);
   --color-text-on-warning: #000000;
   --shadow-float: 0 4px 24px rgb(0 0 0 / 0.5);
+  --color-surface-control: var(--color-overlay-1);
 }
 
 [data-theme="light"] {
@@ -125,6 +126,7 @@
   --shadow-control: 0 1px 3px rgb(0 0 0 / 0.3);
   --color-text-on-warning: #ffffff;
   --shadow-float: 0 2px 12px rgb(0 0 0 / 0.15);
+  --color-surface-control: #ffffff;
 }
 
 /* Pre-#184 names, removed once every consumer uses the tokens above.
