@@ -1,0 +1,46 @@
+name: CI
+
+# Merging to main deploys production (Workers Builds), and the release
+# workflow only runs on tags: this is the check every pull request gets
+# before it can land.
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint:ci
+
+      - name: Test
+        run: pnpm vitest run
+
+      # Runs the type-check of app, worker and MCP before the Vite build.
+      - name: Build
+        run: pnpm build
