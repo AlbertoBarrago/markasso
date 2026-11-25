@@ -1,0 +1,12 @@
+/* Injected before every visual baseline (playwright.config.ts). */
+
+/* Shown for 4 s after the first scene change: whether a screenshot catches
+   it depends on timing. */
+#hint-bar {
+  visibility: hidden !important;
+}
+
+/* The app version changes on every release. */
+.menu-version {
+  visibility: hidden !important;
+}

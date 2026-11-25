@@ -26,6 +26,7 @@ export default defineConfig({
       caret: 'hide',
       scale: 'css',
       maxDiffPixels: 0,
+      stylePath: './visual/fixtures/stable.css',
     },
   },
   use: {
@@ -69,7 +70,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `pnpm dev --port ${PORT} --strictPort --open false`,
+    command: `pnpm dev --port ${PORT} --strictPort`,
+    // Vite's `--open` takes an optional path, so `--open false` would open
+    // a tab at /false: turn auto-open off through BROWSER instead.
+    env: { BROWSER: 'none' },
     url: `http://localhost:${PORT}`,
     reuseExistingServer: false,
     timeout: 60_000,
