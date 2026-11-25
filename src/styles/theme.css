@@ -1,9 +1,9 @@
 /* ── Theme toggle (Light / Dark / Device) ─────────────────────────────────── */
 .menu-theme-toggle {
   display: flex;
-  gap: 4px;
+  gap: calc(var(--spacing) * 1);
   width: 100%;
-  padding: 0 10px 8px;
+  padding: 0 calc(var(--spacing) * 2) calc(var(--spacing) * 2);
 }
 .menu-theme-toggle > li {
   display: flex;
@@ -15,12 +15,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  border: 1.5px solid var(--border);
-  border-radius: 7px;
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text-muted);
-  font-size: 11px;
+  gap: calc(var(--spacing) * 1);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-control);
+  color: var(--color-text-muted);
+  font-size: var(--text-2xs);
   font-family: inherit;
   cursor: pointer;
   transition:
@@ -29,174 +29,87 @@
     color 0.1s;
 }
 .menu-theme-btn:hover {
-  border-color: var(--accent);
-  color: var(--text);
+  border-color: var(--color-accent);
+  color: var(--color-text);
 }
 .menu-theme-btn.active {
-  background: var(--accent-light);
-  border-color: var(--accent);
-  color: var(--accent);
+  background: var(--color-accent-subtle);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
 }
 
-[data-theme="light"] .tb-island,
-[data-theme="light"] .settings-panel,
-[data-theme="light"] .context-menu,
-[data-theme="light"] .menu-sub:not(.menu-sub--inline),
+/* ── Light theme ──────────────────────────────────────────────────────────────
+   Colors come from the tokens, which switch on [data-theme="light"]. What
+   follows are only the light theme's own design choices: stronger borders
+   and accent details where the dark theme uses subtle overlays. */
+
+/* Panels with a subtle outline in dark get the full border (4.5:1). */
 [data-theme="light"] #context-panel,
 [data-theme="light"] #floating-style-bar,
 [data-theme="light"] .fsb-popover,
-[data-theme="light"] #mobile-actions,
-[data-theme="light"] #mobile-style-sheet,
-[data-theme="light"] .wl-card {
-  background: var(--bg-island) !important;
-  border-color: var(--island-border) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+[data-theme="light"] .wl-card,
+[data-theme="light"] .sp-preset {
+  border-color: var(--color-border);
+}
+[data-theme="light"] #context-panel {
+  box-shadow: none;
+}
+[data-theme="light"] #floating-style-bar,
+[data-theme="light"] .fsb-popover {
+  box-shadow: var(--shadow-float);
+}
+[data-theme="light"] #context-panel::-webkit-scrollbar-thumb,
+[data-theme="light"] #context-panel::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent);
 }
 
-[data-theme="light"] .tb-btn,
-[data-theme="light"] .tb-btn-key,
-[data-theme="light"] .tb-zoom,
-[data-theme="light"] .menu-item,
-[data-theme="light"] .menu-item-label,
-[data-theme="light"] .cp-label,
-[data-theme="light"] .cp-btn,
-[data-theme="light"] .cp-color-more,
-[data-theme="light"] .cp-slider-labels,
-[data-theme="light"] .cp-slider-val,
-[data-theme="light"] .mobile-action-btn {
-  color: #000000;
-}
 [data-theme="light"] .menu-item svg {
   opacity: 1;
-}
-[data-theme="light"] .tb-btn:hover,
-[data-theme="light"] .mobile-action-btn:hover {
-  background: rgba(169, 1, 27, 0.08);
-  color: #000000;
-}
-[data-theme="light"] .tb-btn.active,
-[data-theme="light"] .mobile-action-btn.active {
-  background: var(--accent-light);
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-  color: var(--accent);
 }
 
 [data-theme="light"] .tb-separator {
   background: linear-gradient(
     to bottom,
     transparent,
-    rgba(169, 1, 27, 0.4),
-    rgba(169, 1, 27, 0.4),
+    var(--color-accent-muted),
+    var(--color-accent-muted),
     transparent
   );
 }
-[data-theme="light"] .cp-btn.active {
-  border-color: var(--accent) !important;
-  background: var(--accent-light);
-  color: var(--accent);
-}
-[data-theme="light"] .cp-color-swatch.active {
-  border-color: var(--accent);
-}
-[data-theme="light"] .cp-slider::-webkit-slider-thumb,
-[data-theme="light"] .cp-slider::-moz-range-thumb {
-  background: var(--accent);
-}
-[data-theme="light"] .cp-font-size-input:focus {
-  border-color: var(--accent);
-  background: #ffffff;
+
+/* Selected buttons: a 2px inset accent ring instead of the dark 1px one. */
+[data-theme="light"] .tb-btn.active,
+[data-theme="light"] .mobile-action-btn.active,
+[data-theme="light"] .menu-theme-btn.active {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
 }
 
-/* Context panel */
-[data-theme="light"] #floating-style-bar,
-[data-theme="light"] .fsb-popover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-}
-[data-theme="light"] .fsb-color-btn {
-  border-color: rgba(0, 0, 0, 0.2);
-}
-[data-theme="light"] .fsb-color-btn--transparent {
-  background:
-    repeating-conic-gradient(#d0d0d0 0% 25%, #ffffff 0% 50%) 0 0 / 8px 8px;
-}
-[data-theme="light"] #context-panel {
-  border-color: var(--island-border);
-  box-shadow: none;
-}
-[data-theme="light"] #context-panel::-webkit-scrollbar-thumb {
-  background: var(--accent);
-}
-[data-theme="light"] #context-panel::-webkit-scrollbar-thumb:hover {
-  background: var(--accent);
-}
-[data-theme="light"] .cp-color-swatch-transparent {
-  background:
-    repeating-conic-gradient(#e5e5e5 0% 25%, #f5f5f5 0% 50%) 0 0 / 8px 8px;
-}
-[data-theme="light"] .cp-color-more {
-  border-color: var(--accent);
-  background: #ffffff;
-  color: #000000;
-}
-[data-theme="light"] .cp-color-more::before {
-  background: rgba(0, 0, 0, 0.2);
-}
-[data-theme="light"] .cp-color-more:hover {
-  background: var(--color-hover);
-  border-color: var(--accent);
-}
-[data-theme="light"] .cp-popup-label {
-  color: rgba(0, 0, 0, 0.55);
-} /* was 0.4 → 2.85:1, now ~4.6:1 */
-[data-theme="light"] .cp-popup-swatch-transparent {
-  background:
-    repeating-conic-gradient(#e5e5e5 0% 25%, #f5f5f5 0% 50%) 0 0 / 8px 8px;
-}
-[data-theme="light"] .cp-popup-swatch:hover {
-  border-color: rgba(0, 0, 0, 0.35);
-}
-[data-theme="light"] .cp-popup-hex-section {
-  border-top-color: rgba(0, 0, 0, 0.08);
-}
-[data-theme="light"] .cp-popup-hex-row {
-  background: rgba(0, 0, 0, 0.04);
-  border-color: rgba(0, 0, 0, 0.15);
-}
-[data-theme="light"] .cp-popup-hex-hash {
-  color: rgba(0, 0, 0, 0.55);
-} /* was 0.4 → 2.85:1, now ~4.6:1 */
-[data-theme="light"] .cp-btn {
-  border-color: var(--input-border) !important;
-  background: #ffffff;
-  color: #000000;
-}
-[data-theme="light"] .cp-btn:hover {
-  background: var(--color-hover);
-  border-color: var(--accent);
-}
-[data-theme="light"] .cp-slider {
-  background: var(--accent);
-}
-[data-theme="light"] .cp-slider-labels {
-  color: #000000;
-}
+/* Context panel controls: accent outlines, and the accent tint on hover
+   instead of the dark theme's next overlay step. */
+[data-theme="light"] .cp-color-more,
 [data-theme="light"] .cp-font-size-input {
-  background: #ffffff;
-  border-color: var(--accent);
-  color: #000000;
+  border-color: var(--color-accent);
 }
+[data-theme="light"] .cp-btn:not(.active):hover,
+[data-theme="light"] .cp-color-more:hover,
 [data-theme="light"] .cp-font-size-input:hover {
   background: var(--color-hover);
-  border-color: var(--accent);
+  border-color: var(--color-accent);
+}
+[data-theme="light"] .cp-btn.active {
+  color: var(--color-accent);
+}
+[data-theme="light"] .cp-slider {
+  background: var(--color-accent);
 }
 [data-theme="light"] .cp-border-btn[data-border="sharp"]::before,
 [data-theme="light"] .cp-border-btn[data-border="rounded"]::before {
-  border-color: var(--accent);
+  border-color: var(--color-accent);
 }
 
-/* Roughness icons (swap white stroke → dark) */
+/* Roughness icons: a data URI cannot read a token, so the light theme swaps
+   the white stroke for a dark one. */
 [data-theme="light"] .cp-roughness-btn[data-roughness="0"]::before {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 12'%3E%3Cpath d='M0 6h20' stroke='%231a1a1a' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
 }
@@ -207,34 +120,6 @@
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 12'%3E%3Cpath d='M0 6c2 0 2-4 4-4s2 4 4 4 2-4 4-4 2 4 4 4' stroke='%231a1a1a' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
 }
 
-/* Settings menu */
-[data-theme="light"] .sp-preset {
-  border-color: var(--island-border);
-}
-[data-theme="light"] .menu-theme-btn {
-  background: #ffffff;
-}
-[data-theme="light"] .menu-theme-btn.active {
-  background: var(--accent-light);
-  border-color: var(--accent);
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-  color: var(--accent);
-}
-
-/* Mobile */
-[data-theme="light"] .mobile-action-btn {
-  background: #ffffff;
-}
 [data-theme="light"] .mss-handle {
-  background: var(--accent);
-}
-
-/* Destructive actions: the dark theme's #ff6b6b is about 2.8:1 on white. */
-[data-theme="light"] .mobile-action-btn.mobile-action-danger {
-  color: var(--alert);
-}
-[data-theme="light"] .mobile-action-btn.mobile-action-danger:active {
-  background: color-mix(in srgb, var(--alert) 12%, transparent);
-  color: var(--alert);
+  background: var(--color-accent);
 }
