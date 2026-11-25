@@ -4,6 +4,16 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [1.26.2] - 2026-11-25
+
+### Fixed
+- **Text box after a font change ([#192](https://github.com/AlbertoBarrago/markasso/issues/192)).** Switching a text to another font (monospace, for example) resizes its box to the new text, so the selection outline matches it again.
+
+### Changed
+- **Static pages' code in one place.** The scripts and styles of /agents/, /cloud/ and /mac/ moved to `src/site/`; nothing changes on the pages.
+
+---
+
 ## [1.26.1] - 2026-11-25
 
 ### Fixed
