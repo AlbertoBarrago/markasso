@@ -1,3 +1,4 @@
+import { DEFAULT_INK } from '../design/tokens';
 import type {
   ConnectorRouting,
   ElementType,
@@ -51,7 +52,8 @@ export function createAppState(): AppState {
     window?: { matchMedia(query: string): { matches: boolean } };
   };
   const resolvedTheme = doc?.documentElement.getAttribute('data-theme');
-  const defaultStrokeColor = resolvedTheme === 'light' ? '#000000' : '#e2e2ef';
+  const defaultStrokeColor =
+    resolvedTheme === 'light' ? DEFAULT_INK.light : DEFAULT_INK.dark;
 
   const isMobile = win?.matchMedia('(pointer: coarse)').matches ?? false;
 

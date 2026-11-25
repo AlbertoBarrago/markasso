@@ -1,10 +1,11 @@
+import { DEFAULT_INK } from '../design/tokens';
 import type { History } from '../engine/history';
 import { readStorage, writeStorage } from '../io/safe_storage';
 
 export const COLOR_PICKER_COLORS = [
   'transparent',
   '#000000',
-  '#e2e2ef',
+  DEFAULT_INK.dark,
   '#f5f5f5',
   '#ffffff',
   '#4d96ff',
@@ -339,5 +340,7 @@ function hslToHex(hue: number, saturation: number, lightness: number): string {
  * canvas does, so the light theme shows it black instead of near-white.
  */
 export function strokeSwatchPreview(color: string): string {
-  return color.toLowerCase() === '#e2e2ef' ? 'var(--default-ink)' : color;
+  return color.toLowerCase() === DEFAULT_INK.dark
+    ? 'var(--color-ink-default)'
+    : color;
 }

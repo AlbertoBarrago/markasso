@@ -58,17 +58,9 @@ import {
   rotateBoxOf,
 } from './draw_selection';
 import { getLabelWrapWidth, getShapeTextBox } from './shape_geometry';
-import { getIsLightTheme } from './theme_cache';
+import { getCanvasBg, getIsLightTheme } from './theme_cache';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-
-function getCanvasBg(): string {
-  return (
-    getComputedStyle(document.documentElement)
-      .getPropertyValue('--canvas-bg')
-      .trim() || '#080808'
-  );
-}
 
 // ── PNG export ─────────────────────────────────────────────────────────────────
 

@@ -1,3 +1,5 @@
+import { CANVAS_BG } from '../design/tokens';
+
 // Caches DOM/CSSOM reads that only change when the theme is toggled
 // (`applyTheme` in ui/settings.ts), avoiding a style recalc / attribute
 // read on every render frame.
@@ -10,8 +12,8 @@ export function getCanvasBg(): string {
   if (canvasBg === null) {
     canvasBg =
       getComputedStyle(document.documentElement)
-        .getPropertyValue('--canvas-bg')
-        .trim() || '#141414';
+        .getPropertyValue('--color-canvas')
+        .trim() || CANVAS_BG.dark;
   }
   return canvasBg;
 }
