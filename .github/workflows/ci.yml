@@ -2,16 +2,19 @@ name: CI
 
 # Merging to main deploys production (Workers Builds), and the release
 # workflow only runs on tags: this is the check every pull request gets
-# before it can land.
+# before it can land. Small changes pushed straight to main get it too, so a
+# failure there is at least reported.
 on:
   pull_request:
+    branches: [main]
+  push:
     branches: [main]
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number }}
+  group: ci-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 jobs:
