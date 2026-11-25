@@ -1,4 +1,5 @@
 import './styles/base.css';
+import './styles/components.css';
 import './styles/theme.css';
 import './styles/cloud-page.css';
 import './styles/agents-page.css';

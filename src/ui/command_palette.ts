@@ -119,7 +119,7 @@ export function initCommandPalette(
   document.body.appendChild(overlay);
 
   overlay.innerHTML = `
-    <div class="cmd-card">
+    <div class="ui-card ui-card--compact cmd-card">
       <div class="cmd-input-row">
         <svg class="cmd-search-icon" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="13" y1="13" x2="17" y2="17"/></svg>
         <input class="cmd-input" id="cmd-input" type="text" placeholder="${t('cmdSearchPlaceholder')}" autocomplete="off" spellcheck="false" />

@@ -170,6 +170,8 @@ main {
 .manage-link {
   display: inline-block;
   margin-top: calc(var(--spacing) * 2);
+  /* A sentence, not a short nav link: it must wrap on phones (#188). */
+  white-space: normal;
 }
 /* /mac page */
 .shot {

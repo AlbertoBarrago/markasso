@@ -136,7 +136,7 @@ export function initToolbar(
   container.innerHTML = '';
 
   // ── Center-bottom: tool buttons pill ──────────────────────────────────────
-  const centerPill = div('tb-island tb-island-tools');
+  const centerPill = div('ui-island tb-island tb-island-tools');
   centerPill.setAttribute('role', 'toolbar');
   centerPill.setAttribute('aria-label', 'Drawing tools');
   const toolBtns = new Map<ActiveTool, HTMLButtonElement>();
@@ -155,7 +155,7 @@ export function initToolbar(
 
   // Lock button (no shortcut badge)
   const lockBtn = document.createElement('button');
-  lockBtn.className = 'tb-btn';
+  lockBtn.className = 'ui-button tb-btn';
   lockBtn.title = t('lockTool');
   lockBtn.setAttribute('aria-label', t('lockTool'));
   lockBtn.setAttribute('aria-pressed', 'false');
@@ -300,7 +300,7 @@ export function initToolbar(
     '<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="2"/><path d="M6.5 6.5a5 5 0 000 7M13.5 6.5a5 5 0 010 7M4 4a8.5 8.5 0 000 12M16 4a8.5 8.5 0 010 12"/></svg>';
   const agentIcon =
     '<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="12" height="9" rx="2"/><path d="M10 4v3M8 11h.01M12 11h.01M2 11v2M18 11v2"/></svg>';
-  const liveIsland = div('tb-island tb-live-island');
+  const liveIsland = div('ui-island tb-island tb-live-island');
   const liveStartBtn = mkBtn(liveIcon, t('startLiveSession'));
   liveStartBtn.id = 'tb-start-live';
   liveStartBtn.addEventListener('click', () => {
@@ -534,7 +534,7 @@ export function initToolbar(
   lockedSep.className = 'tb-separator';
   lockedSep.style.display = 'none';
   const lockedIndicator = document.createElement('button');
-  lockedIndicator.className = 'tb-btn tb-locked-indicator';
+  lockedIndicator.className = 'ui-button tb-btn tb-locked-indicator';
   lockedIndicator.title = t('unlockElements');
   lockedIndicator.setAttribute('aria-label', t('unlockElements'));
   lockedIndicator.innerHTML = IC.elemLocked;
@@ -698,7 +698,7 @@ export function initToolbar(
   nameChip.setAttribute('aria-label', t('liveName'));
   // The chip stays top-right on its own island while sharing lives in the
   // main menu (settings.ts).
-  const nameIsland = div('tb-island tb-live-name-island');
+  const nameIsland = div('ui-island tb-island tb-live-name-island');
   nameIsland.style.display = 'none';
   const showNameChip = (): void => {
     liveRowMorph.capture();
@@ -749,7 +749,7 @@ export function initToolbar(
 
   // ── Live participants (people list) ────────────────────────────────────────
   const peopleIcon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.2 3.4-5 6.5-5s5.7 1.8 6.5 5"/><circle cx="17" cy="9.5" r="2.5"/><path d="M16 15.2c2 .3 3.7 1.5 4.5 3.6"/></svg>`;
-  const peopleIsland = div('tb-island tb-people-island');
+  const peopleIsland = div('ui-island tb-island tb-people-island');
   peopleIsland.style.display = 'none';
   const peopleTrigger = mkBtn(peopleIcon, t('people'));
   const peoplePanel = document.createElement('div');
@@ -814,7 +814,7 @@ export function initToolbar(
 
   // Top-left: menu button (settings.ts) | coffee (star_cta.ts)
   const topLeft = div('tb-island-topleft');
-  const tbLeft = div('tb-island tb-left');
+  const tbLeft = div('ui-island tb-island tb-left');
   topLeft.append(tbLeft);
 
   /**
@@ -845,7 +845,7 @@ export function initToolbar(
   window.addEventListener('resize', updateToolsLayout);
   initTooltips(centerPill);
   // Optional standalone controls share the same actions as the toolbar.
-  const zoomControls = div('tb-island');
+  const zoomControls = div('ui-island tb-island');
   zoomControls.id = 'zoom-controls';
   zoomControls.setAttribute('role', 'group');
   zoomControls.setAttribute('aria-label', t('zoomPanel'));
@@ -1020,7 +1020,7 @@ function div(cls: string): HTMLElement {
 
 function mkBtn(icon: string, title: string): HTMLButtonElement {
   const b = document.createElement('button');
-  b.className = 'tb-btn';
+  b.className = 'ui-button tb-btn';
   b.title = title;
   b.setAttribute('aria-label', title);
   b.innerHTML = icon;

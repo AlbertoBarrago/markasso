@@ -33,7 +33,7 @@ export function initGuide(appEl: HTMLElement): GuideHandle {
         <div class="guide-header">
           <h2 class="guide-title">${t('guide')}</h2>
           <input
-            class="guide-search"
+            class="ui-field guide-search"
             type="search"
             placeholder="${t('guideSearchPlaceholder')}"
             aria-label="${t('guideSearchPlaceholder')}"

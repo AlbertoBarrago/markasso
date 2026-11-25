@@ -76,6 +76,11 @@ Trigger: `src/styles/**`, `src/style.css`, `src/design/**`, `.style.` or `cssTex
 Check: values come from tokens (`src/design/tokens.ts`, regenerated with `pnpm tokens`, never hand-edited in `tokens.css` or `design/*.json`); no value wrapped or rewritten only to slip past a lint rule; static styling set from TypeScript lives in a stylesheet class; TypeScript that mirrors a media query (`matchMedia`, `innerWidth`) uses the same condition as the CSS; `font` shorthands are valid (no `inherit` inside them).
 Why: literal colors and off-scale values had drifted across the CSS, a TS width check disagreed with the CSS breakpoint, `font` shorthands with `inherit` were silently ignored, and a migration wrapped values in no-op `calc()` to pass the lint (fixes: 36a5ad1, a233f3d, 9ad30d1, 0111436).
 
+### R15: Components extend the shared base classes
+Trigger: a diff adds or restyles a button, text field, floating island or panel, or dialog card; `src/styles/components.css`; any `import` of a stylesheet from a UI module
+Check: the element carries `.ui-button`, `.ui-field`, `.ui-island` or `.ui-card` (`.ui-card--compact`), and the component rule sets only size, position, layout or a documented real difference, never the family's fill, border, radius or selected state again. `components.css` is imported only from CSS entry points (`style.css`, the static page entry points), never from a UI module, or Vite injects it after the component sheets and it overrides them.
+Why: four button families, four field styles, four islands and six dialog cards had drifted apart by copying each other's blocks (fix: #187).
+
 ## Do not flag
 
 - Formatting, quote style, import order: Biome enforces them (`biome ci` in the release workflows).

@@ -233,7 +233,7 @@ export function initMobileActionBar(
   const widthEl = sheet.querySelector('#mss-width-presets')!;
   for (const w of [{ value: 1 }, { value: 3 }, { value: 8 }]) {
     const btn = document.createElement('button');
-    btn.className = 'cp-btn cp-width-btn';
+    btn.className = 'ui-button cp-btn cp-width-btn';
     btn.dataset.value = String(w.value);
     btn.addEventListener('click', () =>
       history.dispatch({ type: 'APPLY_STYLE', strokeWidth: w.value }),
@@ -272,7 +272,7 @@ export function initMobileActionBar(
     { value: 'dotted' },
   ]) {
     const btn = document.createElement('button');
-    btn.className = 'cp-btn cp-style-btn';
+    btn.className = 'ui-button cp-btn cp-style-btn';
     btn.dataset.style = s.value;
     btn.addEventListener('click', () =>
       history.dispatch({
@@ -290,7 +290,7 @@ export function initMobileActionBar(
     ['both', 'arrowBoth', '↔'],
   ] as const) {
     const btn = document.createElement('button');
-    btn.className = 'cp-btn';
+    btn.className = 'ui-button cp-btn';
     btn.dataset.value = value;
     btn.title = t(key);
     btn.setAttribute('aria-label', t(key));
@@ -306,7 +306,7 @@ export function initMobileActionBar(
     ['elbow', 'routingElbow'],
   ] as const) {
     const btn = document.createElement('button');
-    btn.className = 'cp-btn';
+    btn.className = 'ui-button cp-btn';
     btn.dataset.value = value;
     btn.textContent = t(key);
     btn.addEventListener('click', () => {
@@ -319,7 +319,7 @@ export function initMobileActionBar(
     const row = sheet.querySelector(`#mss-${placement}-head-presets`)!;
     for (const style of ARROW_HEAD_STYLES) {
       const btn = document.createElement('button');
-      btn.className = 'cp-btn';
+      btn.className = 'ui-button cp-btn';
       btn.dataset.value = style;
       btn.title = t(ARROW_HEAD_STYLE_LABEL_KEYS[style]);
       btn.setAttribute('aria-label', btn.title);
@@ -354,7 +354,7 @@ export function initMobileActionBar(
   const roughnessEl = sheet.querySelector('#mss-roughness-presets')!;
   for (const r of [{ value: 0 }, { value: 0.5 }, { value: 1 }]) {
     const btn = document.createElement('button');
-    btn.className = 'cp-btn cp-roughness-btn';
+    btn.className = 'ui-button cp-btn cp-roughness-btn';
     btn.dataset.roughness = String(r.value);
     btn.addEventListener('click', () =>
       history.dispatch({ type: 'APPLY_STYLE', roughness: r.value }),
@@ -366,7 +366,7 @@ export function initMobileActionBar(
   const borderEl = sheet.querySelector('#mss-border-presets')!;
   for (const b of [{ value: 'sharp' }, { value: 'rounded' }]) {
     const btn = document.createElement('button');
-    btn.className = 'cp-btn cp-border-btn';
+    btn.className = 'ui-button cp-btn cp-border-btn';
     btn.dataset.border = b.value;
     btn.addEventListener('click', () =>
       history.dispatch({
@@ -775,7 +775,7 @@ const IC_DELETE = `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" s
 
 function mkBtn(icon: string, title: string): HTMLButtonElement {
   const b = document.createElement('button');
-  b.className = 'mobile-action-btn';
+  b.className = 'ui-button mobile-action-btn';
   b.title = title;
   b.innerHTML = icon;
   return b;

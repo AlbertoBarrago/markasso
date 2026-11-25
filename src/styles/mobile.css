@@ -24,24 +24,12 @@
   }
 }
 
+/* Look and states come from .ui-button (components.css); touch actions use
+   the full text color. */
 .mobile-action-btn {
   width: 36px;
   height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-surface-control);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
   color: var(--color-text);
-  cursor: pointer;
-  transition:
-    background 0.12s,
-    color 0.12s;
-  flex-shrink: 0;
-}
-.mobile-action-btn:hover {
-  background: var(--color-hover);
 }
 .mobile-action-btn:active {
   background: var(--color-accent-subtle);
@@ -53,13 +41,6 @@
 .mobile-action-btn.mobile-action-danger:active {
   background: var(--color-danger-subtle);
   color: var(--color-danger);
-}
-.mobile-action-btn svg {
-  pointer-events: none;
-}
-.mobile-action-btn:disabled {
-  opacity: 0.3;
-  cursor: default;
 }
 .mobile-action-sep {
   width: 1px;
@@ -93,10 +74,6 @@
   background: var(--color-hover);
   color: var(--color-text);
 }
-.mobile-action-btn.active {
-  background: var(--color-accent-subtle);
-  color: var(--color-accent);
-}
 
 /* ── Mobile tools FAB ────────────────────────────────────────────────────── */
 #mobile-tools-fab {
@@ -127,6 +104,7 @@
       background 0.12s,
       color 0.12s;
   }
+  .mobile-tools-popup-btn svg,
   #mobile-tools-fab svg {
     pointer-events: none;
   }
@@ -183,9 +161,6 @@
     transition:
       background 0.12s,
       color 0.12s;
-  }
-  .mobile-tools-popup-btn svg {
-    pointer-events: none;
   }
   .mobile-tools-popup-btn.active {
     background: var(--color-accent-subtle);

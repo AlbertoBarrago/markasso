@@ -6,12 +6,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  /* The docked toolbar's band is reserved on both sides, so the card stays
-     centred on the page and never reaches the toolbar, top or bottom. */
+  /* Centred in the space the docked toolbar leaves free: only the side the
+     toolbar is on reserves its band, so the card sits in the middle of what
+     the eye sees rather than of the window. */
   box-sizing: border-box;
-  padding-block: max(
+  padding-top: max(calc(var(--spacing) * 4), var(--toolbar-panel-top, 0px));
+  padding-bottom: max(
     calc(var(--spacing) * 4),
-    var(--toolbar-panel-top, 0px),
     var(--toolbar-panel-bottom, 0px)
   );
   pointer-events: all;
@@ -38,23 +39,14 @@
   }
 }
 
+/* Surface and padding come from .ui-card (components.css). Compact gaps
+   on every height: (height < 50rem) misses a 1280x800 window, which must
+   still fit the card without scrolling. */
 .wl-card {
-  background: var(--color-surface-island);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-2xl);
-  box-shadow: var(--shadow-modal);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  /* Compact spacing on every height: (height < 50rem) misses a 1280x800
-     window, which must still fit the card without scrolling. */
-  padding: calc(var(--spacing) * 6) calc(var(--spacing) * 9)
-    calc(var(--spacing) * 5);
   width: min(400px, calc(100vw - 32px));
   /* Short windows scroll the card instead of clipping its actions. */
   max-height: 100%;
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
   gap: calc(var(--spacing) * 3);
 }
 
@@ -202,8 +194,6 @@
     display: none;
   }
   .wl-card {
-    padding: calc(var(--spacing) * 6) calc(var(--spacing) * 5)
-      calc(var(--spacing) * 5);
     gap: calc(var(--spacing) * 3);
   }
   .wl-brand {
@@ -248,21 +238,13 @@
   animation: wl-out 0.2s ease both;
 }
 
+/* Surface and padding come from .ui-card (components.css). */
 .wn-card {
   width: min(460px, calc(100vw - 32px));
   max-height: calc(100dvh - max(16px, 10vh) - 16px);
   overflow-y: auto;
   touch-action: pan-y;
-  padding: calc(var(--spacing) * 7);
-  display: flex;
-  flex-direction: column;
   gap: calc(var(--spacing) * 4);
-  background: var(--color-surface-island);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-2xl);
-  box-shadow: var(--shadow-modal);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
 }
 
 .wn-kicker {
@@ -356,7 +338,6 @@
 
 @media (pointer: coarse), (width < 40rem) {
   .wn-card {
-    padding: calc(var(--spacing) * 5);
     gap: calc(var(--spacing) * 3);
   }
 
@@ -400,17 +381,10 @@
   }
 }
 
+/* Surface and padding come from .ui-card (components.css). */
 .sh-card {
-  background: var(--color-surface-island);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-2xl);
-  box-shadow: var(--shadow-modal);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
   width: min(560px, calc(100vw - 32px));
   max-height: min(620px, calc(100vh - 64px));
-  display: flex;
-  flex-direction: column;
   animation: sh-card-in 0.22s cubic-bezier(0.22, 0.68, 0, 1.2) both;
 }
 #shortcuts-help.sh-out .sh-card {
@@ -435,8 +409,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: calc(var(--spacing) * 5) calc(var(--spacing) * 6)
-    calc(var(--spacing) * 4);
+  padding-bottom: calc(var(--spacing) * 4);
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 }
@@ -470,8 +443,7 @@
 
 .sh-body {
   overflow-y: auto;
-  padding: calc(var(--spacing) * 4) calc(var(--spacing) * 6)
-    calc(var(--spacing) * 5);
+  padding-top: calc(var(--spacing) * 4);
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: calc(var(--spacing) * 5) calc(var(--spacing) * 8);
@@ -589,13 +561,6 @@
   }
 }
 
-/* Light theme: an opaque card with the stronger island outline. */
-[data-theme="light"] .sh-card {
-  border-color: var(--color-border);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-
 /* ── Minimap ───────────────────────────────────────────────────────────────── */
 #minimap {
   position: fixed;
@@ -655,15 +620,10 @@
   }
 }
 
+/* Surface comes from .ui-card.ui-card--compact (components.css). */
 .cmd-card {
   width: min(560px, calc(100vw - 32px));
   max-height: min(480px, calc(100vh - 160px));
-  background: var(--color-surface-island);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-modal);
-  display: flex;
-  flex-direction: column;
   overflow: hidden;
   animation: cmd-card-in 0.18s cubic-bezier(0.22, 0.68, 0, 1.15) both;
 }
@@ -801,12 +761,6 @@
   opacity: 0.5;
 }
 
-/* Light theme: an opaque card with the stronger island outline. */
-[data-theme="light"] .cmd-card {
-  border-color: var(--color-border);
-  backdrop-filter: none;
-}
-
 @media (pointer: coarse), (width < 40rem) {
   #cmd-palette-overlay {
     display: none !important;
@@ -832,15 +786,10 @@
   animation: cmd-in 0.15s ease both;
 }
 
+/* Surface comes from .ui-card.ui-card--compact (components.css). */
 .el-search-card {
   width: min(480px, calc(100vw - 32px));
   max-height: min(400px, calc(100vh - 160px));
-  background: var(--color-surface-island);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-modal);
-  display: flex;
-  flex-direction: column;
   overflow: hidden;
   animation: cmd-card-in 0.18s cubic-bezier(0.22, 0.68, 0, 1.15) both;
 }
@@ -954,12 +903,6 @@
   font-size: var(--text-xs);
   color: var(--color-text-muted);
   opacity: 0.5;
-}
-
-/* Light theme: an opaque card with the stronger island outline. */
-[data-theme="light"] .el-search-card {
-  border-color: var(--color-border);
-  backdrop-filter: none;
 }
 
 @media (pointer: coarse), (width < 40rem) {
@@ -1344,21 +1287,9 @@
   margin-top: calc(var(--spacing) * 2);
 }
 
+/* Look and focus come from .ui-field (components.css). */
 .report-input {
   width: 100%;
-  box-sizing: border-box;
-  padding: calc(var(--spacing) * 2);
-  font-family: inherit;
-  font-size: var(--text-sm);
-  line-height: var(--leading-snug);
-  color: var(--color-text);
-  background: var(--color-hover);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  outline: none;
-}
-.report-input:focus {
-  border-color: var(--color-accent);
 }
 
 select.report-input {
@@ -1514,21 +1445,9 @@ select.report-input {
   margin: 0;
   white-space: nowrap;
 }
+/* Look and focus come from .ui-field (components.css). */
 .guide-search {
   flex: 1;
-  box-sizing: border-box;
-  padding: calc(var(--spacing) * 2);
-  font-family: inherit;
-  font-size: var(--text-sm);
-  line-height: var(--leading-snug);
-  color: var(--color-text);
-  background: var(--color-hover);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  outline: none;
-}
-.guide-search:focus {
-  border-color: var(--color-accent);
 }
 
 .guide-close {

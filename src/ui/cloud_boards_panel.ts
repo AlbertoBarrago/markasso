@@ -106,7 +106,7 @@ export function openBoardsPanel(source: BoardsPanelSource): void {
   modal.className = 'app-dialog bp-dialog';
   modal.setAttribute('aria-labelledby', 'bp-title');
   const card = document.createElement('div');
-  card.className = 'cd-card bp-card';
+  card.className = 'ui-card cd-card bp-card';
   card.innerHTML = `
     <div class="bp-head">
       <div>

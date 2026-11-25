@@ -1,0 +1,115 @@
+/* Shared component classes (#187). Each family has one base class holding
+   what its variants share; component stylesheets load after this file and
+   add only their real differences (size, position, layout). A new button,
+   field, island or dialog card starts from these classes instead of copying
+   a block. */
+
+/* ── Buttons ───────────────────────────────────────────────────────────
+   Every button family looks the same at rest and differs only in size,
+   which each component sets. Selected state: `.active`, or
+   aria-selected="true" on tabs, as the code already toggles them. */
+.ui-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--color-surface-control);
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-muted);
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.12s,
+    background 0.12s,
+    color 0.12s;
+}
+/* One overlay above the resting fill. */
+.ui-button:hover {
+  background: var(--color-overlay-2);
+  border-color: var(--color-overlay-3);
+  color: var(--color-text);
+}
+/* Accent border plus an inset ring: a 2px accent outline that does not
+   change the button's size. */
+.ui-button.active,
+.ui-button[aria-selected="true"] {
+  background: var(--color-accent-subtle);
+  border-color: var(--color-accent);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+  color: var(--color-text-strong);
+}
+.ui-button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.ui-button svg {
+  pointer-events: none;
+}
+
+/* ── Text fields ───────────────────────────────────────────────────── */
+.ui-field {
+  padding: calc(var(--spacing) * 2);
+  background: var(--color-hover);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  outline: none;
+}
+.ui-field:focus {
+  border-color: var(--color-accent);
+}
+
+/* ── Islands (floating toolbars and side panels) ───────────────────── */
+.ui-island {
+  background: var(--color-surface-island);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* ── Dialog cards ──────────────────────────────────────────────────────
+   One padding and radius for every dialog. The compact variant (command
+   palette, element search) has no padding: its input row and list run
+   edge to edge. */
+.ui-card {
+  display: flex;
+  flex-direction: column;
+  padding: calc(var(--spacing) * 7);
+  background: var(--color-surface-island);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-modal);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+.ui-card--compact {
+  padding: 0;
+  border-radius: var(--radius-xl);
+}
+@media (pointer: coarse), (width < 40rem) {
+  .ui-card:not(.ui-card--compact) {
+    padding: calc(var(--spacing) * 5);
+  }
+}
+
+/* ── Light theme ───────────────────────────────────────────────────────
+   Accent outlines and the accent tint on hover instead of the dark
+   theme's next overlay step; opaque cards with the full outline. */
+[data-theme="light"] .ui-button:not(.active, [aria-selected="true"]):hover {
+  background: var(--color-hover);
+  border-color: var(--color-accent);
+}
+[data-theme="light"] .ui-button.active,
+[data-theme="light"] .ui-button[aria-selected="true"] {
+  color: var(--color-accent);
+}
+[data-theme="light"] .ui-card {
+  border-color: var(--color-border);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}

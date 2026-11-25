@@ -81,7 +81,7 @@ export function initElementSearch(
   document.body.appendChild(overlay);
 
   overlay.innerHTML = `
-    <div class="el-search-card">
+    <div class="ui-card ui-card--compact el-search-card">
       <div class="el-search-input-row">
         <svg class="el-search-icon" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="13" y1="13" x2="17" y2="17"/></svg>
         <input class="el-search-input" id="el-search-input" type="text" placeholder="${t('elementSearchPlaceholder')}" autocomplete="off" spellcheck="false" />
