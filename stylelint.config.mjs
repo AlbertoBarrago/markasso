@@ -21,7 +21,13 @@ const rules = {
 };
 
 /** Files already migrated to the tokens: any regression fails the lint. */
-const MIGRATED = ['src/styles/context-panel.css', 'src/styles/menu.css'];
+const MIGRATED = [
+  'src/styles/context-panel.css',
+  'src/styles/menu.css',
+  'src/styles/cloud-page.css',
+  'src/styles/agents-page.css',
+  'src/styles/mcp-tabs.css',
+];
 
 /**
  * `rules` with every rule raised to an error. Stylelint takes a rule's

@@ -5,78 +5,85 @@
   align-items: center;
 }
 .secondary-link {
-  padding: 14px 8px;
-  font-weight: 650;
+  padding: calc(var(--spacing) * 3) calc(var(--spacing) * 2);
+  font-weight: var(--font-weight-semibold);
 }
 
 /* The demo, framed like the /mac screenshot. */
 .demo {
-  margin: 0 0 40px;
+  margin: 0 0 calc(var(--spacing) * 10);
 }
 .demo video {
   display: block;
   width: 100%;
   height: auto;
   aspect-ratio: 1440 / 900;
-  background: #080808;
-  border-radius: var(--radius);
+  background: var(--color-canvas);
+  border-radius: var(--radius-lg);
   box-shadow:
-    0 30px 80px -30px color-mix(in srgb, var(--accent) 55%, transparent),
-    0 0 0 1px var(--border);
+    0 30px 80px -30px color-mix(in srgb, var(--color-accent) 55%, transparent),
+    0 0 0 1px var(--color-border);
 }
 .demo figcaption {
-  margin-top: 12px;
-  font-size: 0.9rem;
-  color: var(--text-muted);
+  margin-top: calc(var(--spacing) * 3);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
 }
 
 .features {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 32px;
-  border-top: 1px solid var(--border);
+  gap: calc(var(--spacing) * 8);
+  border-top: 1px solid var(--color-border);
 }
 .cloud-note p {
   max-width: none;
 }
 .connect,
 .closing {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--color-border);
 }
 
 /* Install snippets: the dialog's widget (mcp-tabs.css), sized for a page. */
 .connect .mcp-tabs-widget {
-  margin-block: 20px 28px;
+  margin-block: calc(var(--spacing) * 5) calc(var(--spacing) * 7);
 }
 .connect .mcp-tab {
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 .connect .mcp-snippet pre {
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 .examples-title {
-  margin-bottom: 8px;
-  font-weight: 650;
+  margin-bottom: calc(var(--spacing) * 2);
+  font-weight: var(--font-weight-semibold);
 }
 .connect ul.terminal li {
   font-style: italic;
 }
 
 .closing h2 {
-  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-size: var(--text-2xl);
 }
 .closing-links {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 24px;
-  margin-top: 20px;
+  gap: calc(var(--spacing) * 6);
+  margin-top: calc(var(--spacing) * 5);
 }
 
-@media (max-width: 720px) {
+@media (width < 48rem) {
   .features {
     grid-template-columns: 1fr;
     gap: 0;
+  }
+}
+/* Display step for the closing title from the sm breakpoint up (it used to
+   scale fluidly between 1.5rem and 2rem). */
+@media (width >= 40rem) {
+  .closing h2 {
+    font-size: var(--text-3xl);
   }
 }
 
