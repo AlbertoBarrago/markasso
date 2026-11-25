@@ -67,6 +67,29 @@ export function applyFontSize(history: History, size: number): void {
   });
 }
 
+/**
+ * Sets the font family; each selected text element is resized to fit its
+ * own content in the new font, as {@link applyFontSize} does for the size.
+ */
+export function applyFontFamily(history: History, family: string): void {
+  const bounds = selectedElements(history.present).flatMap((el) => {
+    if (el.type !== 'text') return [];
+    const box = measureTextBounds(
+      el.content,
+      el.fontSize,
+      family,
+      el.bold,
+      el.padding,
+    );
+    return [{ id: el.id, width: box.width, height: box.height }];
+  });
+  history.dispatch({
+    type: 'SET_FONT_FAMILY',
+    family,
+    ...(bounds.length > 0 && { bounds }),
+  });
+}
+
 /** Toggles a text format, reading the current value from the first text. */
 export function toggleTextFormat(history: History, key: TextFormatKey): void {
   const firstText = selectedElements(history.present).find(
