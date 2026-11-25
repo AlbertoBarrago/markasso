@@ -292,6 +292,11 @@
   background: var(--color-overlay-2);
   border-color: var(--color-overlay-3);
 }
+/* Letter glyphs (B, I, U, S) are text, so they need text contrast (4.5:1):
+   the muted icon color is only enough for icons. */
+#cp-text-format .cp-btn {
+  color: var(--color-text);
+}
 .cp-btn.active {
   border-color: var(--color-accent);
   background: var(--color-accent-subtle);
@@ -456,7 +461,10 @@
     background 0.12s;
 }
 .cp-font-size-input:focus-visible {
-  outline: none;
+  /* Stays visible on hover and in forced colors, where the border and
+     background changes below are not enough. */
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }
 /* One overlay above the resting fill, as on .cp-color-more. */
 .cp-font-size-input:hover {
