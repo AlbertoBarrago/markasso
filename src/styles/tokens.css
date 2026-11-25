@@ -55,6 +55,12 @@
   --color-focus-ring: var(--color-accent);
   --color-danger: #fa0101;
   --color-warning: #f59e0b;
+  --color-danger-subtle: color-mix(in oklab, var(--color-danger) 10%, transparent);
+  --color-warning-subtle: color-mix(in oklab, var(--color-warning) 10%, transparent);
+  --color-success: #7de8a0;
+  --color-success-subtle: color-mix(in oklab, var(--color-success) 10%, transparent);
+  --color-info: #60a5fa;
+  --color-info-subtle: color-mix(in oklab, var(--color-info) 10%, transparent);
   --color-text: #e8d4d4;
   --color-text-strong: #fffadf;
   --color-text-muted: rgb(141 141 141);
@@ -77,6 +83,8 @@
   --shadow-modal: 0 8px 48px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.04);
   --shadow-popover: 0 8px 32px rgb(0 0 0 / 0.4);
   --shadow-control: 0 1px 3px rgb(0 0 0 / 0.3);
+  --color-text-on-warning: #000000;
+  --shadow-float: 0 4px 24px rgb(0 0 0 / 0.5);
 }
 
 [data-theme="light"] {
@@ -87,6 +95,12 @@
   --color-focus-ring: var(--color-accent);
   --color-danger: #cb0303;
   --color-warning: #8a6000;
+  --color-danger-subtle: color-mix(in oklab, var(--color-danger) 10%, transparent);
+  --color-warning-subtle: color-mix(in oklab, var(--color-warning) 10%, transparent);
+  --color-success: #166534;
+  --color-success-subtle: color-mix(in oklab, var(--color-success) 10%, transparent);
+  --color-info: #1d4ed8;
+  --color-info-subtle: color-mix(in oklab, var(--color-info) 10%, transparent);
   --color-text: #000000;
   --color-text-strong: #000000;
   --color-text-muted: #4d4d4d;
@@ -109,6 +123,8 @@
   --shadow-modal: 0 8px 32px rgb(0 0 0 / 0.16), 0 0 0 1px rgb(0 0 0 / 0.04);
   --shadow-popover: 0 8px 32px rgb(0 0 0 / 0.4);
   --shadow-control: 0 1px 3px rgb(0 0 0 / 0.3);
+  --color-text-on-warning: #ffffff;
+  --shadow-float: 0 2px 12px rgb(0 0 0 / 0.15);
 }
 
 /* Pre-#184 names, removed once every consumer uses the tokens above.

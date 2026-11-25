@@ -368,6 +368,86 @@
         "hex": "#8a6000"
       }
     },
+    "danger-subtle": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.796078431372549,
+          0.011764705882352941,
+          0.011764705882352941
+        ],
+        "hex": "#cb0303",
+        "alpha": 0.1
+      },
+      "$description": "color-mix(in oklab, var(--color-danger) 10%, transparent)"
+    },
+    "warning-subtle": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.5411764705882353,
+          0.3764705882352941,
+          0
+        ],
+        "hex": "#8a6000",
+        "alpha": 0.1
+      },
+      "$description": "color-mix(in oklab, var(--color-warning) 10%, transparent)"
+    },
+    "success": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.08627450980392157,
+          0.396078431372549,
+          0.20392156862745098
+        ],
+        "hex": "#166534"
+      }
+    },
+    "success-subtle": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.08627450980392157,
+          0.396078431372549,
+          0.20392156862745098
+        ],
+        "hex": "#166534",
+        "alpha": 0.1
+      },
+      "$description": "color-mix(in oklab, var(--color-success) 10%, transparent)"
+    },
+    "info": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.11372549019607843,
+          0.3058823529411765,
+          0.8470588235294118
+        ],
+        "hex": "#1d4ed8"
+      }
+    },
+    "info-subtle": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.11372549019607843,
+          0.3058823529411765,
+          0.8470588235294118
+        ],
+        "hex": "#1d4ed8",
+        "alpha": 0.1
+      },
+      "$description": "color-mix(in oklab, var(--color-info) 10%, transparent)"
+    },
     "text": {
       "$type": "color",
       "$value": {
@@ -594,6 +674,18 @@
         ],
         "hex": "#000000"
       }
+    },
+    "text-on-warning": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          1,
+          1,
+          1
+        ],
+        "hex": "#ffffff"
+      }
     }
   },
   "shadow": {
@@ -781,6 +873,40 @@
           },
           "blur": {
             "value": 3,
+            "unit": "px"
+          },
+          "spread": {
+            "value": 0,
+            "unit": "px"
+          },
+          "inset": false
+        }
+      ]
+    },
+    "float": {
+      "$type": "shadow",
+      "$value": [
+        {
+          "color": {
+            "colorSpace": "srgb",
+            "components": [
+              0,
+              0,
+              0
+            ],
+            "hex": "#000000",
+            "alpha": 0.15
+          },
+          "offsetX": {
+            "value": 0,
+            "unit": "px"
+          },
+          "offsetY": {
+            "value": 2,
+            "unit": "px"
+          },
+          "blur": {
+            "value": 12,
             "unit": "px"
           },
           "spread": {
