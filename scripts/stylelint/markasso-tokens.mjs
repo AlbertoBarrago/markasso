@@ -85,7 +85,8 @@ function isToken(part, tokens) {
 
 // The multiplier is checked wherever `var(--spacing) * N` appears, also
 // inside a larger expression such as `calc(var(--spacing) * 20 + env(...))`.
-const SPACING_CALC = /var\(--spacing\)\*(-?)([\d.]+)/g;
+const SPACING_CALC =
+  /var\(--spacing\)\*(-?)([\d.]+)|(-?)([\d.]+)\*var\(--spacing\)/g;
 
 /**
  * A layout expression (`calc`, `min`, `max`, `clamp`) is on the scale when
@@ -94,12 +95,14 @@ const SPACING_CALC = /var\(--spacing\)\*(-?)([\d.]+)/g;
  */
 function isScaledExpression(part) {
   if (!/^(calc|min|max|clamp)\(/.test(part)) return false;
-  for (const [, , step] of part.matchAll(SPACING_CALC)) {
-    if (!STEPS.has(step)) return false;
+  for (const m of part.matchAll(SPACING_CALC)) {
+    if (!STEPS.has(m[2] ?? m[4])) return false;
   }
-  const rest = part
-    .replace(SPACING_CALC, '')
-    .replace(/var\([^()]*\)|env\([^()]*\)/g, '');
+  const withoutSteps = part.replace(SPACING_CALC, '');
+  // Any other arithmetic on the base (`/ 2`, `+ 1`, a nested product) would
+  // reach values off the scale.
+  if (withoutSteps.includes('var(--spacing)')) return false;
+  const rest = withoutSteps.replace(/var\([^()]*\)|env\([^()]*\)/g, '');
   const lengths = rest.match(/-?\d*\.?\d+(px|rem|em)\b/g) ?? [];
   return lengths.every((l) => l === '1px' || l === '-1px');
 }
