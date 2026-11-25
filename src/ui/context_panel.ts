@@ -1,3 +1,4 @@
+import { DEFAULT_INK } from '../design/tokens';
 import {
   ARROW_HEAD_STYLES,
   type Element,
@@ -254,7 +255,7 @@ export function initContextPanel(
       customStroke ??
       currentStrokeOrLabelColor() ??
       STROKE_PRESETS[1] ??
-      '#e2e2ef';
+      DEFAULT_INK.dark;
     colorPicker.open(strokeMore, currentColor, ({ pick, preview }) => {
       if (preview) {
         dispatchStrokeOrLabelColor(preview);

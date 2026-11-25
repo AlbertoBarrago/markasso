@@ -18,7 +18,7 @@ function setTheme(theme: 'light' | 'dark', canvasBg: string): void {
   });
   vi.stubGlobal('getComputedStyle', () => ({
     getPropertyValue: (name: string) =>
-      name === '--canvas-bg' ? canvasBg : '',
+      name === '--color-canvas' ? canvasBg : '',
   }));
   invalidateThemeCache();
 }

@@ -24,7 +24,8 @@
     "mcp:build": "pnpm --filter @markasso/mcp build",
     "fixtures": "node scripts/dump-fixtures.mjs",
     "corpus": "node scripts/corpus.mjs",
-    "roundtrip-check": "node scripts/roundtrip-check.mjs"
+    "roundtrip-check": "node scripts/roundtrip-check.mjs",
+    "tokens": "node scripts/build-tokens.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.2",

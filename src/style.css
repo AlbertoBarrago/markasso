@@ -400,7 +400,7 @@
   overflow: hidden;
   border: 1px solid var(--island-border);
   border-radius: 6px;
-  background: var(--canvas-bg, #080808);
+  background: var(--color-canvas);
 }
 .bp-thumb img {
   max-width: 100%;

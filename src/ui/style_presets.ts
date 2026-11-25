@@ -1,3 +1,4 @@
+import { DEFAULT_INK } from '../design/tokens';
 import type { ConnectorRouting } from '../elements/element';
 import { t } from '../i18n';
 
@@ -8,7 +9,7 @@ import { t } from '../i18n';
 
 /** Swatch presets of the stroke and fill color rows. */
 const SHARED_COLOR_PRESETS = [
-  '#e2e2ef',
+  DEFAULT_INK.dark,
   '#ff6b6b',
   '#6bcb77',
   '#4d96ff',

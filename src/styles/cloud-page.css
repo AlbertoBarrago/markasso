@@ -9,7 +9,6 @@ html {
   color-scheme: dark;
 }
 html[data-theme="light"] {
-  --canvas-bg: #ffffff;
   color-scheme: light;
 }
 header,

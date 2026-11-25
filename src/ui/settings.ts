@@ -1,6 +1,7 @@
 import pkg from '../../package.json';
 import type { GridType } from '../core/app_state';
 import { fitToElements } from '../core/viewport';
+import { CANVAS_BG, DEFAULT_INK } from '../design/tokens';
 import type { History } from '../engine/history';
 import { getLocale, LOCALES, type Locale, setLocale, t } from '../i18n';
 import { exportMarkasso, importMarkasso } from '../io/markasso';
@@ -76,7 +77,7 @@ function isResolvedLight(): boolean {
 
 export function loadSettings(): UISettings {
   const defaults: UISettings = {
-    bgColor: isResolvedLight() ? '#ffffff' : '#080808',
+    bgColor: isResolvedLight() ? CANVAS_BG.light : CANVAS_BG.dark,
     showMinimap: true,
     // Zoom and undo/redo stay in sight by default, as in Excalidraw.
     showZoomControls: true,
@@ -105,7 +106,7 @@ export function saveSettings(s: UISettings): void {
 }
 
 export function applySettings(appEl: HTMLElement, s: UISettings): void {
-  document.documentElement.style.setProperty('--canvas-bg', s.bgColor);
+  document.documentElement.style.setProperty('--color-canvas', s.bgColor);
   // The renderer caches the canvas background; invalidate it so a background
   // color change is reflected on the next frame.
   invalidateThemeCache();
@@ -142,8 +143,8 @@ const LIGHT_BG_COLORS = [
   '#f5d5c8',
   '#f0cfc0',
 ];
-const LIGHT_STROKE_COLOR = '#000000';
-const DARK_STROKE_COLOR = '#e2e2ef';
+const LIGHT_STROKE_COLOR = DEFAULT_INK.light;
+const DARK_STROKE_COLOR = DEFAULT_INK.dark;
 
 function svg(inner: string, size = 16): string {
   return `<svg width="${size}" height="${size}" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;

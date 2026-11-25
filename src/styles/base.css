@@ -1,39 +1,6 @@
-/* ── Reset & variables ─────────────────────────────────────────────── */
-/* Swatch preview of the default stroke color (see theme.css). */
-:root {
-  --default-ink: #e2e2ef;
-}
-:root {
-  --accent: #c42059;
-  --accent-light: rgb(196, 32, 89, 0.2);
-  --focus-ring: var(--accent);
-  --alert: #fa0101;
+@import "./tokens.css";
 
-  --bg-island: rgb(21 21 21 / 0.98);
-  --island-border: rgba(255, 255, 255, 0.18);
-  --island-shadow:
-    inset 1px -1px 2px 0 rgba(0, 0, 0, 0.9),
-    inset -1px 1px 1px 0 rgba(255, 255, 255, 0.2);
-  --island-radius: 12px;
-  --input-border: rgba(89, 89, 89, 0.4);
-
-  --bg-hover: rgba(255, 255, 255, 0.07);
-  --border: var(--island-border);
-  --text: #e8d4d4;
-  --false-white: #fffadf;
-  --text-muted: rgb(141 141 141);
-  --radius: 8px;
-
-  /* Overlays: modal scrim, card chrome, scrollbars, warning text. */
-  --scrim: rgba(0, 0, 0, 0.5);
-  --modal-border: rgba(255, 255, 255, 0.08);
-  --modal-shadow:
-    0 8px 48px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.04);
-  --scrollbar-thumb: rgba(255, 255, 255, 0.1);
-  --warning: #f59e0b;
-  color-scheme: dark;
-}
-
+/* ── Reset ─────────────────────────────────────────────────────────── */
 *,
 *::before,
 *::after {
@@ -57,7 +24,7 @@ body {
   height: 100%;
   overflow: hidden;
   font-family: system-ui, -apple-system, sans-serif;
-  background: var(--canvas-bg, #080808);
+  background: var(--color-canvas);
   color: var(--text);
 }
 

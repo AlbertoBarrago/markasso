@@ -1,3 +1,4 @@
+import { DEFAULT_INK } from '../design/tokens';
 import type { Element } from '../elements/element';
 import {
   ARROW_HEAD_STYLES,
@@ -27,7 +28,7 @@ import { hasFillStyle, hasStrokeStyle, styleTypeOf } from './style_type';
 
 const STROKE_PRESETS = [
   '#000000',
-  '#e2e2ef',
+  DEFAULT_INK.dark,
   '#ff6b6b',
   '#6bcb77',
   '#4d96ff',
@@ -36,7 +37,7 @@ const STROKE_PRESETS = [
 ];
 const FILL_PRESETS = [
   'transparent',
-  '#e2e2ef',
+  DEFAULT_INK.dark,
   '#ff6b6b',
   '#6bcb77',
   '#4d96ff',
@@ -170,7 +171,7 @@ export function initMobileActionBar(
   updateCustomColorButton(strokeMoreBtn, customStroke, t('moreColors'));
   strokeMoreBtn.addEventListener('click', () => {
     const currentColor =
-      customStroke ?? history.present.appState.strokeColor ?? '#e2e2ef';
+      customStroke ?? history.present.appState.strokeColor ?? DEFAULT_INK.dark;
     colorPicker.open(strokeMoreBtn, currentColor, ({ pick, preview }) => {
       if (preview)
         history.dispatch({ type: 'APPLY_STYLE', strokeColor: preview });
