@@ -5,6 +5,7 @@ import type { History } from '../engine/history';
 import { t } from '../i18n';
 import { resolveStrokeColorForTheme } from '../rendering/draw_element';
 import { getElementBounds } from '../rendering/draw_selection';
+import { isCompactLayout, onCompactLayoutEnter } from './compact_layout';
 import { isEditableTarget, keyBelongsToDialog } from './keyboard_utils';
 import { SHAPE_KIND_LABEL_KEYS, shapeKindIcon } from './shape_icons';
 import { GENERIC_ICON_LABEL_KEYS, genericIconSvg } from './stencil_icons';
@@ -245,8 +246,14 @@ export function initElementSearch(
   });
 
   // ── Global shortcut ───────────────────────────────────────────────────────
+  // The compact layout hides the search (overlays.css): there Cmd/Ctrl+F
+  // stays the browser's Find.
+  onCompactLayoutEnter(() => {
+    if (isOpen()) closeSearch();
+  });
   window.addEventListener('keydown', (e) => {
     if (isEditableTarget(e.target)) return;
+    if (isCompactLayout()) return;
     // Another dialog keeps its keys; the search's own (open) dialog does not.
     if (!isOpen() && keyBelongsToDialog(e)) return;
     if ((e.ctrlKey || e.metaKey) && e.key === 'f') {

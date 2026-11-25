@@ -356,6 +356,18 @@
         "hex": "#fa0101"
       }
     },
+    "text-danger": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          1,
+          0.30196078431372547,
+          0.30196078431372547
+        ],
+        "hex": "#ff4d4d"
+      }
+    },
     "warning": {
       "$type": "color",
       "$value": {

@@ -356,6 +356,9 @@
         "hex": "#cb0303"
       }
     },
+    "text-danger": {
+      "$value": "{color.danger}"
+    },
     "warning": {
       "$type": "color",
       "$value": {

@@ -110,3 +110,28 @@ describe('styleBarTopForSelection', () => {
     );
   });
 });
+
+describe('styleBarTopForSelection inside the window', () => {
+  const H = 38;
+  const GAP = 12;
+  const MARGIN = 8;
+
+  it('never clamps the bar back over the handle', () => {
+    // A selection turned 180 degrees: its handle is drawn below the box,
+    // near the bottom of an 800px window, and there is no room above.
+    const box = { top: 25, bottom: 741 };
+    const handle = { top: 768, bottom: 782 };
+    const top = styleBarTopForSelection(box, handle, H, GAP, MARGIN, 800);
+    expect(top + H <= handle.top || top >= handle.bottom).toBe(true);
+    expect(top).toBeGreaterThanOrEqual(MARGIN);
+    expect(top + H).toBeLessThanOrEqual(800 - MARGIN);
+  });
+
+  it('keeps the usual position when it fits', () => {
+    const box = { top: 300, bottom: 400 };
+    const handle = { top: 252, bottom: 266 };
+    expect(styleBarTopForSelection(box, handle, H, GAP, MARGIN, 800)).toBe(
+      handle.top - GAP - H,
+    );
+  });
+});

@@ -32,6 +32,8 @@ export const DARK: ThemeTokens = {
   'color-accent-muted': 'rgb(196 32 89 / 0.4)',
   'color-focus-ring': 'var(--color-accent)',
   'color-danger': '#fa0101',
+  // Danger as small text: #fa0101 is 4.4:1 on the island, this is 5.6:1.
+  'color-text-danger': '#ff4d4d',
   'color-warning': '#f59e0b',
   // Status colors (#184): text, icons and outlines of toasts, banners and
   // badges; `-subtle` is their 10% tint for backgrounds.
@@ -94,6 +96,7 @@ export const LIGHT: ThemeTokens = {
   'color-accent-muted': 'rgb(175 20 90 / 0.4)',
   'color-focus-ring': 'var(--color-accent)',
   'color-danger': '#cb0303',
+  'color-text-danger': 'var(--color-danger)',
   // 5.6:1 on #f5f5f5; the dark theme's amber is about 2:1 on light.
   'color-warning': '#8a6000',
   // On the light surface the status colors keep 4.5:1 also on their own

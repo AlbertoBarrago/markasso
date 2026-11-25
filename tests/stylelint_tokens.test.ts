@@ -31,6 +31,7 @@ describe('stylelint token rules', () => {
     'padding-top: env(safe-area-inset-top);',
     'left: var(--toolbar-hint-center, 50%);',
     'top: var(--toolbar-hint-top, calc(100vh - calc(var(--spacing) * 12)));',
+    'padding: calc(4 * var(--spacing));',
   ])('accepts spacing %s', async (decl) => {
     expect(await rulesFor(`a { ${decl} }`)).toEqual([]);
   });
@@ -54,6 +55,8 @@ describe('stylelint token rules', () => {
       'bottom: calc(var(--spacing) * 13 + env(safe-area-inset-bottom));',
       'off-scale step inside a sum',
     ],
+    ['padding: calc(1.5 * var(--spacing));', 'half step, operands swapped'],
+    ['margin: calc(var(--spacing) / 2);', 'other arithmetic on the base'],
   ])('rejects spacing %s (%s)', async (decl) => {
     expect(await rulesFor(`a { ${decl} }`)).toEqual(['markasso/spacing-scale']);
   });
