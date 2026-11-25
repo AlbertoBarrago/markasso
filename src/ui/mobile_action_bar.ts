@@ -245,8 +245,7 @@ export function initMobileActionBar(
   mssWidthInput.min = '1';
   mssWidthInput.max = '100';
   mssWidthInput.step = '1';
-  mssWidthInput.className = 'cp-font-size-input';
-  mssWidthInput.style.width = '52px';
+  mssWidthInput.className = 'cp-font-size-input cp-width-input';
   let mssWidthDisplay: HTMLDivElement | null = null;
   if (mssWidthInput.type !== 'number') {
     mssWidthDisplay = document.createElement('div');
@@ -425,17 +424,7 @@ export function initMobileActionBar(
     input.maxLength = 24;
     input.value = getLiveName();
     input.setAttribute('aria-label', t('liveName'));
-    input.style.cssText = [
-      'background:var(--bg-hover)',
-      'border:1px solid var(--input-border)',
-      'border-radius:6px',
-      'color:var(--text)',
-      'padding:4px 8px',
-      'font-size:12px',
-      'font-family:inherit',
-      'outline:none',
-      'width:90px',
-    ].join(';');
+    input.className = 'live-name-input live-name-input--compact';
     nameChip.replaceWith(input);
     input.focus();
     input.select();

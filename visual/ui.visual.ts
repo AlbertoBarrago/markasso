@@ -165,6 +165,15 @@ for (const theme of THEMES) {
       await snap(page, `${theme}-dialog`);
     });
 
+    test('connect AI agent modal', async ({ page }) => {
+      // Shares mcp-tabs.css with the /agents/ page.
+      await openApp(page, { theme, board: true });
+      await page.locator('#menu-btn').click();
+      await page.locator('#menu-mcp').click();
+      await expect(page.locator('#mcp-setup-modal')).toBeVisible();
+      await snap(page, `${theme}-mcp-setup`);
+    });
+
     test('selection with style controls', async ({ page }, testInfo) => {
       await openApp(page, { theme, board: true });
       // Select all reaches the window's key handler: no focus needed.
@@ -240,6 +249,17 @@ for (const theme of THEMES) {
       await page.locator('#tb-more-tools').click();
       await expect(page.locator('#tb-more-panel')).toBeVisible();
       await snap(page, `${theme}-more-panel`);
+    });
+
+    test('mermaid import dialog', async ({ page }) => {
+      // Opened from the toolbar's more panel, which small screens replace.
+      onlyOn(['desktop', 'tablet'], 'the toolbar is replaced on small screens');
+      await openApp(page, { theme, board: true });
+      await page.locator('#tb-more-tools').click();
+      await page.locator('#tb-more-mermaid').click();
+      await expect(page.locator('#mermaid-dialog')).toBeVisible();
+      await expect(page.locator('#mermaid-dialog textarea')).toBeFocused();
+      await snap(page, `${theme}-mermaid-dialog`);
     });
 
     test('library panel', async ({ page }) => {

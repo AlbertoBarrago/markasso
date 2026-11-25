@@ -78,6 +78,7 @@ describe('design tokens', () => {
       'src/styles/context-panel.css',
       'src/styles/mobile.css',
       'src/styles/library.css',
+      'src/styles/ui-components.css',
       'src/styles/cloud-page.css',
       'src/styles/agents-page.css',
       'src/styles/mcp-tabs.css',

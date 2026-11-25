@@ -3,7 +3,7 @@ body {
   height: auto;
   min-height: 100%;
   overflow: auto;
-  line-height: 1.65;
+  line-height: var(--leading-relaxed);
 }
 html {
   color-scheme: dark;
@@ -13,7 +13,7 @@ html[data-theme="light"] {
 }
 header,
 main {
-  width: min(100% - 48px, 880px);
+  width: min(100% - calc(var(--spacing) * 12), 880px);
   margin-inline: auto;
 }
 header {
@@ -21,24 +21,25 @@ header {
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 24px;
-  padding-block: 28px;
+  gap: calc(var(--spacing) * 6);
+  padding-block: calc(var(--spacing) * 7);
 }
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  font:
-    500 1.125rem / 1.4 "Kode Mono",
-    monospace;
-  color: var(--text);
+  gap: calc(var(--spacing) * 3);
+  font-family: var(--font-brand);
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--leading-snug);
+  color: var(--color-text);
 }
 .brand img {
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   flex-shrink: 0;
 }
 a {
-  color: var(--accent);
+  color: var(--color-accent);
   white-space: nowrap;
   text-decoration: none;
   text-underline-offset: 4px;
@@ -47,62 +48,68 @@ a:hover {
   text-decoration: underline;
 }
 .hero {
-  padding-block: 56px 48px;
+  padding-block: calc(var(--spacing) * 14) calc(var(--spacing) * 12);
 }
 h1,
 h2 {
-  font-family: "Kode Mono", monospace;
-  font-weight: 500;
-  color: var(--accent);
+  font-family: var(--font-brand);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-accent);
 }
 h1 {
-  font-size: clamp(2.5rem, 8vw, 4.5rem);
-  line-height: 1.08;
+  font-size: var(--text-4xl);
+  line-height: var(--leading-none);
   letter-spacing: -0.045em;
+}
+/* Display steps instead of the former fluid clamp(2.5rem, 8vw, 4.5rem). */
+@media (width >= 40rem) {
+  h1 {
+    font-size: var(--text-7xl);
+  }
 }
 .pitch {
   max-width: 38em;
-  font-size: 1.25rem;
-  margin-block: 24px;
+  font-size: var(--text-xl);
+  margin-block: calc(var(--spacing) * 6);
 }
 h2 {
-  font-size: 1.25rem;
-  line-height: 1.4;
-  margin-bottom: 16px;
+  font-size: var(--text-xl);
+  line-height: var(--leading-snug);
+  margin-bottom: calc(var(--spacing) * 4);
 }
 section:not(.hero) {
-  padding-block: 28px;
+  padding-block: calc(var(--spacing) * 7);
 }
 .links-section,
 .comparison,
 main > section:last-child {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--color-border);
 }
 p,
 li {
   max-width: 65ch;
 }
 ul {
-  padding-left: 20px;
+  padding-left: calc(var(--spacing) * 5);
 }
 p + p,
 p + ul,
 ul + p {
-  margin-top: 16px;
+  margin-top: calc(var(--spacing) * 4);
 }
 .notice {
-  border-left: 3px solid var(--accent);
-  padding: 16px 20px;
-  border-radius: 0 var(--radius) var(--radius) 0;
-  background: var(--accent-light);
+  border-left: 3px solid var(--color-accent);
+  padding: calc(var(--spacing) * 4) calc(var(--spacing) * 5);
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  background: var(--color-accent-subtle);
 }
 .comparison {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 40px;
+  gap: calc(var(--spacing) * 10);
 }
 main {
-  padding-bottom: 64px;
+  padding-bottom: calc(var(--spacing) * 16);
 }
 .checkout-link,
 #checkout button {
@@ -112,106 +119,111 @@ main {
   width: auto;
   min-width: 12rem;
   white-space: nowrap;
-  padding: 14px 28px;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius);
-  background: var(--accent);
-  color: #ffffff;
+  padding: calc(var(--spacing) * 3) calc(var(--spacing) * 7);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-lg);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
   font: inherit;
-  font-weight: 650;
+  font-weight: var(--font-weight-semibold);
   text-decoration: none;
 }
 .checkout-link:hover {
-  background: var(--accent-light);
-  color: var(--text);
+  background: var(--color-accent-subtle);
+  color: var(--color-text);
 }
 #checkout button:disabled {
-  background: var(--bg-island);
-  border-color: var(--border);
-  color: color-mix(in srgb, var(--text) 55%, var(--bg-island));
+  background: var(--color-surface-island);
+  border-color: var(--color-border);
+  color: color-mix(in srgb, var(--color-text) 55%, var(--color-surface-island));
   cursor: not-allowed;
 }
-@media (max-width: 580px) {
+@media (width < 40rem) {
   .comparison {
     grid-template-columns: 1fr;
     gap: 0;
   }
   header {
-    gap: 12px;
+    gap: calc(var(--spacing) * 3);
   }
   .hero {
-    padding-top: 32px;
+    padding-top: calc(var(--spacing) * 8);
   }
 }
 .price {
-  margin-top: 4px;
-  color: var(--text-muted);
+  margin-top: calc(var(--spacing) * 1);
+  color: var(--color-text-muted);
 }
 #checkout {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: calc(var(--spacing) * 3);
 }
 .licence {
-  padding: 20px;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius);
+  padding: calc(var(--spacing) * 5);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-lg);
 }
 .licence .checkout-link {
-  margin-top: 4px;
+  margin-top: calc(var(--spacing) * 1);
 }
 .manage-link {
   display: inline-block;
-  margin-top: 8px;
+  margin-top: calc(var(--spacing) * 2);
 }
 /* /mac page */
 .shot {
-  margin: 0 0 48px;
+  margin: 0 0 calc(var(--spacing) * 12);
 }
 .shot img {
   display: block;
   width: 100%;
   height: auto;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
 }
 ol {
-  padding-left: 1.4em;
+  padding-left: calc(var(--spacing) * 6);
 }
 ol li + li {
-  margin-top: 6px;
+  margin-top: calc(var(--spacing) * 2);
 }
 .hero .notice {
-  margin-top: 20px;
+  margin-top: calc(var(--spacing) * 5);
 }
 
 /* ── Motion and terminal touches (src/site_fx.ts) ─────────────────────── */
 /* Space between the price line and the buttons. */
 #checkout {
   position: relative;
-  margin-top: 28px;
+  margin-top: calc(var(--spacing) * 7);
 }
 /* Page content above the dot grid. */
 header,
 main {
   position: relative;
-  z-index: 1;
+  z-index: calc(var(--z-base) + 1);
 }
 /* The board's dot grid behind the page, drifting with the pointer. */
 body::before {
   content: "";
   position: fixed;
-  inset: -40px;
-  z-index: 0;
+  inset: calc(var(--spacing) * -10);
+  z-index: var(--z-base);
   pointer-events: none;
   background-image: radial-gradient(
-    color-mix(in srgb, var(--text) 16%, transparent) 1px,
+    color-mix(in srgb, var(--color-text) 16%, transparent) 1px,
     transparent 1.4px
   );
   background-size: 24px 24px;
   transform: translate(var(--grid-x, 0), var(--grid-y, 0));
-  transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
-  mask-image: radial-gradient(ellipse at 30% 0%, #000 0%, transparent 75%);
+  transition: transform var(--duration-reveal) var(--ease-out-soft);
+  /* A mask reads only the alpha: any opaque color works. */
+  mask-image: radial-gradient(
+    ellipse at 30% 0%,
+    var(--color-text) 0%,
+    transparent 75%
+  );
 }
 .sr-only {
   position: absolute;
@@ -223,8 +235,8 @@ body::before {
 }
 .type-cursor {
   display: inline-block;
-  margin-left: 0.04em;
-  color: var(--accent);
+  margin-left: calc(var(--spacing) * 0.5);
+  color: var(--color-accent);
   animation: cursor-blink 1.05s steps(1) infinite;
 }
 @keyframes cursor-blink {
@@ -236,11 +248,11 @@ body::before {
 .hand-arrow {
   /* A flex item right after the buttons, lifted to point down at them. */
   align-self: flex-start;
-  margin: -34px 0 0 -4px;
-  width: 140px;
-  height: 70px;
+  margin: calc(var(--spacing) * -9) 0 0 calc(var(--spacing) * -1);
+  width: calc(var(--spacing) * 36);
+  aspect-ratio: 2;
   fill: none;
-  stroke: var(--accent);
+  stroke: var(--color-accent);
   stroke-width: 2.5;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -261,7 +273,7 @@ body::before {
 .fx-static .hand-arrow path {
   stroke-dashoffset: 0;
 }
-@media (max-width: 640px) {
+@media (width < 40rem) {
   .hand-arrow {
     display: none;
   }
@@ -275,8 +287,8 @@ body::before {
 }
 .checkout-link:hover {
   box-shadow:
-    0 0 0 4px var(--accent-light),
-    0 8px 28px -8px var(--accent);
+    0 0 0 4px var(--color-accent-subtle),
+    0 8px 28px -8px var(--color-accent);
   transform: translateY(-1px);
 }
 /* Blocks and their list items fade in when scrolled into view. */
@@ -284,8 +296,8 @@ body::before {
   opacity: 0;
   transform: translateY(18px);
   transition:
-    opacity 0.6s ease,
-    transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+    opacity var(--duration-reveal) ease,
+    transform var(--duration-reveal) var(--ease-out-soft);
 }
 .fx [data-reveal] li {
   opacity: 0;
@@ -307,17 +319,17 @@ ul.terminal {
 }
 ul.terminal li {
   position: relative;
-  padding-left: 1.6em;
+  padding-left: calc(var(--spacing) * 6);
 }
 ul.terminal li + li {
-  margin-top: 6px;
+  margin-top: calc(var(--spacing) * 2);
 }
 ul.terminal li::before {
   content: ">";
   position: absolute;
   left: 0;
-  font-family: "Roboto Mono", ui-monospace, monospace;
-  color: var(--accent);
+  font-family: var(--font-mono);
+  color: var(--color-accent);
 }
 /* Install steps numbered like a script: 01, 02, … */
 ol.steps {
@@ -327,19 +339,19 @@ ol.steps {
 }
 ol.steps li {
   position: relative;
-  padding-left: 2.6em;
+  padding-left: calc(var(--spacing) * 10);
   counter-increment: step;
 }
 ol.steps li::before {
   content: counter(step, decimal-leading-zero);
   position: absolute;
   left: 0;
-  font-family: "Roboto Mono", ui-monospace, monospace;
-  color: var(--accent);
+  font-family: var(--font-mono);
+  color: var(--color-accent);
 }
 /* Screenshot: rises in with an accent glow. */
 .shot img {
   box-shadow:
-    0 30px 80px -30px color-mix(in srgb, var(--accent) 55%, transparent),
-    0 0 0 1px var(--border);
+    0 30px 80px -30px color-mix(in srgb, var(--color-accent) 55%, transparent),
+    0 0 0 1px var(--color-border);
 }

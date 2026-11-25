@@ -13,7 +13,7 @@ export function initStarCta(appEl: HTMLElement): { open: () => void } {
       <div class="star-card" role="dialog" aria-modal="true" aria-label="Support Markasso">
         <button class="star-close" aria-label="Close">&times;</button>
         <div class="star-logo">
-          <img src="/markasso-logo-icon.svg" width="40" height="40" alt="Markasso" style="border-radius:6px">
+          <img src="/markasso-logo-icon.svg" width="40" height="40" alt="Markasso">
         </div>
         <h2 class="star-title">Love Markasso?</h2>
         <p class="star-desc">
@@ -26,7 +26,7 @@ export function initStarCta(appEl: HTMLElement): { open: () => void } {
         </p>
         <div class="star-actions">
           <a class="star-coffee-btn" href="https://buymeacoffee.com/albz" target="_blank" rel="noopener noreferrer">
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
               <path d="M6 2v3M10 2v3M14 2v3M4 7h12l-1.5 9a2 2 0 01-2 1.5h-5a2 2 0 01-2-1.5zM16 9h2a2 2 0 010 4h-2"/>
             </svg>
             Buy me a coffee

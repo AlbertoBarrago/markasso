@@ -14,7 +14,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
   try {
     const ta = document.createElement('textarea');
     ta.value = text;
-    ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0';
+    ta.className = 'clipboard-fallback';
     document.body.appendChild(ta);
     ta.select();
     const ok = document.execCommand('copy');
