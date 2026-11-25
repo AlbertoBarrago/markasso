@@ -165,6 +165,15 @@ for (const theme of THEMES) {
       await snap(page, `${theme}-dialog`);
     });
 
+    test('connect AI agent modal', async ({ page }) => {
+      // Shares mcp-tabs.css with the /agents/ page.
+      await openApp(page, { theme, board: true });
+      await page.locator('#menu-btn').click();
+      await page.locator('#menu-mcp').click();
+      await expect(page.locator('#mcp-setup-modal')).toBeVisible();
+      await snap(page, `${theme}-mcp-setup`);
+    });
+
     test('selection with style controls', async ({ page }, testInfo) => {
       await openApp(page, { theme, board: true });
       // Select all reaches the window's key handler: no focus needed.

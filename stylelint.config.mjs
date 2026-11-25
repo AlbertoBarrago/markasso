@@ -24,6 +24,9 @@ const rules = {
 const MIGRATED = [
   'src/styles/context-panel.css',
   'src/styles/menu.css',
+  'src/styles/cloud-page.css',
+  'src/styles/agents-page.css',
+  'src/styles/mcp-tabs.css',
   'src/styles/ui-components.css',
 ];
 
