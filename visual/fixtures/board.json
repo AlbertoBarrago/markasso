@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "viewport": {
+    "offsetX": 0,
+    "offsetY": 0,
+    "zoom": 1
+  },
+  "elements": [
+    {
+      "id": "el-rect",
+      "type": "rectangle",
+      "x": 420,
+      "y": 220,
+      "width": 180,
+      "height": 100,
+      "strokeColor": "#e2e2ef",
+      "fillColor": "transparent",
+      "strokeWidth": 1,
+      "opacity": 1,
+      "roughness": 0,
+      "strokeStyle": "solid",
+      "label": "Token"
+    },
+    {
+      "id": "el-arrow",
+      "type": "line",
+      "x": 600,
+      "y": 270,
+      "x2": 700,
+      "y2": 280,
+      "strokeColor": "#e2e2ef",
+      "fillColor": "transparent",
+      "strokeWidth": 1,
+      "opacity": 1,
+      "roughness": 0,
+      "strokeStyle": "solid",
+      "arrowHead": "end",
+      "startElementId": "el-rect",
+      "startAnchor": {
+        "x": 1,
+        "y": 0.5
+      }
+    },
+    {
+      "id": "el-rhombus",
+      "type": "rhombus",
+      "x": 480,
+      "y": 420,
+      "width": 140,
+      "height": 100,
+      "strokeColor": "#e2e2ef",
+      "fillColor": "transparent",
+      "strokeWidth": 1,
+      "opacity": 1,
+      "roughness": 0,
+      "strokeStyle": "solid"
+    },
+    {
+      "id": "el-text",
+      "type": "text",
+      "x": 700,
+      "y": 480,
+      "width": 91,
+      "height": 24,
+      "content": "Markasso",
+      "fontSize": 20,
+      "fontFamily": "Arial, sans-serif",
+      "strokeColor": "#e2e2ef",
+      "fillColor": "transparent",
+      "strokeWidth": 0,
+      "opacity": 1,
+      "roughness": 0,
+      "textAlign": "left"
+    },
+    {
+      "id": "el-ellipse",
+      "type": "ellipse",
+      "x": 720,
+      "y": 220,
+      "width": 160,
+      "height": 110,
+      "strokeColor": "#e2e2ef",
+      "fillColor": "#4d96ff",
+      "strokeWidth": 1,
+      "opacity": 1,
+      "roughness": 0,
+      "strokeStyle": "solid"
+    }
+  ],
+  "gridVisible": true,
+  "gridSize": 20,
+  "gridType": "dot"
+}
