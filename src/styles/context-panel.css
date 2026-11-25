@@ -115,7 +115,7 @@
   height: 24px;
   border-radius: var(--radius-md);
   border: 2px solid var(--color-border);
-  background: var(--color-overlay-1);
+  background: var(--color-surface-control);
   color: var(--color-text-muted);
   cursor: pointer;
   font-size: var(--text-base);
@@ -139,7 +139,7 @@
   background: var(--color-border);
   border-radius: var(--radius-sm);
 }
-/* The resting fill is already overlay-1 (= --color-hover in dark), so the
+/* The resting fill is already overlay-1 in dark (= --color-hover), so the
    hover steps up one overlay to stay visible. */
 .cp-color-more:hover {
   background: var(--color-overlay-2);
@@ -278,7 +278,7 @@
   justify-content: center;
   border: 2px solid var(--color-border-input);
   border-radius: var(--radius-lg);
-  background: var(--color-overlay-1);
+  background: var(--color-surface-control);
   color: var(--color-text-muted);
   cursor: pointer;
   transition:
@@ -443,7 +443,7 @@
 .cp-font-size-input {
   width: 72px;
   height: 32px;
-  background: var(--color-overlay-1);
+  background: var(--color-surface-control);
   border: 2px solid var(--color-border-subtle);
   border-radius: var(--radius-lg);
   color: var(--color-text);

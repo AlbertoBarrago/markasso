@@ -30,6 +30,10 @@ const MIGRATED = [
   'src/styles/agents-page.css',
   'src/styles/mcp-tabs.css',
   'src/styles/ui-components.css',
+  'src/styles/base.css',
+  'src/style.css',
+  'src/styles/mobile.css',
+  'src/styles/theme.css',
 ];
 
 /**

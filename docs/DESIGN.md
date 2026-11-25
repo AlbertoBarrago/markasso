@@ -18,6 +18,7 @@ Dark first, fast and quiet: the canvas is the hero and the chrome fades into it.
 | `--color-warning` | `--warning` | `#f59e0b` | `#8a6000` | Warnings |
 | `--color-surface-island` | `--bg-island` | `rgb(21 21 21 / 0.98)` | `#f5f5f5` | Toolbar islands, panels, menus |
 | `--color-border` | `--island-border`, `--border` | `rgb(255 255 255 / 0.18)` | `#767676` | Island outlines, dividers, inputs (light value meets 4.5:1 on white) |
+| `--color-surface-control` | | `var(--color-overlay-1)` | `#ffffff` | Resting fill of buttons, chips and inputs on an island |
 | `--color-hover` | | `var(--color-overlay-1)` | `color-mix(in oklab, var(--color-accent) 8%, transparent)` | Hover states |
 | `--color-hover-legacy` | `--bg-hover` | `rgb(255 255 255 / 0.07)` | `rgb(169 1 27 / 0.08)` | Pre-#184 hover of the CSS not migrated yet; removed with the aliases |
 | `--color-text` | `--text` | `#e8d4d4` | `#000000` | Primary text (warm off-white in dark) |

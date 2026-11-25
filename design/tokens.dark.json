@@ -677,6 +677,9 @@
         ],
         "hex": "#000000"
       }
+    },
+    "surface-control": {
+      "$value": "{color.overlay-1}"
     }
   },
   "shadow": {
