@@ -1047,6 +1047,29 @@ export function getRotationHandleScreen(
 }
 
 /**
+ * The rows the rotation handle covers on screen as `drawSelection` paints it,
+ * in canvas pixels, or null when none is painted: a selection that cannot
+ * rotate, or one holding a locked element (only its outline is drawn).
+ *
+ * The handle sits a fixed number of screen pixels from the box, so zoom does
+ * not change its distance; for a single rotated element it turns with the
+ * element about its center, so it may be beside or below the box.
+ */
+export function getRotationHandleSpan(
+  elements: ReadonlyArray<Element>,
+  viewport: Viewport,
+  allElements?: ReadonlyArray<Element>,
+): { top: number; bottom: number } | null {
+  if (elements.some((el) => el.locked)) return null;
+  const handle = getRotationHandleScreen(elements, viewport, allElements);
+  if (!handle) return null;
+  return {
+    top: handle.screenY - ROTATION_HANDLE_R,
+    bottom: handle.screenY + ROTATION_HANDLE_R,
+  };
+}
+
+/**
  * Hit-test whether a screen point is on one of the endpoints of a line/arrow.
  * Returns 'start', 'end', or null.
  */
