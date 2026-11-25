@@ -530,7 +530,14 @@ export function initFloatingStyleBar(
         top: canvasTop + span.top,
         bottom: canvasTop + span.bottom,
       };
-      top = styleBarTopForSelection(r, handle, h, GAP, MARGIN);
+      top = styleBarTopForSelection(
+        r,
+        handle,
+        h,
+        GAP,
+        MARGIN,
+        window.innerHeight,
+      );
     } else {
       const toolbar = document.querySelector<HTMLElement>('.tb-island-tools');
       const r = toolbar?.getBoundingClientRect();
