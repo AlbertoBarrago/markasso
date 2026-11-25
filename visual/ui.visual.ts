@@ -137,7 +137,14 @@ for (const theme of THEMES) {
         await page.addInitScript((theme) => {
           localStorage.setItem('markasso-theme', theme);
         }, theme);
+        // /mac/ shows the latest Mac release, read live by the worker: pin it.
+        await page.route('**/download/mac.json', (route) =>
+          route.fulfill({ json: { version: '1.0.0' } }),
+        );
         await page.goto(path);
+        if (path === '/mac/') {
+          await expect(page.locator('#mac-version')).toHaveText('1.0.0 beta');
+        }
         await snap(page, `${theme}-page-${path.replaceAll('/', '')}`, true);
       });
     }
