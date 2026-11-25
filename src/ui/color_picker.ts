@@ -107,7 +107,6 @@ export function updateCustomColorButton(
 ): void {
   if (color) {
     button.style.background = color;
-    button.style.border = '2px solid var(--island-border)';
     button.textContent = '';
     button.title = color;
     button.classList.add('cp-color-more-filled');
@@ -115,7 +114,6 @@ export function updateCustomColorButton(
   }
 
   button.style.background = '';
-  button.style.border = '';
   button.textContent = '+';
   button.title = moreColorsLabel;
   button.classList.remove('cp-color-more-filled');
