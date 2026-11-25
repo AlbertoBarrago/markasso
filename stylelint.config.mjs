@@ -27,6 +27,7 @@ const MIGRATED = [
   'src/styles/cloud-page.css',
   'src/styles/agents-page.css',
   'src/styles/mcp-tabs.css',
+  'src/styles/ui-components.css',
 ];
 
 /**

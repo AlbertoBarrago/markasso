@@ -155,23 +155,14 @@ export class TextTool implements Tool {
 
     const ta = document.createElement('textarea');
     ta.spellcheck = true;
-    ta.style.position = 'fixed';
+    ta.className = 'canvas-text-editor';
     ta.style.left = `${screenX + canvasRect.left}px`;
     ta.style.top = `${screenY + canvasRect.top}px`;
     ta.style.width = `${scaledWidth}px`;
     ta.style.height = `${scaledFont * 1.2}px`;
     ta.style.font = `${scaledFont}px ${appState.fontFamily}`;
     ta.style.color = resolveStrokeColorForTheme(appState.strokeColor);
-    ta.style.caretColor = 'var(--accent, #7c63d4)';
     ta.style.lineHeight = '1.2';
-    ta.style.padding = '0';
-    ta.style.margin = '0';
-    ta.style.border = 'none';
-    ta.style.outline = 'none';
-    ta.style.boxShadow = 'none';
-    ta.style.resize = 'none';
-    ta.style.overflow = 'hidden';
-    ta.style.background = 'transparent';
     ta.style.zIndex = TEXT_EDITOR_Z_INDEX;
     ta.style.whiteSpace = 'pre-wrap';
     ta.style.wordBreak = 'break-word';
@@ -272,7 +263,7 @@ export class TextTool implements Tool {
 
     const ta = document.createElement('textarea');
     ta.spellcheck = true;
-    ta.style.position = 'fixed';
+    ta.className = 'canvas-text-editor';
     ta.style.left = `${screenX + canvasRect.left}px`;
     ta.style.top = `${screenY + canvasRect.top}px`;
     ta.style.minWidth = '4px';
@@ -280,16 +271,7 @@ export class TextTool implements Tool {
     ta.style.height = `${scaledFont * 1.2}px`;
     ta.style.font = `${scaledFont}px ${appState.fontFamily}`;
     ta.style.color = resolveStrokeColorForTheme(appState.strokeColor);
-    ta.style.caretColor = 'var(--accent, #7c63d4)';
     ta.style.lineHeight = '1.2';
-    ta.style.padding = '0';
-    ta.style.margin = '0';
-    ta.style.border = 'none';
-    ta.style.outline = 'none';
-    ta.style.boxShadow = 'none';
-    ta.style.resize = 'none';
-    ta.style.overflow = 'hidden';
-    ta.style.background = 'transparent';
     ta.style.zIndex = TEXT_EDITOR_Z_INDEX;
     ta.style.whiteSpace = 'pre';
     ta.style.overflowWrap = 'normal';
@@ -297,7 +279,8 @@ export class TextTool implements Tool {
 
     // Mirror span to measure natural text width
     const mirror = document.createElement('span');
-    mirror.style.cssText = `position:fixed;visibility:hidden;white-space:pre;font:${scaledFont}px ${appState.fontFamily};padding:0;`;
+    mirror.className = 'text-measure-mirror';
+    mirror.style.font = `${scaledFont}px ${appState.fontFamily}`;
     document.body.appendChild(mirror);
 
     const grow = (): void => {
@@ -417,7 +400,7 @@ export class TextTool implements Tool {
 
     const ta = document.createElement('textarea');
     ta.spellcheck = true;
-    ta.style.position = 'fixed';
+    ta.className = 'canvas-text-editor';
     ta.style.left = `${screenX + canvasRect.left}px`;
     ta.style.top = `${screenY + canvasRect.top}px`;
     ta.style.minWidth = `${160 * z}px`;
@@ -426,18 +409,12 @@ export class TextTool implements Tool {
     ta.style.height = `${scaledFont * 1.5}px`;
     ta.style.font = `${scaledFont}px "Courier New", monospace`;
     ta.style.color = resolveStrokeColorForTheme(appState.strokeColor);
-    ta.style.caretColor = 'var(--accent, #7c63d4)';
     ta.style.lineHeight = '1.3';
     ta.style.padding = `${10 * z}px`;
-    ta.style.margin = '0';
     // The box drawCode paints (1 unit outline, 6 unit radius), so the editor
     // looks like the block it commits, as in Excalidraw's WYSIWYG editor.
     ta.style.border = `${z}px solid ${getCodeBlockColors().border}`;
     ta.style.borderRadius = `${6 * z}px`;
-    ta.style.outline = 'none';
-    ta.style.boxShadow = 'none';
-    ta.style.resize = 'none';
-    ta.style.overflow = 'hidden';
     ta.style.background = getCodeBlockColors().fill;
     ta.style.zIndex = TEXT_EDITOR_Z_INDEX;
     ta.style.whiteSpace = 'pre';
@@ -563,20 +540,14 @@ export class TextTool implements Tool {
 
     const ta = document.createElement('textarea');
     ta.spellcheck = true;
+    ta.className = 'canvas-text-editor';
     ta.value = el.content;
 
-    ta.style.position = 'fixed';
     ta.style.left = `${screenX + canvasRect.left}px`;
     ta.style.top = `${screenY + canvasRect.top}px`;
     ta.style.font = `${el.fontSize * viewport.zoom}px ${el.fontFamily}`;
     ta.style.color = resolveStrokeColorForTheme(el.strokeColor, el.fillColor);
-    ta.style.caretColor = 'var(--accent, #7c63d4)';
     ta.style.lineHeight = '1.2';
-    ta.style.margin = '0';
-    ta.style.outline = 'none';
-    ta.style.boxShadow = 'none';
-    ta.style.resize = 'none';
-    ta.style.overflow = 'hidden';
     ta.style.zIndex = TEXT_EDITOR_Z_INDEX;
 
     let mirror: HTMLSpanElement | null = null;
@@ -610,8 +581,6 @@ export class TextTool implements Tool {
         ta.style.opacity = String(el.opacity);
         ta.style.boxShadow = `${(el.shadowOffsetX ?? 0) * viewport.zoom}px ${(el.shadowOffsetY ?? 0) * viewport.zoom}px ${(el.shadowBlur ?? 0) * viewport.zoom}px ${el.shadowColor ?? 'transparent'}`;
       }
-      ta.style.border = 'none';
-      ta.style.outline = 'none';
       ta.style.padding = `${box.padding * viewport.zoom}px`;
       ta.style.whiteSpace = fixedBox ? 'pre-wrap' : 'pre';
       ta.style.overflowWrap = fixedBox ? 'break-word' : 'normal';
@@ -619,7 +588,8 @@ export class TextTool implements Tool {
 
       if (!fixedBox) {
         mirror = document.createElement('span');
-        mirror.style.cssText = `position:fixed;visibility:hidden;white-space:pre;font:${scaledFont}px ${el.fontFamily};padding:0;`;
+        mirror.className = 'text-measure-mirror';
+        mirror.style.font = `${scaledFont}px ${el.fontFamily}`;
         document.body.appendChild(mirror);
       }
     }

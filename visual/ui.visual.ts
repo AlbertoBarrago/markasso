@@ -251,6 +251,17 @@ for (const theme of THEMES) {
       await snap(page, `${theme}-more-panel`);
     });
 
+    test('mermaid import dialog', async ({ page }) => {
+      // Opened from the toolbar's more panel, which small screens replace.
+      onlyOn(['desktop', 'tablet'], 'the toolbar is replaced on small screens');
+      await openApp(page, { theme, board: true });
+      await page.locator('#tb-more-tools').click();
+      await page.locator('#tb-more-mermaid').click();
+      await expect(page.locator('#mermaid-dialog')).toBeVisible();
+      await expect(page.locator('#mermaid-dialog textarea')).toBeFocused();
+      await snap(page, `${theme}-mermaid-dialog`);
+    });
+
     test('library panel', async ({ page }) => {
       await openApp(page, {
         theme,

@@ -1142,26 +1142,17 @@ function openShapeLabelEditor(
 
   const ta = document.createElement('textarea');
   ta.spellcheck = true;
+  ta.className = 'canvas-text-editor';
   ta.value = el.label ?? '';
 
-  ta.style.position = 'fixed';
   ta.style.left = `${screenCX + canvasRect.left - editorW / 2}px`;
   ta.style.top = `${screenCY + canvasRect.top - fontSize * viewport.zoom * 0.6}px`;
   ta.style.width = `${editorW}px`;
   ta.style.minHeight = `${fontSize * viewport.zoom * 1.2}px`;
   ta.style.font = `${fontSize * viewport.zoom}px ${fontFamily}`;
   ta.style.color = labelEditorColor(el);
-  ta.style.caretColor = 'var(--accent, #7c63d4)';
   ta.style.textAlign = 'center';
   ta.style.lineHeight = '1.2';
-  ta.style.padding = '0';
-  ta.style.margin = '0';
-  ta.style.border = 'none';
-  ta.style.outline = 'none';
-  ta.style.boxShadow = 'none';
-  ta.style.resize = 'none';
-  ta.style.overflow = 'hidden';
-  ta.style.background = 'transparent';
   ta.style.zIndex = TEXT_EDITOR_Z_INDEX;
   ta.style.whiteSpace = 'pre-wrap';
   ta.style.wordBreak = 'break-word';
@@ -1276,26 +1267,17 @@ function openArrowLabelEditor(
 
   const ta = document.createElement('textarea');
   ta.spellcheck = true;
+  ta.className = 'canvas-text-editor';
   ta.value = el.label ?? '';
 
-  ta.style.position = 'fixed';
   ta.style.left = `${screenX + canvasRect.left - 80}px`;
   ta.style.top = `${screenY + canvasRect.top - fontSize * viewport.zoom * 0.6}px`;
   ta.style.width = '160px';
   ta.style.minHeight = `${fontSize * viewport.zoom * 1.2}px`;
   ta.style.font = `${fontSize * viewport.zoom}px ${fontFamily}`;
   ta.style.color = resolveStrokeColorForTheme(el.labelColor ?? el.strokeColor);
-  ta.style.caretColor = 'var(--accent, #7c63d4)';
   ta.style.textAlign = 'center';
   ta.style.lineHeight = '1.2';
-  ta.style.padding = '0';
-  ta.style.margin = '0';
-  ta.style.border = 'none';
-  ta.style.outline = 'none';
-  ta.style.boxShadow = 'none';
-  ta.style.resize = 'none';
-  ta.style.overflow = 'hidden';
-  ta.style.background = 'transparent';
   ta.style.zIndex = TEXT_EDITOR_Z_INDEX;
   ta.style.whiteSpace = 'pre-wrap';
   ta.style.wordBreak = 'break-word';
