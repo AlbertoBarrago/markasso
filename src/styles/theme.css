@@ -114,12 +114,6 @@
 [data-theme="light"] .fsb-popover {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
 }
-[data-theme="light"]
-  #floating-style-bar
-  .fsb-group:not([hidden])
-  ~ .fsb-group:not([hidden]) {
-  border-left-color: rgba(0, 0, 0, 0.12);
-}
 [data-theme="light"] .fsb-color-btn {
   border-color: rgba(0, 0, 0, 0.2);
 }
@@ -137,12 +131,6 @@
 [data-theme="light"] #context-panel::-webkit-scrollbar-thumb:hover {
   background: var(--accent);
 }
-[data-theme="light"] .cp-label {
-  color: #000000;
-}
-[data-theme="light"] .cp-color-swatch {
-  border-color: var(--island-border);
-}
 [data-theme="light"] .cp-color-swatch-transparent {
   background:
     repeating-conic-gradient(#e5e5e5 0% 25%, #f5f5f5 0% 50%) 0 0 / 8px 8px;
@@ -156,25 +144,18 @@
   background: rgba(0, 0, 0, 0.2);
 }
 [data-theme="light"] .cp-color-more:hover {
-  background: rgba(169, 1, 27, 0.08);
+  background: var(--color-hover);
   border-color: var(--accent);
 }
 [data-theme="light"] .cp-popup-label {
   color: rgba(0, 0, 0, 0.55);
 } /* was 0.4 → 2.85:1, now ~4.6:1 */
-[data-theme="light"] .cp-popup-swatch {
-  border-color: rgba(0, 0, 0, 0.12);
-}
 [data-theme="light"] .cp-popup-swatch-transparent {
   background:
     repeating-conic-gradient(#e5e5e5 0% 25%, #f5f5f5 0% 50%) 0 0 / 8px 8px;
 }
 [data-theme="light"] .cp-popup-swatch:hover {
   border-color: rgba(0, 0, 0, 0.35);
-}
-[data-theme="light"] .cp-popup-swatch.active {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(169, 1, 27, 0.25);
 }
 [data-theme="light"] .cp-popup-hex-section {
   border-top-color: rgba(0, 0, 0, 0.08);
@@ -186,16 +167,13 @@
 [data-theme="light"] .cp-popup-hex-hash {
   color: rgba(0, 0, 0, 0.55);
 } /* was 0.4 → 2.85:1, now ~4.6:1 */
-[data-theme="light"] .cp-popup-hex-input {
-  color: #000000;
-}
 [data-theme="light"] .cp-btn {
   border-color: var(--input-border) !important;
   background: #ffffff;
   color: #000000;
 }
 [data-theme="light"] .cp-btn:hover {
-  background: rgba(169, 1, 27, 0.08);
+  background: var(--color-hover);
   border-color: var(--accent);
 }
 [data-theme="light"] .cp-slider {
@@ -204,16 +182,13 @@
 [data-theme="light"] .cp-slider-labels {
   color: #000000;
 }
-[data-theme="light"] .cp-slider-val {
-  color: #000000;
-}
 [data-theme="light"] .cp-font-size-input {
   background: #ffffff;
   border-color: var(--accent);
   color: #000000;
 }
 [data-theme="light"] .cp-font-size-input:hover {
-  background: rgba(169, 1, 27, 0.06);
+  background: var(--color-hover);
   border-color: var(--accent);
 }
 [data-theme="light"] .cp-border-btn[data-border="sharp"]::before,
