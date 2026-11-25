@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkoutUrl } from '../src/cloud_checkout';
+import { checkoutUrl } from '../src/site/shared/cloud_checkout';
 
 describe('checkout URL', () => {
   it.each([

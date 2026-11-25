@@ -194,7 +194,7 @@ ol li + li {
   margin-top: calc(var(--spacing) * 5);
 }
 
-/* ── Motion and terminal touches (src/site_fx.ts) ─────────────────────── */
+/* ── Motion and terminal touches (site_fx.ts) ─────────────────────── */
 /* Space between the price line and the buttons. */
 #checkout {
   position: relative;

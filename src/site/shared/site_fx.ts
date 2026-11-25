@@ -1,4 +1,4 @@
-import { launchConfetti } from './ui/confetti';
+import { launchConfetti } from '../../ui/confetti';
 
 /**
  * Motion for the static pages (/cloud, /mac), with no dependency:

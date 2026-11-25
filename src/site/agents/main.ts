@@ -1,13 +1,13 @@
-import './styles/base.css';
-import './styles/components.css';
-import './styles/theme.css';
-import './styles/cloud-page.css';
-import './styles/agents-page.css';
-import { t } from './i18n';
-import { readStorage } from './io/safe_storage';
-import { initSiteFx } from './site_fx';
-import { MCP_DOCS_URL } from './ui/mcp_clients';
-import { createMcpTabs } from './ui/mcp_tabs';
+import '../../styles/base.css';
+import '../../styles/components.css';
+import '../../styles/theme.css';
+import '../shared/site.css';
+import './agents.css';
+import { t } from '../../i18n';
+import { readStorage } from '../../io/safe_storage';
+import { MCP_DOCS_URL } from '../../ui/mcp_clients';
+import { createMcpTabs } from '../../ui/mcp_tabs';
+import { initSiteFx } from '../shared/site_fx';
 
 /**
  * The /agents page: what Markasso does with AI agents, the demo, and the

@@ -74,7 +74,7 @@ Commands from the network are validated with the same code the app uses (`src/io
 
 ## Static Pages
 
-`agents/`, `cloud/` and `mac/` are extra Vite entries (`vite.config.ts`), each a static HTML page with its English copy in the markup, translated at load from `data-i18n` keys (`src/*_page.ts`). `public/` holds files served as is, including `robots.txt`, `sitemap.xml` and `llms.txt`.
+`agents/`, `cloud/` and `mac/` are extra Vite entries (`vite.config.ts`), each a static HTML page with its English copy in the markup, translated at load from `data-i18n` keys. Their code and styles live in `src/site/`: `agents/`, `cloud/` and `mac/` each hold the page's `main.ts` (and its own CSS when it has one), `shared/` the common stylesheet, the motion (`site_fx.ts`) and the Cloud checkout links. `public/` holds files served as is, including `robots.txt`, `sitemap.xml` and `llms.txt`.
 
 ## Technology Stack
 
