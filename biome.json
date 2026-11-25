@@ -5,6 +5,8 @@
       "**",
       "!**/dist",
       "!coverage",
+      "!test-results",
+      "!playwright-report",
       "!.wrangler",
       "!worker-configuration.d.ts"
     ]

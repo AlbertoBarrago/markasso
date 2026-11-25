@@ -45,3 +45,7 @@ terraform/.terraform/
 terraform/terraform.tfstate
 terraform/terraform.tfstate.backup
 *.tfvars
+
+# Playwright visual suite output (baselines live in visual/__screenshots__)
+test-results/
+playwright-report/
