@@ -1,21 +1,22 @@
 /* ── Library sidebar (shapes and icons), modeled on Excalidraw's ──────── */
 #library-panel {
   position: fixed;
-  top: max(16px, var(--toolbar-panel-top, 0px));
-  right: 16px;
-  bottom: max(76px, var(--toolbar-panel-bottom, 0px));
+  top: max(calc(var(--spacing) * 4), var(--toolbar-panel-top, 0px));
+  right: calc(var(--spacing) * 4);
+  bottom: max(calc(var(--spacing) * 20), var(--toolbar-panel-bottom, 0px));
   /* Wide enough that shapes and generic icons fit without scrolling;
      bundled packs start collapsed for the same reason. */
   width: min(440px, calc(100vw - 32px));
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px;
-  background: var(--bg-island);
-  border: 1px solid var(--island-border);
-  border-radius: var(--island-radius);
-  color: var(--text);
-  z-index: 30;
+  gap: calc(var(--spacing) * 2);
+  padding: calc(var(--spacing) * 2);
+  background: var(--color-surface-island);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  color: var(--color-text);
+  /* Same layer as the context panel. */
+  z-index: calc(var(--z-raised) + 20);
   opacity: 0;
   pointer-events: none;
   transform: translateX(8px);
@@ -41,8 +42,8 @@ body.library-open #minimap {
   justify-content: space-between;
 }
 .lib-title {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
 }
 .lib-close {
   display: flex;
@@ -51,28 +52,28 @@ body.library-open #minimap {
   width: 26px;
   height: 26px;
   border: none;
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   background: none;
-  color: var(--text-muted);
+  color: var(--color-text-muted);
   cursor: pointer;
 }
 .lib-close:hover {
-  background: var(--bg-hover);
-  color: var(--text);
+  background: var(--color-hover);
+  color: var(--color-text);
 }
 
 .lib-search {
   width: 100%;
-  padding: 7px 10px;
-  border: 1px solid var(--input-border);
-  border-radius: var(--radius);
+  padding: calc(var(--spacing) * 2);
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-lg);
   background: transparent;
-  color: var(--text);
+  color: var(--color-text);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 .lib-search:focus-visible {
-  outline: 2px solid var(--focus-ring);
+  outline: 2px solid var(--color-focus-ring);
   outline-offset: 1px;
 }
 
@@ -81,28 +82,28 @@ body.library-open #minimap {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: calc(var(--spacing) * 2);
 }
 
 .lib-section > summary {
-  padding: 4px 2px;
-  font-size: 11px;
-  font-weight: 600;
+  padding: calc(var(--spacing) * 1) calc(var(--spacing) * 0.5);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-semibold);
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--color-text-muted);
   cursor: pointer;
   user-select: none;
 }
 .lib-section > summary:hover {
-  color: var(--text);
+  color: var(--color-text);
 }
 
 .lib-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
-  gap: 4px;
-  padding: 2px 0 4px;
+  gap: calc(var(--spacing) * 1);
+  padding: calc(var(--spacing) * 0.5) 0 calc(var(--spacing) * 1);
 }
 
 .lib-item img {
@@ -115,29 +116,30 @@ body.library-open #minimap {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 6px 2px 4px;
+  gap: calc(var(--spacing) * 1);
+  padding: calc(var(--spacing) * 2) calc(var(--spacing) * 0.5)
+    calc(var(--spacing) * 1);
   border: 1px solid transparent;
-  border-radius: var(--radius);
-  background: var(--bg-hover);
-  color: var(--text);
+  border-radius: var(--radius-lg);
+  background: var(--color-hover);
+  color: var(--color-text);
   cursor: grab;
   font: inherit;
 }
 .lib-item:hover {
-  border-color: var(--accent);
+  border-color: var(--color-accent);
 }
 .lib-item:active {
   cursor: grabbing;
 }
 .lib-item:focus-visible {
-  outline: 2px solid var(--focus-ring);
+  outline: 2px solid var(--color-focus-ring);
   outline-offset: 1px;
 }
 .lib-item-label {
   width: 100%;
-  font-size: 10.5px;
-  line-height: 1.2;
+  font-size: var(--text-2xs);
+  line-height: var(--leading-tight);
   text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -145,30 +147,33 @@ body.library-open #minimap {
 }
 
 .lib-credit {
-  padding: 0 2px 6px;
-  font-size: 10px;
-  color: var(--text-muted);
+  padding: 0 calc(var(--spacing) * 0.5) calc(var(--spacing) * 2);
+  font-size: var(--text-2xs);
+  color: var(--color-text-muted);
 }
 
 .lib-empty {
-  padding: 16px 4px;
-  font-size: 12px;
+  padding: calc(var(--spacing) * 4) calc(var(--spacing) * 1);
+  font-size: var(--text-xs);
   text-align: center;
-  color: var(--text-muted);
+  color: var(--color-text-muted);
 }
 
 /* Mobile: bottom sheet above the action bar */
 @media (pointer: coarse) {
   #library-panel {
     top: auto;
-    left: 12px;
-    right: 12px;
-    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    left: calc(var(--spacing) * 3);
+    right: calc(var(--spacing) * 3);
+    bottom: calc(var(--spacing) * 20 + env(safe-area-inset-bottom, 0px));
     width: auto;
     max-height: 60vh;
     transform: translateY(8px);
   }
+  /* The desktop open height (690px) would otherwise win over 60vh and
+     cover the buttons at the top of a phone screen. */
   #library-panel.open {
+    max-height: 60vh;
     transform: translateY(0);
   }
   .lib-grid {
@@ -181,60 +186,61 @@ body.library-open #minimap {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: calc(var(--spacing) * 2);
 }
 .lib-pack-delete {
   border: none;
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   background: none;
-  color: var(--text-muted);
-  font-size: 11px;
-  line-height: 1;
-  padding: 3px 6px;
+  color: var(--color-text-muted);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-none);
+  padding: calc(var(--spacing) * 1) calc(var(--spacing) * 2);
   cursor: pointer;
 }
 .lib-pack-delete:hover {
-  background: var(--bg-hover);
-  color: var(--alert);
+  background: var(--color-hover);
+  color: var(--color-danger);
 }
 .lib-category {
-  padding: 6px 2px 2px;
-  font-size: 10.5px;
-  color: var(--text-muted);
+  padding: calc(var(--spacing) * 2) calc(var(--spacing) * 0.5)
+    calc(var(--spacing) * 0.5);
+  font-size: var(--text-2xs);
+  color: var(--color-text-muted);
 }
 .lib-import {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px 0 4px;
-  border-top: 1px solid var(--island-border);
+  gap: calc(var(--spacing) * 2);
+  padding: calc(var(--spacing) * 2) 0 calc(var(--spacing) * 1);
+  border-top: 1px solid var(--color-border);
 }
 .lib-import-btn {
-  padding: 7px 10px;
-  border: 1px dashed var(--island-border);
-  border-radius: var(--radius);
+  padding: calc(var(--spacing) * 2);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
   background: none;
-  color: var(--text);
+  color: var(--color-text);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--text-xs);
   cursor: pointer;
 }
 .lib-import-btn:hover:not(:disabled) {
-  border-color: var(--accent);
+  border-color: var(--color-accent);
 }
 .lib-import-btn:disabled {
   opacity: 0.6;
   cursor: progress;
 }
 .lib-status {
-  font-size: 11.5px;
-  color: var(--text);
+  font-size: var(--text-xs);
+  color: var(--color-text);
 }
 .lib-status-error {
-  color: var(--alert);
+  color: var(--color-danger);
 }
 .lib-links a {
-  color: var(--accent);
+  color: var(--color-accent);
   text-decoration: none;
 }
 .lib-links a:hover {

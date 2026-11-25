@@ -25,6 +25,7 @@ const MIGRATED = [
   'src/styles/context-panel.css',
   'src/styles/menu.css',
   'src/styles/overlays.css',
+  'src/styles/library.css',
   'src/styles/cloud-page.css',
   'src/styles/agents-page.css',
   'src/styles/mcp-tabs.css',
