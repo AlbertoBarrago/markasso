@@ -56,9 +56,6 @@ export const DARK: ThemeTokens = {
   'color-border-subtle': 'rgb(255 255 255 / 0.08)',
   'color-border-input': 'rgb(89 89 89 / 0.4)',
   'color-hover': 'var(--color-overlay-1)',
-  // Pre-#184 hover, kept for `--bg-hover` while unmigrated CSS still uses it:
-  // removed with the legacy aliases when the migration ends.
-  'color-hover-legacy': 'rgb(255 255 255 / 0.07)',
   'color-scrim': 'rgb(0 0 0 / 0.5)',
   'color-scrollbar': 'rgb(255 255 255 / 0.1)',
 
@@ -126,8 +123,6 @@ export const LIGHT: ThemeTokens = {
   'color-border-input': 'rgb(0 0 0 / 0.55)',
   // The accent at 8% (#184, decision 3).
   'color-hover': 'color-mix(in oklab, var(--color-accent) 8%, transparent)',
-  // The old red hover behind `--bg-hover`, see DARK.
-  'color-hover-legacy': 'rgb(169 1 27 / 0.08)',
   'color-scrim': 'rgb(0 0 0 / 0.25)',
   'color-scrollbar': 'rgb(0 0 0 / 0.2)',
 
@@ -238,44 +233,4 @@ export const SHARED: ThemeTokens = {
   ...Object.fromEntries(
     Object.entries(BREAKPOINTS).map(([k, v]) => [`breakpoint-${k}`, v]),
   ),
-};
-
-/**
- * Pre-#184 names, kept as aliases until every consumer is migrated; the
- * final migration PR deletes them. Old name → new token.
- */
-export const LEGACY_ALIASES: Readonly<Record<string, string>> = {
-  accent: 'color-accent',
-  'accent-light': 'color-accent-subtle',
-  'focus-ring': 'color-focus-ring',
-  alert: 'color-danger',
-  warning: 'color-warning',
-  text: 'color-text',
-  'false-white': 'color-text-strong',
-  'text-muted': 'color-text-muted',
-  'bg-island': 'color-surface-island',
-  'island-border': 'color-border',
-  border: 'color-border',
-  'modal-border': 'color-border-subtle',
-  'input-border': 'color-border-input',
-  // Points at the pre-#184 value, not at `color-hover`, so the CSS outside
-  // the migrated files keeps its look; goes away with the other aliases.
-  'bg-hover': 'color-hover-legacy',
-  scrim: 'color-scrim',
-  'scrollbar-thumb': 'color-scrollbar',
-  'default-ink': 'color-ink-default',
-  'island-shadow': 'shadow-island',
-  'modal-shadow': 'shadow-modal',
-};
-
-/**
- * Pre-#184 names kept at their old literal value instead of aliasing a
- * token: the radius tokens are in rem (Tailwind's unit), so an alias would
- * make today's 8px and 12px corners scale with the browser's default font
- * size. Their consumers move to `--radius-lg` / `--radius-xl` during the
- * migration, deliberately.
- */
-export const LEGACY_LITERALS: Readonly<Record<string, string>> = {
-  radius: '8px',
-  'island-radius': '12px',
 };
