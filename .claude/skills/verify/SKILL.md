@@ -18,7 +18,10 @@ Run the steps in order from the repo root and stop at the first failure. Fix the
 
     pnpm typecheck
     pnpm lint:ci
+    pnpm lint:css
     pnpm test
+
+`pnpm lint:css` only warns while the design token migration is in progress (#184): it never fails the step, but a CSS diff must not leave warnings on the lines it touches. Check it per changed file: `pnpm exec stylelint <file>` lists each warning with its line; compare them with the changed lines from `git diff -U0 <base> -- <file>`. A total count can hide a new warning behind a fixed one. Files listed in the config's `overrides` are errors already.
 
 `pnpm test` also runs `mcp/tests/`. If the diff touches `mcp/`, also build the server:
 
