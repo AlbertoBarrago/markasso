@@ -1,11 +1,11 @@
-import './styles/base.css';
-import './styles/theme.css';
-import './styles/cloud-page.css';
-import { checkoutUrl } from './cloud_checkout';
-import { POLAR_LINKS } from './config/polar';
-import { t } from './i18n';
-import { readStorage } from './io/safe_storage';
-import { initSiteFx } from './site_fx';
+import '../../styles/base.css';
+import '../../styles/theme.css';
+import '../shared/site.css';
+import { POLAR_LINKS } from '../../config/polar';
+import { t } from '../../i18n';
+import { readStorage } from '../../io/safe_storage';
+import { checkoutUrl } from '../shared/cloud_checkout';
+import { initSiteFx } from '../shared/site_fx';
 
 const media = window.matchMedia('(prefers-color-scheme: light)');
 // Device appearance when browser storage is unavailable.
