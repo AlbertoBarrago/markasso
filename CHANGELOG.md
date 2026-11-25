@@ -4,6 +4,13 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [1.26.1] - 2026-11-25
+
+### Fixed
+- **A lighter toolbar.** 1.26.0 drew a box around every tool; buttons inside the toolbar and the corner islands are transparent again, with the hover and the selected style unchanged.
+
+---
+
 ## [1.26.0] - 2026-11-25
 
 ### Added
