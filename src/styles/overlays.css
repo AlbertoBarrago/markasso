@@ -6,12 +6,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  /* The docked toolbar's band is reserved on both sides, so the card stays
-     centred on the page and never reaches the toolbar, top or bottom. */
+  /* Centred in the space the docked toolbar leaves free: only the side the
+     toolbar is on reserves its band, so the card sits in the middle of what
+     the eye sees rather than of the window. */
   box-sizing: border-box;
-  padding-block: max(
+  padding-top: max(calc(var(--spacing) * 4), var(--toolbar-panel-top, 0px));
+  padding-bottom: max(
     calc(var(--spacing) * 4),
-    var(--toolbar-panel-top, 0px),
     var(--toolbar-panel-bottom, 0px)
   );
   pointer-events: all;
