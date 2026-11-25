@@ -83,7 +83,9 @@ function isToken(part, tokens) {
   return Boolean(m?.[1] && tokens.has(m[1]));
 }
 
-const SPACING_CALC = /calc\(var\(--spacing\)\*(-?)([\d.]+)\)/g;
+// The multiplier is checked wherever `var(--spacing) * N` appears, also
+// inside a larger expression such as `calc(var(--spacing) * 20 + env(...))`.
+const SPACING_CALC = /var\(--spacing\)\*(-?)([\d.]+)/g;
 
 /**
  * A layout expression (`calc`, `min`, `max`, `clamp`) is on the scale when

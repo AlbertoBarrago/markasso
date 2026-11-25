@@ -50,6 +50,10 @@ describe('stylelint token rules', () => {
     ],
     ['padding: var(--runtime, 6px);', 'raw px in a variable fallback'],
     ['padding: env(keyboard-inset-height);', 'env() other than safe areas'],
+    [
+      'bottom: calc(var(--spacing) * 13 + env(safe-area-inset-bottom));',
+      'off-scale step inside a sum',
+    ],
   ])('rejects spacing %s (%s)', async (decl) => {
     expect(await rulesFor(`a { ${decl} }`)).toEqual(['markasso/spacing-scale']);
   });
