@@ -107,6 +107,14 @@ function isSpacing(part) {
   if (['0', 'auto', '1px', '-1px'].includes(part)) return true;
   if (/^-?[\d.]+(%|vw|vh|dvh|svh)$/.test(part)) return true;
   if (/^var\(--[a-z0-9-]+\)$/.test(part)) return true;
+  // Device safe areas (notches, home indicator).
+  if (/^env\(safe-area-inset-(top|right|bottom|left)\)$/.test(part))
+    return true;
+  // A runtime variable with a fallback: the fallback must be on the scale.
+  const fallback = /^var\(--[a-z0-9-]+,(.+)\)$/.exec(part)?.[1];
+  if (fallback !== undefined) {
+    return isSpacing(fallback) || isScaledExpression(`calc(${fallback})`);
+  }
   return isScaledExpression(part);
 }
 
