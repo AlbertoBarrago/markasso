@@ -1,9 +1,9 @@
-import './styles/base.css';
-import './styles/theme.css';
-import './styles/cloud-page.css';
-import { t } from './i18n';
-import { readStorage } from './io/safe_storage';
-import { initSiteFx } from './site_fx';
+import '../../styles/base.css';
+import '../../styles/theme.css';
+import '../shared/site.css';
+import { t } from '../../i18n';
+import { readStorage } from '../../io/safe_storage';
+import { initSiteFx } from '../shared/site_fx';
 
 /**
  * The /mac page: static copy translated at load, plus the current Mac version

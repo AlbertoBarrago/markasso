@@ -67,7 +67,14 @@ export type Command =
   | { type: 'SET_STROKE_COLOR'; color: string } // appState only (default for next shape)
   /** Font of the target texts (`ids`, else the local selection) and the
    *  local default. History bakes `ids` in, like for APPLY_STYLE. */
-  | { type: 'SET_FONT_FAMILY'; family: string; ids?: string[] }
+  /** Font of the target texts and the local default. `bounds` gives each
+   *  text the box measured for it in the new font, as SET_FONT_SIZE does. */
+  | {
+      type: 'SET_FONT_FAMILY';
+      family: string;
+      ids?: string[];
+      bounds?: Array<{ id: string; width: number; height: number }>;
+    }
   /** Size of the target texts and the local default. `bounds` gives each
    *  text the box measured for it; `width`/`height`, from older clients,
    *  apply one box to every target. */

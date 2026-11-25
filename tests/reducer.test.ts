@@ -885,6 +885,42 @@ describe('reducer', () => {
     expect((next.elements[0] as TextElement).fontFamily).toBe('monospace');
   });
 
+  it('SET_FONT_FAMILY resizes each text to its measured box (#192)', () => {
+    const text: TextElement = {
+      id: 'txt1',
+      type: 'text',
+      x: 0,
+      y: 0,
+      content: 'a long line that wraps',
+      width: 100,
+      height: 30,
+      fontSize: 16,
+      fontFamily: 'sans-serif',
+      strokeColor: '#000',
+      fillColor: 'transparent',
+      strokeWidth: 0,
+      opacity: 1,
+      roughness: 0,
+    };
+    const scene: Scene = {
+      ...createScene(),
+      elements: [text],
+      selectedIds: new Set(['txt1']),
+    };
+    const next = reducer(scene, {
+      type: 'SET_FONT_FAMILY',
+      family: 'monospace',
+      bounds: [{ id: 'txt1', width: 180, height: 60 }],
+    });
+    const el = next.elements[0] as TextElement;
+    expect(el.fontFamily).toBe('monospace');
+    expect(el.width).toBe(180);
+    expect(el.height).toBe(60);
+    // Without bounds (an older client), the box is left as it was.
+    const legacy = reducer(scene, { type: 'SET_FONT_FAMILY', family: 'serif' });
+    expect((legacy.elements[0] as TextElement).width).toBe(100);
+  });
+
   it('SET_FONT_SIZE updates appState and selected text elements', () => {
     const text: TextElement = {
       id: 'txt1',

@@ -77,6 +77,11 @@ describe('isValidSessionCommand', () => {
       labelFontFamily: 'Inter',
     },
     { type: 'SET_FONT_FAMILY', family: 'Inter' },
+    {
+      type: 'SET_FONT_FAMILY',
+      family: 'monospace',
+      bounds: [{ id: 'a', width: 10, height: 5 }],
+    },
     { type: 'SET_FONT_SIZE', size: 20 },
     { type: 'SET_ROTATION', id: 'a', rotation: 1.5 },
     { type: 'REORDER_ELEMENTS', ids: ['a'], targetIndex: 0 },
@@ -115,6 +120,10 @@ describe('isValidSessionCommand', () => {
           naturalHeight: 1,
         }),
       },
+    ],
+    [
+      'font family bounds without a size',
+      { type: 'SET_FONT_FAMILY', family: 'monospace', bounds: [{ id: 'a' }] },
     ],
     ['ids missing', { type: 'DELETE_ELEMENTS' }],
     [

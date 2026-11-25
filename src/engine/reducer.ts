@@ -460,11 +460,20 @@ export function reducer(
           : { ...scene.appState, fontFamily: command.family },
         elements: (() => {
           const targets = targetIds(scene, command.ids);
-          return scene.elements.map((el) =>
-            targets.has(el.id) && el.type === 'text'
-              ? { ...el, fontFamily: command.family }
-              : el,
+          // A new font changes how the text wraps: take the box the sender
+          // measured, or the selection outline keeps the old size (#192).
+          const measured = new Map(
+            (command.bounds ?? []).map((b) => [b.id, b] as const),
           );
+          return scene.elements.map((el) => {
+            if (!targets.has(el.id) || el.type !== 'text') return el;
+            const box = measured.get(el.id);
+            return {
+              ...el,
+              fontFamily: command.family,
+              ...(box && { width: box.width, height: box.height }),
+            };
+          });
         })(),
       };
 

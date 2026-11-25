@@ -31,7 +31,7 @@ The pre-commit hook (`.husky/pre-commit`) runs `pnpm lint`, stages the fixes of 
 | Path | What lives there |
 |------|------------------|
 | `index.html`, `src/main.ts` | The web app entry |
-| `agents/`, `cloud/`, `mac/` | Static pages served at `/agents/`, `/cloud/`, `/mac/` (entries `src/*_page.ts`, shared motion in `src/site_fx.ts`) |
+| `agents/`, `cloud/`, `mac/` | Static pages served at `/agents/`, `/cloud/`, `/mac/` (code and styles in `src/site/`: one folder per page with its `main.ts`, shared CSS, motion and checkout in `src/site/shared/`) |
 | `src/` | App code (module map below), plus the worker in `src/worker.ts` and `src/worker/` |
 | `mcp/` | The `@markasso/mcp` package: MCP server for AI agents, released on its own (`mcp/README.md`, `mcp/CHANGELOG.md`) |
 | `public/` | Static files served as is: icons, `robots.txt`, `sitemap.xml`, `llms.txt`, page media |

@@ -6,7 +6,9 @@
   visibility: hidden !important;
 }
 
-/* The app version changes on every release. */
+/* The app version changes on every release. Removed rather than hidden: a
+   hidden text keeps its width, and the GitHub icon beside it moved with
+   every version number. */
 .menu-version {
-  visibility: hidden !important;
+  display: none !important;
 }

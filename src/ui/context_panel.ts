@@ -21,6 +21,7 @@ import {
 } from './color_picker';
 import { SHAPE_KIND_LABEL_KEYS, shapeKindIcon } from './shape_icons';
 import {
+  applyFontFamily,
   applyFontSize,
   applyStrokeOrLabelColor,
   deleteSelection,
@@ -552,7 +553,7 @@ export function initContextPanel(
     btn.style.fontFamily = f.family;
     btn.dataset.family = f.family;
     btn.addEventListener('click', () => {
-      history.dispatch({ type: 'SET_FONT_FAMILY', family: f.family });
+      applyFontFamily(history, f.family);
     });
     fontFamilyPresets.appendChild(btn);
   }

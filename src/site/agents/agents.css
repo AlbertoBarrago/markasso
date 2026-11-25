@@ -1,4 +1,4 @@
-/* /agents page, on top of cloud-page.css (layout, type, site_fx motion). */
+/* /agents page, on top of ../shared/site.css (layout, type, site_fx motion). */
 
 /* Hero actions: the main button, then a quieter jump to the install steps. */
 #checkout {
@@ -87,7 +87,7 @@
   }
 }
 
-/* Links inside running text wrap (cloud-page.css keeps links on one line,
+/* Links inside running text wrap (site.css keeps links on one line,
    which clips the long docs link on phones). */
 .connect p a,
 .cloud-note p a {
