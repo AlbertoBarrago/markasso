@@ -1,6 +1,8 @@
 # Markasso: Design Reference
 
-The visual language of the app and of the static pages. The source of truth is the CSS: dark theme tokens in `src/styles/base.css` (`:root`), light theme overrides in `src/styles/theme.css` (`[data-theme="light"]`). Update this file when a token changes.
+The visual language of the app and of the static pages. The source of truth is `src/design/tokens.ts`: names follow Tailwind CSS v4's theme namespaces (issue #184). `pnpm tokens` generates `src/styles/tokens.css` (dark on `:root`, light on `[data-theme="light"]`, loaded first by `base.css`) and the Figma Variables of each theme in `design/tokens.dark.json` and `design/tokens.light.json` (W3C DTCG). Never edit the generated files; update this file when a token changes.
+
+Every stylesheet uses only these tokens: `pnpm lint:css` (stylelint, `scripts/stylelint`) fails on literal colors and on spacing, font sizes, radii, z-index or media queries off the scale. A new need is a new token in `src/design/tokens.ts`.
 
 ## Concept
 
@@ -8,23 +10,24 @@ Dark first, fast and quiet: the canvas is the hero and the chrome fades into it.
 
 ## Color tokens
 
-| Token | Dark (`base.css`) | Light (`theme.css`) | Used for |
+| Token | Dark | Light | Used for |
 |---|---|---|---|
-| `--accent` | `#c42059` | `#af145a` | Active tools, selection, focus rings, primary buttons, links |
-| `--accent-light` | `rgb(196 32 89 / 0.2)` | `rgb(175 20 90 / 0.2)` | Active button fill, selected tab |
-| `--alert` | `#fa0101` | `#cb0303` | Destructive actions |
-| `--warning` | `#f59e0b` | `#8a6000` | Warnings |
-| `--bg-island` | `rgb(21 21 21 / 0.98)` | `#f5f5f5` | Toolbar islands, panels, menus |
-| `--island-border` | `rgba(255,255,255,0.18)` | `#767676` | Island outlines (light value meets 4.5:1 on white) |
-| `--bg-hover` | `rgba(255,255,255,0.07)` | `rgba(169,1,27,0.08)` | Hover states |
-| `--border` | same as `--island-border` | `#767676` | Dividers, inputs |
-| `--text` | `#e8d4d4` | `#000000` | Primary text (warm off-white in dark) |
-| `--text-muted` | `rgb(141 141 141)` | `#4d4d4d` | Secondary and hint text |
-| `--false-white` | `#fffadf` | `#000000` | Dialog titles |
-| `--scrim` | `rgba(0,0,0,0.5)` | `rgba(0,0,0,0.25)` | Behind modal dialogs |
-| `--default-ink` | `#e2e2ef` | `#000000` | Default stroke of new elements |
+| `--color-accent` | `#c42059` | `#af145a` | Active tools, selection, focus rings, primary buttons, links |
+| `--color-accent-subtle` | `rgb(196 32 89 / 0.2)` | `rgb(175 20 90 / 0.2)` | Active button fill, selected tab |
+| `--color-danger` | `#fa0101` | `#cb0303` | Destructive actions |
+| `--color-warning` | `#f59e0b` | `#8a6000` | Warnings |
+| `--color-surface-island` | `rgb(21 21 21 / 0.98)` | `#f5f5f5` | Toolbar islands, panels, menus |
+| `--color-border` | `rgb(255 255 255 / 0.18)` | `#767676` | Island outlines, dividers, inputs (light value meets 4.5:1 on white) |
+| `--color-surface-control` | `var(--color-overlay-1)` | `#ffffff` | Resting fill of buttons, chips and inputs on an island |
+| `--color-hover` | `var(--color-overlay-1)` | `color-mix(in oklab, var(--color-accent) 8%, transparent)` | Hover states |
+| `--color-text` | `#e8d4d4` | `#000000` | Primary text (warm off-white in dark) |
+| `--color-text-muted` | `rgb(141 141 141)` | `#4d4d4d` | Secondary and hint text |
+| `--color-text-strong` | `#fffadf` | `#000000` | Dialog titles |
+| `--color-text-on-accent` | `#ffffff` | `#ffffff` | Text on a solid accent fill (primary buttons) |
+| `--color-scrim` | `rgb(0 0 0 / 0.5)` | `rgb(0 0 0 / 0.25)` | Behind modal dialogs |
+| `--color-ink-default` | `#e2e2ef` | `#000000` | Default stroke of new elements |
 
-**Canvas background:** `#080808` (dark) or `#ffffff` (light) by default. **Menu → Canvas background** offers swatches per theme (dark: `#141414`, `#1a1a2e`, `#0d1117`, `#1e1e1e`, `#12100e`, `#0f1923`), applied through `--canvas-bg`.
+**Canvas background:** `#080808` (dark) or `#ffffff` (light) by default. **Menu → Canvas background** offers swatches per theme (dark: `#141414`, `#1a1a2e`, `#0d1117`, `#1e1e1e`, `#12100e`, `#0f1923`), applied through `--color-canvas` (set inline on `<html>`, read by the renderer through `getCanvasBg()`).
 
 ## Typography
 

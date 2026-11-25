@@ -289,7 +289,8 @@ export function initToolbar(
   addMoreItem(IC.library, t('library'), () => toggleLibrary(), 'I');
   const mermaidIcon =
     '<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="1" y="1" width="7" height="5" rx="1"/><rect x="12" y="14" width="7" height="5" rx="1"/><path d="M4.5 6v4h11v4M14 16l1.5-2 1.5 2"/></svg>';
-  addMoreItem(mermaidIcon, t('importMermaid'), showMermaidDialog);
+  addMoreItem(mermaidIcon, t('importMermaid'), showMermaidDialog).id =
+    'tb-more-mermaid';
   addMoreItem(IC.importImg, t('insertImage'), openImagePicker);
   // Live session controls sit in the top-right island (issue #102), where
   // the name chip and People appear during a session, instead of this menu:
@@ -583,38 +584,17 @@ export function initToolbar(
   // Modal, so the canvas shortcuts stay off while it is open.
   mermaidDialog.setAttribute('role', 'dialog');
   mermaidDialog.setAttribute('aria-modal', 'true');
-  mermaidDialog.style.cssText = [
-    'position:fixed',
-    'inset:0',
-    'z-index:2000',
-    'display:none',
-    'align-items:center',
-    'justify-content:center',
-    'background:var(--scrim)',
-    'backdrop-filter:blur(4px)',
-  ].join(';');
+  mermaidDialog.className = 'mmd-dialog';
+  mermaidDialog.style.display = 'none';
 
   const mermaidBox = document.createElement('div');
-  mermaidBox.style.cssText = [
-    'background:var(--bg-island)',
-    'border:1px solid var(--island-border)',
-    'border-radius:12px',
-    'padding:20px',
-    'display:flex',
-    'flex-direction:column',
-    'gap:12px',
-    'width:420px',
-    'max-width:calc(100vw - 32px)',
-    'box-shadow:var(--modal-shadow)',
-  ].join(';');
+  mermaidBox.className = 'mmd-box';
 
   const mermaidHeader = document.createElement('div');
-  mermaidHeader.style.cssText =
-    'display:flex;align-items:center;justify-content:space-between;gap:8px';
+  mermaidHeader.className = 'mmd-header';
 
   const mermaidTitle = document.createElement('h3');
-  mermaidTitle.style.cssText =
-    'margin:0;font-size:14px;font-weight:600;color:var(--text)';
+  mermaidTitle.className = 'mmd-title';
   mermaidTitle.textContent = t('mermaidDialogTitle');
 
   const mermaidFileInput = document.createElement('input');
@@ -624,23 +604,8 @@ export function initToolbar(
   container.appendChild(mermaidFileInput);
 
   const mermaidLoadBtn = document.createElement('button');
-  mermaidLoadBtn.style.cssText = [
-    'background:none',
-    'border:none',
-    'color:var(--text-muted)',
-    'font-size:12px',
-    'cursor:pointer',
-    'padding:2px 4px',
-    'border-radius:4px',
-    'white-space:nowrap',
-  ].join(';');
+  mermaidLoadBtn.className = 'mmd-load';
   mermaidLoadBtn.textContent = t('mermaidLoadFile');
-  mermaidLoadBtn.addEventListener('mouseenter', () => {
-    mermaidLoadBtn.style.color = 'var(--text)';
-  });
-  mermaidLoadBtn.addEventListener('mouseleave', () => {
-    mermaidLoadBtn.style.color = 'var(--text-muted)';
-  });
   mermaidLoadBtn.addEventListener('click', () => mermaidFileInput.click());
 
   mermaidFileInput.addEventListener('change', () => {
@@ -658,19 +623,7 @@ export function initToolbar(
   mermaidHeader.append(mermaidTitle, mermaidLoadBtn);
 
   const mermaidTextarea = document.createElement('textarea');
-  mermaidTextarea.style.cssText = [
-    'width:100%',
-    'height:240px',
-    'resize:vertical',
-    'background:var(--bg-hover)',
-    'border:1px solid var(--input-border)',
-    'border-radius:8px',
-    'color:var(--text)',
-    'font:13px/1.5 "Fira Code","Cascadia Code","JetBrains Mono",monospace',
-    'padding:10px 12px',
-    'box-sizing:border-box',
-    'outline:none',
-  ].join(';');
+  mermaidTextarea.className = 'mmd-source';
   mermaidTextarea.placeholder = [
     'flowchart TD',
     '  A[Start] --> B{Decision}',
@@ -686,33 +639,15 @@ export function initToolbar(
   });
 
   const mermaidActions = document.createElement('div');
-  mermaidActions.style.cssText =
-    'display:flex;justify-content:flex-end;gap:8px';
+  mermaidActions.className = 'mmd-actions';
 
   const mermaidCancelBtn = document.createElement('button');
-  mermaidCancelBtn.style.cssText = [
-    'background:var(--bg-hover)',
-    'border:1px solid var(--island-border)',
-    'border-radius:7px',
-    'color:var(--text)',
-    'font-size:13px',
-    'padding:7px 16px',
-    'cursor:pointer',
-  ].join(';');
+  mermaidCancelBtn.className = 'mmd-cancel';
   mermaidCancelBtn.textContent = t('mermaidCancel');
   mermaidCancelBtn.addEventListener('click', hideMermaidDialog);
 
   const mermaidInsertBtn = document.createElement('button');
-  mermaidInsertBtn.style.cssText = [
-    'background:var(--accent)',
-    'border:none',
-    'border-radius:7px',
-    'color:#fff',
-    'font-size:13px',
-    'font-weight:600',
-    'padding:7px 20px',
-    'cursor:pointer',
-  ].join(';');
+  mermaidInsertBtn.className = 'mmd-insert';
   mermaidInsertBtn.textContent = t('mermaidInsert');
   mermaidInsertBtn.addEventListener('click', () => void doInsert());
 
@@ -784,17 +719,7 @@ export function initToolbar(
     input.maxLength = 24;
     input.value = getLiveName();
     input.setAttribute('aria-label', t('liveName'));
-    input.style.cssText = [
-      'background:var(--bg-hover)',
-      'border:1px solid var(--input-border)',
-      'border-radius:6px',
-      'color:var(--text)',
-      'padding:4px 8px',
-      'font-size:12px',
-      'font-family:inherit',
-      'outline:none',
-      'width:110px',
-    ].join(';');
+    input.className = 'live-name-input';
     nameChip.replaceWith(input);
     input.focus();
     input.select();
@@ -825,29 +750,12 @@ export function initToolbar(
   // ── Live participants (people list) ────────────────────────────────────────
   const peopleIcon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.2 3.4-5 6.5-5s5.7 1.8 6.5 5"/><circle cx="17" cy="9.5" r="2.5"/><path d="M16 15.2c2 .3 3.7 1.5 4.5 3.6"/></svg>`;
   const peopleIsland = div('tb-island tb-people-island');
-  peopleIsland.style.position = 'relative';
   peopleIsland.style.display = 'none';
   const peopleTrigger = mkBtn(peopleIcon, t('people'));
   const peoplePanel = document.createElement('div');
   peoplePanel.setAttribute('role', 'menu');
-  peoplePanel.style.cssText = [
-    'position:absolute',
-    'right:0',
-    'top:calc(100% + 6px)',
-    'background:var(--bg-island)',
-    'border:1px solid var(--island-border)',
-    'border-radius:10px',
-    'padding:8px',
-    'display:none',
-    'flex-direction:column',
-    'gap:4px',
-    'min-width:200px',
-    'max-height:320px',
-    'overflow-y:auto',
-    'box-shadow:var(--modal-shadow)',
-    'z-index:1000',
-    'backdrop-filter:blur(16px)',
-  ].join(';');
+  peoplePanel.className = 'tb-people-panel';
+  peoplePanel.style.display = 'none';
   // initPeopleList rewrites its container on every presence change, so the
   // list gets its own box and Leave stays below it.
   const peopleList = document.createElement('div');

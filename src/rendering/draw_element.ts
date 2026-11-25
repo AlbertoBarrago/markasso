@@ -1,6 +1,7 @@
 import { normalizeRect } from '../core/geometry';
 import { getTextContentBox } from '../core/text_measure';
 import { wrapTextLines } from '../core/text_metrics';
+import { DEFAULT_INK } from '../design/tokens';
 import type {
   ArrowElement,
   Element,
@@ -55,8 +56,8 @@ export function contrastColor(fill: string, fallback: string): string {
   return luminance > 0.55 ? '#111111' : '#ffffff';
 }
 
-const DARK_DEFAULT_STROKE = '#e2e2ef';
-const LIGHT_DEFAULT_STROKE = '#000000';
+const DARK_DEFAULT_STROKE = DEFAULT_INK.dark;
+const LIGHT_DEFAULT_STROKE = DEFAULT_INK.light;
 
 /**
  * Swaps each theme's default ink for the other theme's, so a drawing made in

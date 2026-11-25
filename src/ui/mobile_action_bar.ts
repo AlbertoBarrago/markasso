@@ -1,3 +1,4 @@
+import { DEFAULT_INK } from '../design/tokens';
 import type { Element } from '../elements/element';
 import {
   ARROW_HEAD_STYLES,
@@ -27,7 +28,7 @@ import { hasFillStyle, hasStrokeStyle, styleTypeOf } from './style_type';
 
 const STROKE_PRESETS = [
   '#000000',
-  '#e2e2ef',
+  DEFAULT_INK.dark,
   '#ff6b6b',
   '#6bcb77',
   '#4d96ff',
@@ -36,7 +37,7 @@ const STROKE_PRESETS = [
 ];
 const FILL_PRESETS = [
   'transparent',
-  '#e2e2ef',
+  DEFAULT_INK.dark,
   '#ff6b6b',
   '#6bcb77',
   '#4d96ff',
@@ -170,7 +171,7 @@ export function initMobileActionBar(
   updateCustomColorButton(strokeMoreBtn, customStroke, t('moreColors'));
   strokeMoreBtn.addEventListener('click', () => {
     const currentColor =
-      customStroke ?? history.present.appState.strokeColor ?? '#e2e2ef';
+      customStroke ?? history.present.appState.strokeColor ?? DEFAULT_INK.dark;
     colorPicker.open(strokeMoreBtn, currentColor, ({ pick, preview }) => {
       if (preview)
         history.dispatch({ type: 'APPLY_STYLE', strokeColor: preview });
@@ -244,8 +245,7 @@ export function initMobileActionBar(
   mssWidthInput.min = '1';
   mssWidthInput.max = '100';
   mssWidthInput.step = '1';
-  mssWidthInput.className = 'cp-font-size-input';
-  mssWidthInput.style.width = '52px';
+  mssWidthInput.className = 'cp-font-size-input cp-width-input';
   let mssWidthDisplay: HTMLDivElement | null = null;
   if (mssWidthInput.type !== 'number') {
     mssWidthDisplay = document.createElement('div');
@@ -424,17 +424,7 @@ export function initMobileActionBar(
     input.maxLength = 24;
     input.value = getLiveName();
     input.setAttribute('aria-label', t('liveName'));
-    input.style.cssText = [
-      'background:var(--bg-hover)',
-      'border:1px solid var(--input-border)',
-      'border-radius:6px',
-      'color:var(--text)',
-      'padding:4px 8px',
-      'font-size:12px',
-      'font-family:inherit',
-      'outline:none',
-      'width:90px',
-    ].join(';');
+    input.className = 'live-name-input live-name-input--compact';
     nameChip.replaceWith(input);
     input.focus();
     input.select();

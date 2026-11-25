@@ -27,6 +27,7 @@ import {
   type SceneToSVGOptions,
   sceneToSVG,
 } from '../../src/rendering/export';
+import { invalidateThemeCache } from '../../src/rendering/theme_cache';
 import { recordingContext } from './canvas_recorder';
 import { Family } from './common';
 import {
@@ -909,7 +910,10 @@ function withExportStubs<T>(
       return { click() {} };
     },
   });
-  stub('getComputedStyle', () => ({ getPropertyValue: () => canvasBg }));
+  stub('getComputedStyle', () => ({
+    getPropertyValue: (name: string) =>
+      name === '--color-canvas' ? canvasBg : '',
+  }));
   stub('Image', NeverLoadingImage);
   stub(
     'Blob',
@@ -923,6 +927,9 @@ function withExportStubs<T>(
   stub('setTimeout', () => 0);
   URL.createObjectURL = () => 'blob:svg-fixture';
   URL.revokeObjectURL = () => {};
+  // The export reads the background and theme through theme_cache: drop
+  // what an earlier case (or the real DOM) cached, before and after.
+  invalidateThemeCache();
   try {
     const result = run(captured);
     // Setup calls: the prefix up to the export's translate.
@@ -949,6 +956,7 @@ function withExportStubs<T>(
       if (desc) Object.defineProperty(g, key, desc);
       else delete g[key];
     }
+    invalidateThemeCache();
   }
 }
 

@@ -1,5 +1,6 @@
 import { t } from '../i18n';
 import { readStorage, writeStorage } from '../io/safe_storage';
+import { isCompactLayout } from './compact_layout';
 import {
   type DockId,
   nearestDock,
@@ -96,10 +97,9 @@ export function initToolbarDrag(
     if (!pill.offsetWidth || !pill.offsetHeight) return;
     const hints = [...document.querySelectorAll<HTMLElement>(HINTS)];
     for (const hint of hints) resize.observe(hint);
-    const hintHeight =
-      window.innerWidth > 600 && !window.matchMedia('(pointer: coarse)').matches
-        ? Math.max(30, ...hints.map((hint) => hint.offsetHeight)) + 8
-        : 0;
+    const hintHeight = !isCompactLayout()
+      ? Math.max(30, ...hints.map((hint) => hint.offsetHeight)) + 8
+      : 0;
     const obstacles = [
       ...document.querySelectorAll<HTMLElement>(OBSTACLES),
     ].flatMap((el) => {

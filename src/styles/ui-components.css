@@ -1,0 +1,193 @@
+/* Static styling that used to be set inline from TypeScript (#184). Values
+   that depend on pointer position, layout measurements or the canvas zoom
+   stay inline in the code; everything fixed lives here, on the tokens. */
+
+/* ── Mermaid import dialog (toolbar.ts) ───────────────────────────────── */
+/* Shown and hidden through its inline display (flex / none). */
+.mmd-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-modal) + 1000);
+  align-items: center;
+  justify-content: center;
+  background: var(--color-scrim);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.mmd-box {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--spacing) * 3);
+  width: 420px;
+  max-width: calc(100vw - var(--spacing) * 8);
+  padding: calc(var(--spacing) * 5);
+  background: var(--color-surface-island);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-modal);
+}
+.mmd-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--spacing) * 2);
+}
+.mmd-title {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+}
+.mmd-load {
+  padding: calc(var(--spacing) * 0.5) calc(var(--spacing) * 1);
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.mmd-load:hover {
+  color: var(--color-text);
+}
+.mmd-source {
+  width: 100%;
+  height: 240px;
+  padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3);
+  resize: vertical;
+  background: var(--color-hover);
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-lg);
+  outline: none;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+}
+.mmd-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: calc(var(--spacing) * 2);
+}
+.mmd-cancel,
+.mmd-insert {
+  padding: calc(var(--spacing) * 2) calc(var(--spacing) * 4);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.mmd-cancel {
+  background: var(--color-hover);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+.mmd-insert {
+  padding-inline: calc(var(--spacing) * 5);
+  background: var(--color-accent);
+  border: none;
+  color: var(--color-text-on-accent);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* ── Live session: name field and people panel (toolbar, mobile bar) ──── */
+/* Replaces the name chip while the user edits it. */
+.live-name-input {
+  width: 110px;
+  padding: calc(var(--spacing) * 1) calc(var(--spacing) * 2);
+  background: var(--color-hover);
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-md);
+  outline: none;
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--text-xs);
+}
+.live-name-input--compact {
+  width: 90px;
+}
+.tb-people-island {
+  position: relative;
+}
+/* Opened and closed through its inline display (flex / none). */
+.tb-people-panel {
+  position: absolute;
+  top: calc(100% + var(--spacing) * 2);
+  right: 0;
+  z-index: var(--z-modal);
+  flex-direction: column;
+  gap: calc(var(--spacing) * 1);
+  min-width: 200px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: calc(var(--spacing) * 2);
+  background: var(--color-surface-island);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* ── Style controls (context panel, mobile style sheet) ───────────────── */
+.cp-label--spaced {
+  margin-top: calc(var(--spacing) * 1);
+}
+.cp-font-size-input.cp-width-input {
+  width: 52px;
+}
+.cp-fmt-underline {
+  text-decoration: underline;
+}
+.cp-fmt-strike {
+  text-decoration: line-through;
+}
+/* A filled "more colors" swatch keeps the neutral border in every state and
+   theme, so the custom color reads as a swatch rather than as a button. The
+   element selector outranks the light theme's .cp-color-more overrides. */
+button.cp-color-more.cp-color-more-filled,
+button.cp-color-more.cp-color-more-filled:hover {
+  border-color: var(--color-border);
+}
+
+/* ── In-place text editors over the canvas (text_tool.ts, canvas_view.ts) */
+/* The resting chrome of every editor textarea. Position, size, font, line
+   height, color and stacking are set inline: they follow the element and
+   the zoom, and the inline `font` shorthand would reset a line height set
+   here. Code blocks override border, padding and background inline. */
+.canvas-text-editor {
+  position: fixed;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  resize: none;
+  overflow: hidden;
+  caret-color: var(--color-accent);
+}
+/* Off-screen span that measures the natural width of a line of text. */
+.text-measure-mirror {
+  position: fixed;
+  padding: 0;
+  visibility: hidden;
+  white-space: pre;
+}
+
+/* ── Support modal (star_cta.ts) ──────────────────────────────────────── */
+.star-logo img {
+  border-radius: var(--radius-md);
+}
+.star-coffee-btn svg {
+  flex-shrink: 0;
+}
+
+/* ── Clipboard fallback (share_actions.ts) ────────────────────────────── */
+/* The textarea execCommand('copy') selects: rendered, but off screen. */
+.clipboard-fallback {
+  position: fixed;
+  top: -100vh;
+  left: -100vw;
+  opacity: 0;
+}

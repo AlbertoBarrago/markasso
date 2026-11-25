@@ -1,3 +1,4 @@
+import { DEFAULT_INK } from '../design/tokens';
 import type {
   ArrowElement,
   Element,
@@ -85,7 +86,7 @@ function translate(els: Element[], cx: number, cy: number): Element[] {
 
 function buildFlowchart(cx: number, cy: number, isDark: boolean): Element[] {
   const pal = isDark ? PRESET_COLORS.dark : PRESET_COLORS.light;
-  const arrowStroke = isDark ? '#e2e2ef' : '#000000';
+  const arrowStroke = isDark ? DEFAULT_INK.dark : DEFAULT_INK.light;
 
   const startId = crypto.randomUUID();
   const processId = crypto.randomUUID();
@@ -192,7 +193,7 @@ function buildFlowchart(cx: number, cy: number, isDark: boolean): Element[] {
 
 function buildMindMap(cx: number, cy: number, isDark: boolean): Element[] {
   const pal = isDark ? PRESET_COLORS.dark : PRESET_COLORS.light;
-  const lineStroke = isDark ? '#e2e2ef' : '#000000';
+  const lineStroke = isDark ? DEFAULT_INK.dark : DEFAULT_INK.light;
 
   const centerId = crypto.randomUUID();
   const center: RectangleElement = {
@@ -257,7 +258,7 @@ function buildMindMap(cx: number, cy: number, isDark: boolean): Element[] {
 
 function buildSwot(cx: number, cy: number, isDark: boolean): Element[] {
   const pal = isDark ? PRESET_COLORS.dark : PRESET_COLORS.light;
-  const textStroke = isDark ? '#e2e2ef' : '#1a1a28';
+  const textStroke = isDark ? DEFAULT_INK.dark : '#1a1a28';
 
   const cellW = 175;
   const cellH = 135;
@@ -318,7 +319,7 @@ function buildSwot(cx: number, cy: number, isDark: boolean): Element[] {
 
 function buildSequence(cx: number, cy: number, isDark: boolean): Element[] {
   const pal = isDark ? PRESET_COLORS.dark : PRESET_COLORS.light;
-  const arrowStroke = isDark ? '#e2e2ef' : '#000000';
+  const arrowStroke = isDark ? DEFAULT_INK.dark : DEFAULT_INK.light;
 
   const actorW = 140;
   const actorH = 50;

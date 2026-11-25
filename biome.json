@@ -5,6 +5,10 @@
       "**",
       "!**/dist",
       "!coverage",
+      "!test-results",
+      "!playwright-report",
+      "!src/styles/tokens.css",
+      "!design/tokens.*.json",
       "!.wrangler",
       "!worker-configuration.d.ts"
     ]

@@ -1,4 +1,5 @@
 import { fitToElements } from '../core/viewport';
+import { DEFAULT_INK } from '../design/tokens';
 import type {
   ArrowElement,
   Element,
@@ -161,7 +162,7 @@ export async function importMermaidText(
     document.documentElement.getAttribute('data-theme') !== 'light';
   const theme: MermaidTheme = {
     isDark,
-    strokeColor: isDark ? '#e2e2ef' : '#000000',
+    strokeColor: isDark ? DEFAULT_INK.dark : DEFAULT_INK.light,
   };
 
   let result: { elements: unknown; files?: unknown };

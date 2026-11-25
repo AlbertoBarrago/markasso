@@ -5,6 +5,7 @@ import {
   resolveArrowEndpoints,
   resolveConnectorRoute,
 } from '../rendering/draw_selection';
+import { getCanvasBg } from '../rendering/theme_cache';
 
 const MM_W = 168; // minimap canvas logical width
 const MM_H = 100; // minimap canvas logical height
@@ -63,11 +64,7 @@ export function initMinimap(workspace: HTMLElement, history: History): void {
     ctx.clearRect(0, 0, mmCanvas.width, mmCanvas.height);
 
     // Background
-    const bg =
-      getComputedStyle(document.documentElement)
-        .getPropertyValue('--canvas-bg')
-        .trim() || '#141414';
-    ctx.fillStyle = bg;
+    ctx.fillStyle = getCanvasBg();
     ctx.fillRect(0, 0, mmCanvas.width, mmCanvas.height);
 
     if (elements.length === 0) {
@@ -242,7 +239,7 @@ export function initMinimap(workspace: HTMLElement, history: History): void {
   // ── Subscribe and initial paint ───────────────────────────────────────────
   history.subscribe(() => paint());
   // The theme and background color live on <html> (`data-theme`, the
-  // `--canvas-bg` inline style) and can change without a scene update.
+  // `--color-canvas` inline style) and can change without a scene update.
   let repaintQueued = false;
   new MutationObserver(() => {
     if (repaintQueued) return;

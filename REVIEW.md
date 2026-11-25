@@ -71,6 +71,11 @@ Trigger: `src/i18n/locales/*.json`
 Check: non-English values are translations, not English copies (tests only check key parity and non-empty values).
 Why: English text shipped in six locales (fixes: 9f94325, 515608f, 57a77d3).
 
+### R14: Styles stay on the design tokens
+Trigger: `src/styles/**`, `src/style.css`, `src/design/**`, `.style.` or `cssText` in `src/**/*.ts`, `stylelint.config.mjs`, `scripts/stylelint/**`
+Check: values come from tokens (`src/design/tokens.ts`, regenerated with `pnpm tokens`, never hand-edited in `tokens.css` or `design/*.json`); no value wrapped or rewritten only to slip past a lint rule; static styling set from TypeScript lives in a stylesheet class; TypeScript that mirrors a media query (`matchMedia`, `innerWidth`) uses the same condition as the CSS; `font` shorthands are valid (no `inherit` inside them).
+Why: literal colors and off-scale values had drifted across the CSS, a TS width check disagreed with the CSS breakpoint, `font` shorthands with `inherit` were silently ignored, and a migration wrapped values in no-op `calc()` to pass the lint (fixes: 36a5ad1, a233f3d, 9ad30d1, 0111436).
+
 ## Do not flag
 
 - Formatting, quote style, import order: Biome enforces them (`biome ci` in the release workflows).

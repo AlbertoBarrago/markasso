@@ -1,3 +1,4 @@
+import { DEFAULT_INK } from '../design/tokens';
 import {
   ARROW_HEAD_STYLES,
   type Element,
@@ -143,15 +144,15 @@ export function initContextPanel(
     <div class="cp-section" id="cp-text-props">
       <div class="cp-label">${t('mode')}</div>
       <div class="cp-btn-row" id="cp-textmode-presets" role="group" aria-label="${t('mode')}"></div>
-      <div class="cp-label" style="margin-top:4px">${t('fontSize')}</div>
+      <div class="cp-label cp-label--spaced">${t('fontSize')}</div>
       <div class="cp-font-size-row">
         <input type="number" id="cp-font-size" min="6" max="400" step="1" class="cp-font-size-input" />
       </div>
-      <div class="cp-label" style="margin-top:4px">${t('fontFamily')}</div>
+      <div class="cp-label cp-label--spaced">${t('fontFamily')}</div>
       <div class="cp-btn-row" id="cp-font-family-presets" role="group" aria-label="${t('fontFamily')}"></div>
-      <div class="cp-label" style="margin-top:4px">${t('style')}</div>
+      <div class="cp-label cp-label--spaced">${t('style')}</div>
       <div class="cp-btn-row" id="cp-text-format" role="group" aria-label="${t('style')}"></div>
-      <div class="cp-label" style="margin-top:4px">${t('alignment')}</div>
+      <div class="cp-label cp-label--spaced">${t('alignment')}</div>
       <div class="cp-btn-row" id="cp-align-presets" role="group" aria-label="${t('alignment')}"></div>
     </div>
 
@@ -254,7 +255,7 @@ export function initContextPanel(
       customStroke ??
       currentStrokeOrLabelColor() ??
       STROKE_PRESETS[1] ??
-      '#e2e2ef';
+      DEFAULT_INK.dark;
     colorPicker.open(strokeMore, currentColor, ({ pick, preview }) => {
       if (preview) {
         dispatchStrokeOrLabelColor(preview);
@@ -341,8 +342,7 @@ export function initContextPanel(
   widthInput.min = '1';
   widthInput.max = '100';
   widthInput.step = '1';
-  widthInput.className = 'cp-font-size-input';
-  widthInput.style.width = '52px';
+  widthInput.className = 'cp-font-size-input cp-width-input';
   let widthDisplay: HTMLDivElement | null = null;
   if (widthInput.type !== 'number') {
     widthDisplay = document.createElement('div');
@@ -595,12 +595,12 @@ export function initContextPanel(
     {
       key: 'underline',
       label: t('underline'),
-      html: '<span style="text-decoration:underline">U</span>',
+      html: '<span class="cp-fmt-underline">U</span>',
     },
     {
       key: 'strikethrough',
       label: t('strikethrough'),
-      html: '<span style="text-decoration:line-through">S</span>',
+      html: '<span class="cp-fmt-strike">S</span>',
     },
   ];
   for (const f of TEXT_FORMATS) {
