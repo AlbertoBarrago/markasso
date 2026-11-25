@@ -18,7 +18,10 @@ Run the steps in order from the repo root and stop at the first failure. Fix the
 
     pnpm typecheck
     pnpm lint:ci
+    pnpm lint:css
     pnpm test
+
+`pnpm lint:css` only warns while the design token migration is in progress (#184): it never fails the step, but a CSS diff must not add warnings in the lines it touches (compare the count with the base branch).
 
 `pnpm test` also runs `mcp/tests/`. If the diff touches `mcp/`, also build the server:
 
