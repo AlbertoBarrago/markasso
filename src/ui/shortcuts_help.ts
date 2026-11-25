@@ -99,7 +99,7 @@ function buildModal(): HTMLElement {
   ).join('');
 
   overlay.innerHTML = `
-    <div class="sh-card">
+    <div class="ui-card sh-card">
       <div class="sh-header">
         <span class="sh-title">Keyboard shortcuts</span>
         <button class="sh-close" aria-label="Close">

@@ -15,26 +15,12 @@
 }
 /* Longhands: `inherit` is not valid inside the `font` shorthand, which made
    browsers drop the whole declaration. */
+/* Look and states come from .ui-button (components.css). */
 .mcp-tab {
   padding: calc(var(--spacing) * 2);
-  font-family: inherit;
   font-size: var(--text-xs);
   font-weight: var(--font-weight-semibold);
   line-height: var(--leading-tight);
-  color: var(--color-text-muted);
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-}
-.mcp-tab:hover {
-  background: var(--color-hover);
-  color: var(--color-text);
-}
-.mcp-tab[aria-selected="true"] {
-  color: var(--color-text);
-  background: var(--color-accent-subtle);
-  border-color: var(--color-accent);
 }
 
 .mcp-where {

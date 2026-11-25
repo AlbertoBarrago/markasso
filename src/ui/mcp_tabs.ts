@@ -53,7 +53,7 @@ export function createMcpTabs(options: McpTabsOptions): McpTabs {
   const tabs = clients.map((client) => {
     const tab = document.createElement('button');
     tab.type = 'button';
-    tab.className = 'mcp-tab';
+    tab.className = 'ui-button mcp-tab';
     tab.id = `mcp-tab-${client.id}`;
     tab.setAttribute('role', 'tab');
     tab.textContent = client.name;

@@ -5,9 +5,8 @@
   left: calc(var(--spacing) * 4);
   width: 230px;
   max-width: 240px;
-  background: var(--color-surface-island);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-xl);
+  /* Surface comes from .ui-island (components.css), with a subtler outline. */
+  border-color: var(--color-border-subtle);
   box-shadow: var(--shadow-popover);
   padding: calc(var(--spacing) * 2);
   display: flex;
@@ -21,8 +20,6 @@
   transition:
     opacity 0.15s,
     transform 0.15s;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   max-height: calc(
     100vh -
     max(calc(var(--spacing) * 20), var(--toolbar-panel-top, 0px)) -
@@ -270,37 +267,15 @@
   gap: calc(var(--spacing) * 1);
 }
 
+/* Look and states come from .ui-button (components.css). */
 .cp-btn {
   width: 32px;
   height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid var(--color-border-input);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface-control);
-  color: var(--color-text-muted);
-  cursor: pointer;
-  transition:
-    border-color 0.12s,
-    background 0.12s,
-    color 0.12s;
-  flex-shrink: 0;
-}
-/* One overlay above the resting fill, as on .cp-color-more. */
-.cp-btn:hover {
-  background: var(--color-overlay-2);
-  border-color: var(--color-overlay-3);
 }
 /* Letter glyphs (B, I, U, S) are text, so they need text contrast (4.5:1):
    the muted icon color is only enough for icons. */
 #cp-text-format .cp-btn {
   color: var(--color-text);
-}
-.cp-btn.active {
-  border-color: var(--color-accent);
-  background: var(--color-accent-subtle);
-  color: var(--color-text-strong);
 }
 
 /* Width button lines */
