@@ -206,6 +206,7 @@ export function initLibraryPanel(
 ): void {
   const panel = document.createElement('aside');
   panel.id = 'library-panel';
+  panel.className = 'ui-island';
   panel.setAttribute('aria-label', t('library'));
   panel.innerHTML = `
     <div class="lib-header">
@@ -214,7 +215,7 @@ export function initLibraryPanel(
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
       </button>
     </div>
-    <input class="lib-search" type="search" placeholder="${t('librarySearch')}" aria-label="${t('librarySearch')}" />
+    <input class="ui-field lib-search" type="search" placeholder="${t('librarySearch')}" aria-label="${t('librarySearch')}" />
     <div class="lib-body"></div>
   `;
   workspace.appendChild(panel);

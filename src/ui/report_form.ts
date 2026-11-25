@@ -41,10 +41,10 @@ export function initReportForm(appEl: HTMLElement): ReportFormHandle {
         <p class="report-desc">${t('reportDesc')}</p>
         <form class="report-form" novalidate>
           <label class="report-label" for="report-title">${t('reportTitleLabel')}</label>
-          <input class="report-input" id="report-title" name="title" type="text" maxlength="120" required />
+          <input class="ui-field report-input" id="report-title" name="title" type="text" maxlength="120" required />
 
           <label class="report-label" for="report-category">${t('reportCategoryLabel')}</label>
-          <select class="report-input" id="report-category" name="category">
+          <select class="ui-field report-input" id="report-category" name="category">
             <option value="bug">${t('reportCategoryBug')}</option>
             <option value="visual">${t('reportCategoryVisual')}</option>
             <option value="performance">${t('reportCategoryPerformance')}</option>
@@ -52,10 +52,10 @@ export function initReportForm(appEl: HTMLElement): ReportFormHandle {
           </select>
 
           <label class="report-label" for="report-description">${t('reportDescriptionLabel')}</label>
-          <textarea class="report-input report-textarea" id="report-description" name="description" maxlength="4000" required></textarea>
+          <textarea class="ui-field report-input report-textarea" id="report-description" name="description" maxlength="4000" required></textarea>
 
           <label class="report-label" for="report-steps">${t('reportStepsLabel')}</label>
-          <textarea class="report-input report-textarea" id="report-steps" name="steps" maxlength="2000"></textarea>
+          <textarea class="ui-field report-input report-textarea" id="report-steps" name="steps" maxlength="2000"></textarea>
 
           <p class="report-error" hidden></p>
 

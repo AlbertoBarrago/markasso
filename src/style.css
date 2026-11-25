@@ -1,4 +1,5 @@
 @import "./styles/base.css";
+@import "./styles/components.css";
 @import "./styles/context-panel.css";
 @import "./styles/menu.css";
 @import "./styles/overlays.css";
@@ -133,18 +134,12 @@
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
 }
+/* Surface and padding come from .ui-card (components.css). */
 .cd-card {
   width: min(440px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);
   overflow-y: auto;
-  padding: calc(var(--spacing) * 7);
-  display: flex;
-  flex-direction: column;
   gap: calc(var(--spacing) * 4);
-  background: var(--color-surface-island);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-2xl);
-  box-shadow: var(--shadow-modal);
   font-family: inherit;
   animation: cd-in 0.2s ease both;
 }
@@ -296,9 +291,6 @@
   outline-offset: 2px;
 }
 @media (pointer: coarse), (width < 40rem) {
-  .cd-card {
-    padding: calc(var(--spacing) * 5);
-  }
   .cd-actions {
     flex-direction: column-reverse;
     align-items: stretch;

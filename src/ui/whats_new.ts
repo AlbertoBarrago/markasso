@@ -54,7 +54,7 @@ export function initWhatsNew(
   overlay.id = 'whats-new-overlay';
 
   overlay.innerHTML = `
-    <div class="wn-card" role="dialog" aria-modal="true" aria-label="${t('whatsNewAria')}" aria-describedby="whats-new-desc">
+    <div class="ui-card wn-card" role="dialog" aria-modal="true" aria-label="${t('whatsNewAria')}" aria-describedby="whats-new-desc">
       <div class="wn-kicker">Markasso ${WHATS_NEW_ID}</div>
       <h2 class="wn-title">${t('whatsNewTitle')}</h2>
       <p class="wn-desc" id="whats-new-desc">${t('whatsNewDesc')}</p>

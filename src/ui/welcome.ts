@@ -59,7 +59,7 @@ export function initWelcome(
   overlay.id = 'welcome-overlay';
 
   overlay.innerHTML = `
-    <div class="wl-card" role="dialog" aria-modal="true" aria-label="${t('welcomeAria')}" aria-describedby="welcome-desc">
+    <div class="ui-card wl-card" role="dialog" aria-modal="true" aria-label="${t('welcomeAria')}" aria-describedby="welcome-desc">
       <div class="wl-brand">
         <img width="140" height="140" src="/markasso-logo-icon.svg" alt="Markasso logo"/>
         <span class="wl-name">Markasso</span>

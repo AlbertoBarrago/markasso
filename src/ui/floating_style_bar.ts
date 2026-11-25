@@ -171,7 +171,7 @@ export function initFloatingStyleBar(
     'width',
     ...strokeWidthOptions().map((w) => {
       const btn = preset(
-        'cp-btn cp-width-btn',
+        'ui-button cp-btn cp-width-btn',
         w.label,
         '',
         'strokeWidth',
@@ -188,7 +188,7 @@ export function initFloatingStyleBar(
     'strokeStyle',
     ...strokeStyleOptions().map((s) => {
       const btn = preset(
-        'cp-btn cp-style-btn',
+        'ui-button cp-btn cp-style-btn',
         s.label,
         '',
         'strokeStyle',
@@ -200,13 +200,13 @@ export function initFloatingStyleBar(
     }),
   );
 
-  const lineBtn = button('cp-btn', t('lineOptions'), ICON_LINE, () =>
+  const lineBtn = button('ui-button cp-btn', t('lineOptions'), ICON_LINE, () =>
     togglePopover('line', lineBtn),
   );
   lineBtn.setAttribute('aria-haspopup', 'dialog');
   group('line', lineBtn);
 
-  const textBtn = button('cp-btn', t('textOptions'), ICON_TEXT, () =>
+  const textBtn = button('ui-button cp-btn', t('textOptions'), ICON_TEXT, () =>
     togglePopover('text', textBtn),
   );
   textBtn.setAttribute('aria-haspopup', 'dialog');
@@ -214,16 +214,18 @@ export function initFloatingStyleBar(
 
   group(
     'arrange',
-    button('cp-btn', t('duplicate'), ICON_DUPLICATE, () =>
+    button('ui-button cp-btn', t('duplicate'), ICON_DUPLICATE, () =>
       duplicateSelection(history),
     ),
-    button('cp-btn', t('toFront'), ICON_TO_FRONT, () =>
+    button('ui-button cp-btn', t('toFront'), ICON_TO_FRONT, () =>
       reorderSelection(history, 'front'),
     ),
-    button('cp-btn', t('delete'), ICON_DELETE, () => deleteSelection(history)),
+    button('ui-button cp-btn', t('delete'), ICON_DELETE, () =>
+      deleteSelection(history),
+    ),
   );
 
-  const moreBtn = button('cp-btn', t('moreStyles'), ICON_MORE, () => {
+  const moreBtn = button('ui-button cp-btn', t('moreStyles'), ICON_MORE, () => {
     closePopover();
     contextPanel.toggleFull();
   });
@@ -305,8 +307,14 @@ export function initFloatingStyleBar(
         section(
           t('arrowHead'),
           ...arrowHeadOptions().map((ah) =>
-            preset('cp-btn', ah.label, ah.icon, 'arrowHead', ah.value, () =>
-              history.dispatch({ type: 'APPLY_STYLE', arrowHead: ah.value }),
+            preset(
+              'ui-button cp-btn',
+              ah.label,
+              ah.icon,
+              'arrowHead',
+              ah.value,
+              () =>
+                history.dispatch({ type: 'APPLY_STYLE', arrowHead: ah.value }),
             ),
           ),
         ),
@@ -316,8 +324,13 @@ export function initFloatingStyleBar(
         section(
           t('routing'),
           ...routingOptions().map((r) =>
-            preset('cp-btn', r.label, r.icon, 'routing', r.value, () =>
-              history.dispatch({ type: 'APPLY_STYLE', routing: r.value }),
+            preset(
+              'ui-button cp-btn',
+              r.label,
+              r.icon,
+              'routing',
+              r.value,
+              () => history.dispatch({ type: 'APPLY_STYLE', routing: r.value }),
             ),
           ),
         ),
@@ -341,15 +354,20 @@ export function initFloatingStyleBar(
       if (e.key === 'Enter') size.blur();
     });
     const families = FONT_FAMILIES.map((f) => {
-      const btn = preset('cp-btn', f.title, '', 'fontFamily', f.family, () =>
-        history.dispatch({ type: 'SET_FONT_FAMILY', family: f.family }),
+      const btn = preset(
+        'ui-button cp-btn',
+        f.title,
+        '',
+        'fontFamily',
+        f.family,
+        () => history.dispatch({ type: 'SET_FONT_FAMILY', family: f.family }),
       );
       btn.textContent = f.label;
       btn.style.fontFamily = f.family;
       return btn;
     });
     const aligns = textAlignOptions().map((a) =>
-      preset('cp-btn', a.label, a.icon, 'textAlign', a.value, () =>
+      preset('ui-button cp-btn', a.label, a.icon, 'textAlign', a.value, () =>
         history.dispatch({ type: 'APPLY_STYLE', textAlign: a.value }),
       ),
     );

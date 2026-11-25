@@ -51,7 +51,7 @@ export function dialog(options: DialogOptions): Promise<string | null> {
     const modal = document.createElement('dialog');
     modal.className = 'app-dialog';
     const card = document.createElement('div');
-    card.className = 'cd-card';
+    card.className = 'ui-card cd-card';
     if (options.kicker) {
       const kicker = document.createElement('div');
       kicker.className = 'cd-kicker';

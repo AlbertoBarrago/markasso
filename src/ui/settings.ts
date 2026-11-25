@@ -289,7 +289,7 @@ export function initSettings(
   // WAI-ARIA APG menu pattern:
   // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/examples/menubar-navigation/
   const menuBtn = document.createElement('button');
-  menuBtn.className = 'tb-btn';
+  menuBtn.className = 'ui-button tb-btn';
   menuBtn.id = 'menu-btn';
   menuBtn.title = 'Menu';
   menuBtn.setAttribute('aria-label', 'Menu');
@@ -315,7 +315,7 @@ export function initSettings(
 
   // ── Panel ────────────────────────────────────────────────────────────────
   const panel = document.createElement('div');
-  panel.className = 'settings-panel';
+  panel.className = 'ui-island settings-panel';
   panel.setAttribute('aria-hidden', 'true');
   document.body.appendChild(panel);
 
@@ -479,9 +479,9 @@ export function initSettings(
       <li role="none" class="menu-section-label" id="menu-theme-label" aria-hidden="true">${t('theme')}</li>
       <li role="none">
         <ul class="menu-theme-toggle" role="group" aria-labelledby="menu-theme-label">
-          <li role="none"><button class="menu-theme-btn" role="menuitemradio" tabindex="-1" aria-checked="false" data-mode="light">${ICONS.sun}${t('themeLight')}</button></li>
-          <li role="none"><button class="menu-theme-btn" role="menuitemradio" tabindex="-1" aria-checked="false" data-mode="dark">${ICONS.moon}${t('themeDark')}</button></li>
-          <li role="none"><button class="menu-theme-btn" role="menuitemradio" tabindex="-1" aria-checked="false" data-mode="device">${ICONS.device}${t('themeDevice')}</button></li>
+          <li role="none"><button class="ui-button menu-theme-btn" role="menuitemradio" tabindex="-1" aria-checked="false" data-mode="light">${ICONS.sun}${t('themeLight')}</button></li>
+          <li role="none"><button class="ui-button menu-theme-btn" role="menuitemradio" tabindex="-1" aria-checked="false" data-mode="dark">${ICONS.moon}${t('themeDark')}</button></li>
+          <li role="none"><button class="ui-button menu-theme-btn" role="menuitemradio" tabindex="-1" aria-checked="false" data-mode="device">${ICONS.device}${t('themeDevice')}</button></li>
         </ul>
       </li>
     </ul>

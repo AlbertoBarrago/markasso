@@ -70,6 +70,7 @@ export function initContextPanel(
 ): ContextPanelHandle {
   const panel = document.createElement('div');
   panel.id = 'context-panel';
+  panel.className = 'ui-island';
   panel.setAttribute('role', 'region');
   panel.setAttribute('aria-label', 'Context panel');
   workspace.appendChild(panel);
@@ -329,7 +330,7 @@ export function initContextPanel(
   const WIDTHS = strokeWidthOptions();
   for (const w of WIDTHS) {
     const btn = document.createElement('button');
-    btn.className = 'cp-btn cp-width-btn';
+    btn.className = 'ui-button cp-btn cp-width-btn';
     btn.title = w.label;
     btn.dataset.value = String(w.value);
     btn.addEventListener('click', () => {
@@ -366,7 +367,7 @@ export function initContextPanel(
   const STYLES = strokeStyleOptions();
   for (const s of STYLES) {
     const btn = document.createElement('button');
-    btn.className = 'cp-btn cp-style-btn';
+    btn.className = 'ui-button cp-btn cp-style-btn';
     btn.title = s.label;
     btn.dataset.style = s.value;
     btn.addEventListener('click', () => {
@@ -403,7 +404,7 @@ export function initContextPanel(
   ];
   for (const c of LINE_CAPS) {
     const btn = document.createElement('button');
-    btn.className = 'cp-btn cp-linecap-btn';
+    btn.className = 'ui-button cp-btn cp-linecap-btn';
     btn.title = c.label;
     btn.setAttribute('aria-label', c.label);
     btn.innerHTML = c.icon;
@@ -419,7 +420,7 @@ export function initContextPanel(
   const ARROW_HEADS = arrowHeadOptions();
   for (const ah of ARROW_HEADS) {
     const btn = document.createElement('button');
-    btn.className = 'cp-btn cp-arrowhead-btn';
+    btn.className = 'ui-button cp-btn cp-arrowhead-btn';
     btn.title = ah.label;
     btn.setAttribute('aria-label', ah.label);
     btn.innerHTML = ah.icon;
@@ -436,7 +437,7 @@ export function initContextPanel(
     for (const style of ARROW_HEAD_STYLES) {
       const label = t(ARROW_HEAD_STYLE_LABEL_KEYS[style]);
       const btn = document.createElement('button');
-      btn.className = 'cp-btn cp-head-style-btn';
+      btn.className = 'ui-button cp-btn cp-head-style-btn';
       btn.title = label;
       btn.setAttribute('aria-label', label);
       btn.innerHTML = arrowHeadStyleIcon(style, placement);
@@ -457,7 +458,7 @@ export function initContextPanel(
   const ROUTINGS = routingOptions();
   for (const r of ROUTINGS) {
     const btn = document.createElement('button');
-    btn.className = 'cp-btn cp-routing-btn';
+    btn.className = 'ui-button cp-btn cp-routing-btn';
     btn.title = r.label;
     btn.setAttribute('aria-label', r.label);
     btn.innerHTML = r.icon;
@@ -475,7 +476,7 @@ export function initContextPanel(
   for (const kind of SHAPE_KINDS) {
     const label = t(SHAPE_KIND_LABEL_KEYS[kind]);
     const btn = document.createElement('button');
-    btn.className = 'cp-btn cp-shape-kind-btn';
+    btn.className = 'ui-button cp-btn cp-shape-kind-btn';
     btn.title = label;
     btn.setAttribute('aria-label', label);
     btn.innerHTML = shapeKindIcon(kind);
@@ -502,7 +503,7 @@ export function initContextPanel(
   ];
   for (const r of ROUGHNESS) {
     const btn = document.createElement('button');
-    btn.className = 'cp-btn cp-roughness-btn';
+    btn.className = 'ui-button cp-btn cp-roughness-btn';
     btn.title = r.label;
     btn.dataset.roughness = String(r.value);
     btn.addEventListener('click', () => {
@@ -519,7 +520,7 @@ export function initContextPanel(
   ];
   for (const b of BORDERS) {
     const btn = document.createElement('button');
-    btn.className = 'cp-btn cp-border-btn';
+    btn.className = 'ui-button cp-btn cp-border-btn';
     btn.title = b.label;
     btn.dataset.border = b.value;
     btn.addEventListener('click', () => {
@@ -545,7 +546,7 @@ export function initContextPanel(
   const fontFamilyPresets = panel.querySelector('#cp-font-family-presets')!;
   for (const f of FONT_FAMILIES) {
     const btn = document.createElement('button');
-    btn.className = 'cp-btn cp-font-family-btn';
+    btn.className = 'ui-button cp-btn cp-font-family-btn';
     btn.title = f.title;
     btn.textContent = f.label;
     btn.style.fontFamily = f.family;
@@ -573,7 +574,7 @@ export function initContextPanel(
     ];
   for (const m of TEXT_MODES) {
     const btn = document.createElement('button');
-    btn.className = 'cp-btn';
+    btn.className = 'ui-button cp-btn';
     btn.title = m.label;
     btn.innerHTML = m.icon;
     btn.dataset.mode = m.value;
@@ -605,7 +606,7 @@ export function initContextPanel(
   ];
   for (const f of TEXT_FORMATS) {
     const btn = document.createElement('button');
-    btn.className = 'cp-btn cp-text-fmt-btn';
+    btn.className = 'ui-button cp-btn cp-text-fmt-btn';
     btn.title = f.label;
     btn.innerHTML = f.html;
     btn.dataset.fmt = f.key;
@@ -618,7 +619,7 @@ export function initContextPanel(
   const ALIGNS = textAlignOptions();
   for (const a of ALIGNS) {
     const btn = document.createElement('button');
-    btn.className = 'cp-btn cp-align-btn';
+    btn.className = 'ui-button cp-btn cp-align-btn';
     btn.title = a.label;
     btn.innerHTML = a.icon;
     btn.dataset.align = a.value;
@@ -687,7 +688,7 @@ export function initContextPanel(
   ];
   for (const sa of SPATIAL_ALIGNS) {
     const btn = document.createElement('button');
-    btn.className = 'cp-btn cp-spatial-align-btn';
+    btn.className = 'ui-button cp-btn cp-spatial-align-btn';
     btn.title = sa.label;
     btn.innerHTML = sa.icon;
     btn.dataset.spatialAlign = sa.value;
@@ -768,7 +769,7 @@ export function initContextPanel(
   ];
   for (const l of LAYERS) {
     const btn = document.createElement('button');
-    btn.className = 'cp-btn cp-layer-btn';
+    btn.className = 'ui-button cp-btn cp-layer-btn';
     btn.innerHTML = l.icon;
     btn.title = l.label;
     btn.dataset.layer = l.action;
@@ -792,7 +793,7 @@ export function initContextPanel(
   ];
   for (const a of ACTIONS) {
     const btn = document.createElement('button');
-    btn.className = 'cp-btn cp-action-btn';
+    btn.className = 'ui-button cp-btn cp-action-btn';
     btn.innerHTML = a.icon;
     btn.title = a.label;
     btn.dataset.action = a.action;
@@ -805,7 +806,7 @@ export function initContextPanel(
 
   // ── Format painter button (single-selection only) ──────────────────────────
   const formatPainterBtn = document.createElement('button');
-  formatPainterBtn.className = 'cp-btn cp-action-btn';
+  formatPainterBtn.className = 'ui-button cp-btn cp-action-btn';
   formatPainterBtn.id = 'cp-format-painter';
   formatPainterBtn.title = t('formatPainter');
   formatPainterBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h8a3 3 0 0 1 0 6H8"/><polyline points="8,7 8,17"/><line x1="6" y1="17" x2="10" y2="17"/></svg>`;
@@ -821,7 +822,7 @@ export function initContextPanel(
 
   // ── Lock / Unlock button ───────────────────────────────────────────────────
   const lockBtn = document.createElement('button');
-  lockBtn.className = 'cp-btn cp-action-btn';
+  lockBtn.className = 'ui-button cp-btn cp-action-btn';
   lockBtn.id = 'cp-lock-btn';
   const LOCK_ICON = `<svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1.5"/><path d="M7 9V6a3 3 0 0 1 6 0v3"/></svg>`;
   const UNLOCK_ICON = `<svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1.5"/><path d="M7 9V6a3 3 0 0 1 6 0"/></svg>`;
