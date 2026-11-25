@@ -404,6 +404,18 @@
         "hex": "#4d4d4d"
       }
     },
+    "text-on-accent": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          1,
+          1,
+          1
+        ],
+        "hex": "#ffffff"
+      }
+    },
     "surface-island": {
       "$type": "color",
       "$value": {
@@ -455,6 +467,20 @@
       }
     },
     "hover": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.6862745098039216,
+          0.0784313725490196,
+          0.35294117647058826
+        ],
+        "hex": "#af145a",
+        "alpha": 0.08
+      },
+      "$description": "color-mix(in oklab, var(--color-accent) 8%, transparent)"
+    },
+    "hover-legacy": {
       "$type": "color",
       "$value": {
         "colorSpace": "srgb",
@@ -691,6 +717,74 @@
           },
           "spread": {
             "value": 1,
+            "unit": "px"
+          },
+          "inset": false
+        }
+      ]
+    },
+    "popover": {
+      "$type": "shadow",
+      "$value": [
+        {
+          "color": {
+            "colorSpace": "srgb",
+            "components": [
+              0,
+              0,
+              0
+            ],
+            "hex": "#000000",
+            "alpha": 0.4
+          },
+          "offsetX": {
+            "value": 0,
+            "unit": "px"
+          },
+          "offsetY": {
+            "value": 8,
+            "unit": "px"
+          },
+          "blur": {
+            "value": 32,
+            "unit": "px"
+          },
+          "spread": {
+            "value": 0,
+            "unit": "px"
+          },
+          "inset": false
+        }
+      ]
+    },
+    "control": {
+      "$type": "shadow",
+      "$value": [
+        {
+          "color": {
+            "colorSpace": "srgb",
+            "components": [
+              0,
+              0,
+              0
+            ],
+            "hex": "#000000",
+            "alpha": 0.3
+          },
+          "offsetX": {
+            "value": 0,
+            "unit": "px"
+          },
+          "offsetY": {
+            "value": 1,
+            "unit": "px"
+          },
+          "blur": {
+            "value": 3,
+            "unit": "px"
+          },
+          "spread": {
+            "value": 0,
             "unit": "px"
           },
           "inset": false
