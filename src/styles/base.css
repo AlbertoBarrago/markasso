@@ -157,11 +157,19 @@ body.toolbar-placing * {
 }
 
 /* ── Buttons ───────────────────────────────────────────────────────── */
-/* Look and states come from .ui-button (components.css). */
+/* States come from .ui-button (components.css). At rest an island button
+   has no fill or border of its own: the island is its surface, and a box
+   around every tool made the toolbar heavy. Hover and the selected state
+   (declared later in components.css with the same specificity) still
+   apply. */
 .tb-btn {
   position: relative;
   width: 36px;
   height: 36px;
+}
+.ui-button.tb-btn {
+  background: transparent;
+  border-color: transparent;
 }
 
 /* Toolbar menu anchored to its trigger. */

@@ -26,6 +26,11 @@ export default defineConfig({
       caret: 'hide',
       scale: 'css',
       maxDiffPixels: 0,
+      // Per-pixel color tolerance (YIQ distance). The default (0.2) missed
+      // subtle changes on the dark theme's near-black surfaces, such as a 12%
+      // white button fill (about 0.1); 0 fails on the run-to-run noise of
+      // backdrop blurs. 0.05 catches the first and ignores the second.
+      threshold: 0.05,
       stylePath: './visual/fixtures/stable.css',
     },
   },

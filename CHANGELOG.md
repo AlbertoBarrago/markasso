@@ -4,6 +4,34 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [1.26.1] - 2026-11-25
+
+### Fixed
+- **A lighter toolbar.** 1.26.0 drew a box around every tool; buttons inside the toolbar and the corner islands are transparent again, with the hover and the selected style unchanged.
+
+---
+
+## [1.26.0] - 2026-11-25
+
+### Added
+- **Open your cloud boards from the keyboard ([#178](https://github.com/AlbertoBarrago/markasso/pull/178)).** Cmd/Ctrl+Shift+O opens the cloud boards panel when Markasso Cloud is available.
+- **Design tokens ([#186](https://github.com/AlbertoBarrago/markasso/pull/186)).** Every color, spacing, type size, radius and breakpoint of the app and of the site now comes from one set of design tokens, designed together with the project's designer ([#184](https://github.com/AlbertoBarrago/markasso/issues/184)). They are also exported as Figma Variables, so design and code use the same names.
+
+### Changed
+- **A refreshed, more consistent look ([#186](https://github.com/AlbertoBarrago/markasso/pull/186)).** Spacing and text sizes follow one scale (menus and panels read at 14px), hover states are clearer in the dark theme and use the accent color in the light theme, and panels, dialogs and toasts share the same surfaces. Below 768px the minimap hides to leave room for the toolbar.
+- **Buttons, fields, panels and dialogs share one style ([#187](https://github.com/AlbertoBarrago/markasso/issues/187)).** Every button looks the same at rest and when active, whatever toolbar or panel it is in.
+- **The welcome card sits in the middle of the free space**, above the toolbar instead of close to it ([#177](https://github.com/AlbertoBarrago/markasso/pull/177)).
+
+### Fixed
+- **Rotating with the floating style bar.** The bar no longer covers the rotation handle of the selection.
+- **Cmd/Ctrl+K and Cmd/Ctrl+F on narrow windows.** Where the command palette and element search are not available, the shortcuts leave the keys to the browser instead of swallowing them.
+- **Library panel.** On desktop it opens below the live button, which used to cover its close button ([#189](https://github.com/AlbertoBarrago/markasso/issues/189)); on phones it no longer covers the buttons at the top of the screen.
+- **/cloud/ on phones** no longer scrolls sideways ([#188](https://github.com/AlbertoBarrago/markasso/issues/188)).
+- **Contrast and keyboard focus.** Text format buttons and form errors meet the 4.5:1 contrast ratio, and the size fields show a focus ring when reached with the keyboard.
+- **Security policy ([#183](https://github.com/AlbertoBarrago/markasso/pull/183)).** SECURITY.md explains how to report a vulnerability privately.
+
+---
+
 ## [1.25.0] - 2026-11-17
 
 ### Added
