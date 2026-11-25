@@ -24,7 +24,15 @@ Run the steps in order from the repo root and stop at the first failure. Fix the
 
     pnpm mcp:build
 
-## 2. Run it in a real browser (Playwright MCP)
+## 2. Visual baselines
+
+When the diff touches CSS, inline styles, the HTML pages or anything drawn in the UI chrome, run the visual suite (`visual/`, both themes at 1280, 720, 600 and 375px touch). It starts its own dev server: give it a free port so parallel sessions never share one:
+
+    VISUAL_PORT=$(node -e "const s=require('net').createServer();s.listen(0,()=>{console.log(s.address().port);s.close()})") pnpm test:visual
+
+Baselines are macOS-only (`-darwin` suffix): font rasterization differs on Linux, so the suite is not in CI. A failure writes expected, actual and diff images under `test-results/`: look at them. An intended visual change is accepted with `pnpm test:visual:update` and listed in the PR as an expected diff; never update baselines to silence a change you did not intend.
+
+## 3. Run it in a real browser (Playwright MCP)
 
 Start a private dev server on a free port and wait until it answers. The loop fails if the server dies, so a port taken in the meantime can never make you test someone else's server:
 
@@ -66,10 +74,10 @@ Flows for the changed area: `docs/MANUAL.md` is the feature map (tools, shortcut
 
        kill $(lsof -tiTCP:$PORT -sTCP:LISTEN)
 
-## 3. Report
+## 4. Report
 
 Reply with:
 
 - each command with its exit code, and the vitest totals;
-- the results of steps 2.1 to 2.6 and the screenshot path;
-- the `Verified:` trailer value: `verify` when steps 1 and 2 passed, `tests` when only step 1 ran, `manual` when the user checked a visible change, `none (<reason>)` otherwise.
+- the visual suite result when it ran, the results of steps 3.1 to 3.6 and the screenshot path;
+- the `Verified:` trailer value: `verify` when steps 1 and 3 passed (and 2 when it applied), `tests` when only step 1 ran, `manual` when the user checked a visible change, `none (<reason>)` otherwise.
