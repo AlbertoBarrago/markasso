@@ -2,14 +2,18 @@
  * Stylelint rules that keep the CSS on the design token scales (#184).
  *
  * Built-in rules cannot check the grammar the tokens define: a spacing value
- * must be `calc(var(--spacing) * N)` with N one of the allowed steps, and a
- * media query may only use the agreed breakpoints. The scales come from
- * src/design/tokens.ts (Node strips its types on import), so the lint and
- * the generated tokens can never disagree.
+ * must be `calc(var(--spacing) * N)` with N one of the allowed steps, a font
+ * size or radius must be one of the generated tokens, and a media query may
+ * only use the agreed breakpoints. The scales come from src/design/tokens.ts
+ * (Node strips its types on import), so lint and tokens cannot disagree.
+ *
+ * Values are compared case-insensitively (CSS keywords and function names
+ * are), and warnings point at the exact part of the value that is off.
  */
 import stylelint from 'stylelint';
 import {
   BREAKPOINTS,
+  SHARED,
   SHORT_VIEWPORT,
   SPACING_STEPS,
 } from '../../src/design/tokens.ts';
@@ -20,42 +24,102 @@ const {
 } = stylelint;
 
 const NS = 'markasso';
+const META = { url: 'https://github.com/AlbertoBarrago/markasso/issues/184' };
 const STEPS = new Set(SPACING_STEPS.map(String));
 const GLOBAL = new Set(['inherit', 'initial', 'unset', 'revert']);
 
+/** Names of the generated tokens of one namespace, e.g. `text-`. */
+const tokensOf = (prefix) =>
+  new Set(Object.keys(SHARED).filter((name) => name.startsWith(prefix)));
+const TEXT = tokensOf('text-');
+const RADIUS = tokensOf('radius-');
+const Z = tokensOf('z-');
+
 /**
- * Splits a declaration value into its space-separated parts, keeping
- * function calls (with their inner spaces) whole.
+ * Splits a declaration value into its top-level parts (space- or
+ * slash-separated), keeping function calls whole, with each part's offset.
  * @param {string} value
- * @returns {string[]}
+ * @returns {{ text: string, index: number }[]}
  */
 function parts(value) {
   const out = [];
   let depth = 0;
-  let current = '';
-  for (const ch of value.trim()) {
+  let start = -1;
+  for (let i = 0; i <= value.length; i++) {
+    const ch = value[i];
+    const boundary =
+      i === value.length || (depth === 0 && (/\s/.test(ch) || ch === '/'));
     if (ch === '(') depth++;
     if (ch === ')') depth--;
-    if (/\s/.test(ch) && depth === 0) {
-      if (current) out.push(current);
-      current = '';
-    } else {
-      current += ch;
+    if (boundary) {
+      if (start !== -1) out.push({ text: value.slice(start, i), index: start });
+      start = -1;
+    } else if (start === -1) {
+      start = i;
     }
   }
-  if (current) out.push(current);
   return out;
 }
 
 /**
- * One rule that checks every part of the declarations whose property
- * matches, with `isAllowed` deciding each part.
- * @param {string} name rule name without namespace
- * @param {RegExp} property properties the rule applies to
- * @param {(part: string) => boolean} isAllowed
- * @param {string} expected human description of the allowed values
+ * Canonical spelling of a part: lowercase except custom property names, no
+ * spaces around `*`, parentheses and commas, single spaces around binary
+ * `+` and `-` (CSS requires spaces there, so `-1px` and `--x` are safe).
  */
-function scaleRule(name, property, isAllowed, expected) {
+function normalize(part) {
+  return part
+    .split(/(--[A-Za-z0-9_-]+)/)
+    .map((piece, i) => (i % 2 ? piece : piece.toLowerCase()))
+    .join('')
+    .replace(/\s*([*(),])\s*/g, '$1')
+    .replace(/\s*([+-])\s+/g, ' $1 ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** `var(--name)` with `name` in `tokens`, without a fallback. */
+function isToken(part, tokens) {
+  const m = /^var\(--([a-z0-9-]+)\)$/.exec(part);
+  return Boolean(m?.[1] && tokens.has(m[1]));
+}
+
+const SPACING_CALC = /calc\(var\(--spacing\)\*(-?)([\d.]+)\)/g;
+
+/**
+ * A layout expression (`calc`, `min`, `max`, `clamp`) is on the scale when
+ * every length in it comes from the spacing calc, a variable, `env()` or a
+ * percentage/viewport unit: no raw px or rem besides the 1px hairline.
+ */
+function isScaledExpression(part) {
+  if (!/^(calc|min|max|clamp)\(/.test(part)) return false;
+  for (const [, , step] of part.matchAll(SPACING_CALC)) {
+    if (!STEPS.has(step)) return false;
+  }
+  const rest = part
+    .replace(SPACING_CALC, '')
+    .replace(/var\([^()]*\)|env\([^()]*\)/g, '');
+  const lengths = rest.match(/-?\d*\.?\d+(px|rem|em)\b/g) ?? [];
+  return lengths.every((l) => l === '1px' || l === '-1px');
+}
+
+/** A spacing part: 0, auto, the 1px hairline, a %, a variable or a step. */
+function isSpacing(part) {
+  if (['0', 'auto', '1px', '-1px'].includes(part)) return true;
+  if (/^-?[\d.]+(%|vw|vh|dvh|svh)$/.test(part)) return true;
+  if (/^var\(--[a-z0-9-]+\)$/.test(part)) return true;
+  return isScaledExpression(part);
+}
+
+/**
+ * One rule checking every part of the declarations whose property matches.
+ * @param {string} name rule name without namespace
+ * @param {RegExp} property properties the rule applies to (case-insensitive)
+ * @param {(part: string) => boolean} isAllowed decides a normalized part
+ * @param {string} expected description of the allowed values
+ * @param {(value: string, prop: string) => { text: string, index: number }[]} [select]
+ *   the parts to check (default: every top-level part)
+ */
+function scaleRule(name, property, isAllowed, expected, select = parts) {
   const ruleName = `${NS}/${name}`;
   const messages = ruleMessages(ruleName, {
     rejected: (prop, part) =>
@@ -64,84 +128,86 @@ function scaleRule(name, property, isAllowed, expected) {
   /** @type {import('stylelint').Rule} */
   const rule = (enabled) => (root, result) => {
     if (!enabled) return;
-    root.walkDecls(property, (decl) => {
-      if (decl.prop.startsWith('--')) return;
-      for (const part of parts(decl.value)) {
+    root.walkDecls((decl) => {
+      if (decl.prop.startsWith('--') || !property.test(decl.prop)) return;
+      // Offset of the value inside the declaration's source string.
+      const valueStart = decl.prop.length + (decl.raws.between?.length ?? 1);
+      for (const { text, index } of select(decl.value, decl.prop)) {
+        const part = normalize(text);
         if (GLOBAL.has(part) || isAllowed(part)) continue;
         report({
           result,
           ruleName,
           node: decl,
-          word: part,
-          message: messages.rejected(decl.prop, part),
+          index: valueStart + index,
+          endIndex: valueStart + index + text.length,
+          message: messages.rejected(decl.prop, text),
         });
       }
     });
   };
   rule.ruleName = ruleName;
   rule.messages = messages;
-  rule.meta = { url: 'https://github.com/AlbertoBarrago/markasso/issues/184' };
+  rule.meta = META;
   return createPlugin(ruleName, rule);
-}
-
-/** `var(--name)` or `var(--name, fallback)` with a name matching `prefix`. */
-const tokenVar = (prefix) =>
-  new RegExp(`^var\\(--${prefix}[a-z0-9-]*(?:,[^)]*)?\\)$`);
-
-const SPACING_CALC = /^calc\(var\(--spacing\) \* (-?)([\d.]+)\)$/;
-
-/** A spacing part: `0`, `auto`, the `1px` hairline, a %, a token or a step. */
-function isSpacing(part) {
-  if (part === '0' || part === 'auto' || part === '1px' || part === '-1px')
-    return true;
-  if (/^-?[\d.]+%$/.test(part)) return true;
-  // Any custom property: layout variables set at runtime, or tokens.
-  if (/^var\(--[a-z0-9-]+(?:,[^)]*)?\)$/.test(part)) return true;
-  const m = SPACING_CALC.exec(part);
-  return Boolean(m?.[2] && STEPS.has(m[2]));
 }
 
 const spacing = scaleRule(
   'spacing-scale',
-  /^(margin|padding|gap|row-gap|column-gap|inset)(-.*)?$/,
+  /^(margin|padding|scroll-margin|scroll-padding|gap|row-gap|column-gap|inset|top|right|bottom|left)(-.*)?$/i,
   isSpacing,
-  `calc(var(--spacing) * N) with N in {${SPACING_STEPS.join(', ')}}, 0, 1px, auto or %`,
+  `calc(var(--spacing) * N) with N in {${SPACING_STEPS.join(', ')}}, 0, 1px, auto, % or a variable`,
 );
 
 const fontSize = scaleRule(
   'font-size-scale',
-  /^font-size$/,
-  (part) => tokenVar('text-').test(part) || part === '1em' || part === '100%',
-  'a --text-* token',
+  /^font(-size)?$/i,
+  (part) =>
+    isToken(part, TEXT) || ['1em', '100%', 'smaller', 'larger'].includes(part),
+  `one of ${[...TEXT].map((t) => `var(--${t})`).join(', ')}`,
+  // In the `font` shorthand only the size is a font size: the first part
+  // with a length, a keyword size or a function (unitless numbers there are
+  // weights, and the part after `/` is the line height).
+  (value, prop) => {
+    const all = parts(value);
+    if (prop.toLowerCase() === 'font-size') return all;
+    const size = all.find(
+      (p, i) =>
+        !(i > 0 && value[p.index - 1] === '/') &&
+        /^(var\(|calc\(|clamp\(|min\(|max\(|[\d.]+(px|rem|em|%)|(xx?-)?small$|medium$|(x{1,3}-)?large$)/i.test(
+          p.text,
+        ),
+    );
+    return size ? [size] : [];
+  },
 );
 
 const radius = scaleRule(
   'radius-scale',
-  /^border(-(top|bottom|start|end)-(left|right|start|end))?-radius$/,
-  (part) =>
-    tokenVar('radius-').test(part) ||
-    part === '0' ||
-    part === '50%' ||
-    part === '/',
+  /^border(-(top|bottom|start|end)-(left|right|start|end))?-radius$/i,
+  (part) => isToken(part, RADIUS) || part === '0' || part === '50%',
   'a --radius-* token, 0 or 50%',
 );
 
 const zIndex = scaleRule(
   'z-index-scale',
-  /^z-index$/,
-  (part) =>
-    tokenVar('z-').test(part) ||
-    /^calc\(var\(--z-[a-z]+\) [+-] \d+\)$/.test(part) ||
-    ['auto', '0', '-1'].includes(part),
+  /^z-index$/i,
+  (part) => {
+    if (isToken(part, Z) || ['auto', '0', '-1'].includes(part)) return true;
+    const m = /^calc\(var\(--([a-z]+(?:-[a-z]+)*)\) [+-] \d+\)$/.exec(part);
+    return Boolean(m?.[1] && Z.has(m[1]));
+  },
   'a --z-* token, calc(var(--z-*) + n), auto, 0 or -1',
 );
 
 /** Media conditions the design allows (Tailwind's breakpoints and more). */
+const BOUNDS = Object.values(BREAKPOINTS);
 const MEDIA_ALLOWED = new Set([
-  ...Object.values(BREAKPOINTS).flatMap((v) => [
-    `(width < ${v})`,
-    `(width >= ${v})`,
-  ]),
+  ...BOUNDS.flatMap((v) => [`(width < ${v})`, `(width >= ${v})`]),
+  // A band between two breakpoints, written as one range.
+  ...BOUNDS.flatMap((lo, i) =>
+    BOUNDS.slice(i + 1).map((hi) => `(${lo} <= width < ${hi})`),
+  ),
   SHORT_VIEWPORT,
   '(pointer: coarse)',
   '(pointer: fine)',
@@ -163,10 +229,14 @@ const mediaMessages = ruleMessages(mediaRuleName, {
 /** @type {import('stylelint').Rule} */
 const mediaRule = (enabled) => (root, result) => {
   if (!enabled) return;
-  root.walkAtRules('media', (atRule) => {
-    const conditions = atRule.params
-      .split(/,|\band\b|\bnot\b|\bonly\b/)
-      .map((c) => c.trim().replace(/\s+/g, ' '))
+  root.walkAtRules(/^media$/i, (atRule) => {
+    // Query list → queries → features. Keywords (and, or, not, only) join
+    // features; each feature in parentheses must be an agreed one.
+    const params = atRule.params.toLowerCase().replace(/\s+/g, ' ');
+    const conditions = params
+      .replace(/\b(and|or|not|only)\b/g, ',')
+      .split(',')
+      .map((c) => c.trim().replace(/^\(+(?=\()|(?<=\))\)+$/g, ''))
       .filter(Boolean);
     for (const condition of conditions) {
       if (MEDIA_ALLOWED.has(condition)) continue;
@@ -182,9 +252,7 @@ const mediaRule = (enabled) => (root, result) => {
 };
 mediaRule.ruleName = mediaRuleName;
 mediaRule.messages = mediaMessages;
-mediaRule.meta = {
-  url: 'https://github.com/AlbertoBarrago/markasso/issues/184',
-};
+mediaRule.meta = META;
 const media = createPlugin(mediaRuleName, mediaRule);
 
 export default [spacing, fontSize, radius, zIndex, media];

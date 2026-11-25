@@ -22,6 +22,12 @@ describe('stylelint token rules', () => {
     'margin-left: 50%;',
     'padding: var(--toolbar-panel-top);',
     'border-top: 1px solid var(--color-border);',
+    'padding-inline: CALC(var(--spacing)*3);',
+    'margin: calc(var(--spacing) * 2) !important;',
+    'top: calc(var(--spacing) * 4);',
+    'padding-top: calc(calc(var(--spacing) * 4) + env(safe-area-inset-top));',
+    'width: max(calc(var(--spacing) * 2), 50%);',
+    'scroll-margin-top: calc(var(--spacing) * 2);',
   ])('accepts spacing %s', async (decl) => {
     expect(await rulesFor(`a { ${decl} }`)).toEqual([]);
   });
@@ -32,6 +38,14 @@ describe('stylelint token rules', () => {
     ['gap: calc(var(--spacing) * 2.5);', 'half step 2.5'],
     ['margin: 0 calc(var(--spacing) * 13);', 'step outside the scale'],
     ['padding: 0 10px;', 'raw px in a shorthand'],
+    ['PADDING: 6px;', 'uppercase property'],
+    ['top: 10px;', 'physical offset'],
+    ['scroll-margin-top: 10px;', 'scroll spacing'],
+    [
+      'padding-top: calc(calc(var(--spacing) * 4) + 6px);',
+      'raw px nested in a layout expression',
+    ],
+    ['padding: var(--runtime, 6px);', 'raw px in a variable fallback'],
   ])('rejects spacing %s (%s)', async (decl) => {
     expect(await rulesFor(`a { ${decl} }`)).toEqual(['markasso/spacing-scale']);
   });
@@ -51,6 +65,32 @@ describe('stylelint token rules', () => {
     ]);
   });
 
+  it('rejects token look-alikes, fallbacks and the font shorthand size', async () => {
+    expect(
+      await rulesFor(
+        'a { font: 500 var(--text-sm)/1.4 var(--font-sans); border-radius: var(--radius-lg) / 50%; }',
+      ),
+    ).toEqual([]);
+    const rules = await rulesFor(
+      'a { font-size: var(--text-muted); font: 13px/1.4 system-ui; border-radius: var(--radius-made-up); z-index: calc(var(--z-nope) + 1); }',
+    );
+    expect(rules.sort()).toEqual([
+      'markasso/font-size-scale',
+      'markasso/font-size-scale',
+      'markasso/radius-scale',
+      'markasso/z-index-scale',
+    ]);
+  });
+
+  it('points each warning at the offending part', async () => {
+    const { results } = await stylelint.lint({
+      code: 'a {\n  padding: var(--ok) 6px;\n}',
+      configFile: new URL('../stylelint.config.mjs', import.meta.url).pathname,
+    });
+    const warning = results[0]?.warnings[0];
+    expect(warning).toMatchObject({ line: 2, column: 22 });
+  });
+
   it('allows only the agreed media conditions', async () => {
     expect(
       await rulesFor(
@@ -58,7 +98,15 @@ describe('stylelint token rules', () => {
       ),
     ).toEqual([]);
     expect(
+      await rulesFor(
+        '@MEDIA not ((width < 40rem) or (pointer: coarse)) { a { color: inherit; } } @media (40rem <= width < 48rem) { a { color: inherit; } }',
+      ),
+    ).toEqual([]);
+    expect(
       await rulesFor('@media (max-width: 600px) { a { color: inherit; } }'),
+    ).toEqual(['markasso/media-query-scale']);
+    expect(
+      await rulesFor('@MEDIA (min-width: 768px) { a { color: inherit; } }'),
     ).toEqual(['markasso/media-query-scale']);
   });
 
@@ -69,11 +117,13 @@ describe('stylelint token rules', () => {
       ),
     ).toEqual([]);
     const rules = await rulesFor(
-      'a { color: #fff; background: rgba(0, 0, 0, 0.5); fill: red; }',
+      'a { color: #fff; background: rgba(0, 0, 0, 0.5); fill: red; stroke: RGB(255 0 0); outline-color: color(srgb 1 0 0); }',
     );
     expect(rules.sort()).toEqual([
       'color-named',
       'color-no-hex',
+      'function-disallowed-list',
+      'function-disallowed-list',
       'function-disallowed-list',
     ]);
   });

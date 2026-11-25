@@ -13,16 +13,9 @@ export default {
   rules: {
     'color-no-hex': true,
     'color-named': 'never',
+    // Literal color functions, any case; color-mix() of tokens stays allowed.
     'function-disallowed-list': [
-      'rgb',
-      'rgba',
-      'hsl',
-      'hsla',
-      'hwb',
-      'lab',
-      'lch',
-      'oklab',
-      'oklch',
+      '/^(rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|device-cmyk)$/i',
     ],
     'markasso/spacing-scale': true,
     'markasso/font-size-scale': true,
