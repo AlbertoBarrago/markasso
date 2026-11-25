@@ -9,6 +9,8 @@ import {
 
 const STORAGE_KEY = 'markasso-toolbar-pos';
 const HINTS = '#hint-bar, #shortcuts-hint';
+/** Where overlays.css hides the hints: keep this query identical to it. */
+const HINTS_HIDDEN = '(pointer: coarse), (width < 40rem)';
 const OBSTACLES =
   '.tb-island-topleft, .tb-island-topright, #minimap, #zoom-controls';
 
@@ -96,10 +98,9 @@ export function initToolbarDrag(
     if (!pill.offsetWidth || !pill.offsetHeight) return;
     const hints = [...document.querySelectorAll<HTMLElement>(HINTS)];
     for (const hint of hints) resize.observe(hint);
-    const hintHeight =
-      window.innerWidth > 600 && !window.matchMedia('(pointer: coarse)').matches
-        ? Math.max(30, ...hints.map((hint) => hint.offsetHeight)) + 8
-        : 0;
+    const hintHeight = !window.matchMedia(HINTS_HIDDEN).matches
+      ? Math.max(30, ...hints.map((hint) => hint.offsetHeight)) + 8
+      : 0;
     const obstacles = [
       ...document.querySelectorAll<HTMLElement>(OBSTACLES),
     ].flatMap((el) => {

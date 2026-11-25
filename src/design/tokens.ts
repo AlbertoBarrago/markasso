@@ -33,6 +33,18 @@ export const DARK: ThemeTokens = {
   'color-focus-ring': 'var(--color-accent)',
   'color-danger': '#fa0101',
   'color-warning': '#f59e0b',
+  // Status colors (#184): text, icons and outlines of toasts, banners and
+  // badges; `-subtle` is their 10% tint for backgrounds.
+  'color-danger-subtle':
+    'color-mix(in oklab, var(--color-danger) 10%, transparent)',
+  'color-warning-subtle':
+    'color-mix(in oklab, var(--color-warning) 10%, transparent)',
+  'color-success': '#7de8a0',
+  'color-success-subtle':
+    'color-mix(in oklab, var(--color-success) 10%, transparent)',
+  'color-info': '#60a5fa',
+  'color-info-subtle':
+    'color-mix(in oklab, var(--color-info) 10%, transparent)',
 
   'color-text': '#e8d4d4',
   'color-text-strong': '#fffadf',
@@ -65,6 +77,12 @@ export const DARK: ThemeTokens = {
   'shadow-popover': '0 8px 32px rgb(0 0 0 / 0.4)',
   // Small raised controls, such as a slider thumb.
   'shadow-control': '0 1px 3px rgb(0 0 0 / 0.3)',
+
+  // overlays migration
+  // Text on a solid warning fill (the coffee button): black on amber.
+  'color-text-on-warning': '#000000',
+  // Floating chrome over the canvas: toasts, the hint bar, the minimap.
+  'shadow-float': '0 4px 24px rgb(0 0 0 / 0.5)',
 };
 
 /** Light theme (`[data-theme="light"]`). Same keys as {@link DARK}. */
@@ -76,6 +94,18 @@ export const LIGHT: ThemeTokens = {
   'color-danger': '#cb0303',
   // 5.6:1 on #f5f5f5; the dark theme's amber is about 2:1 on light.
   'color-warning': '#8a6000',
+  // On the light surface the status colors keep 4.5:1 also on their own
+  // 10% tint (danger 4.5, warning 4.5, success 5.6, info 5.3).
+  'color-danger-subtle':
+    'color-mix(in oklab, var(--color-danger) 10%, transparent)',
+  'color-warning-subtle':
+    'color-mix(in oklab, var(--color-warning) 10%, transparent)',
+  'color-success': '#166534',
+  'color-success-subtle':
+    'color-mix(in oklab, var(--color-success) 10%, transparent)',
+  'color-info': '#1d4ed8',
+  'color-info-subtle':
+    'color-mix(in oklab, var(--color-info) 10%, transparent)',
 
   'color-text': '#000000',
   'color-text-strong': '#000000',
@@ -111,6 +141,11 @@ export const LIGHT: ThemeTokens = {
   // theme.css until their areas are migrated.
   'shadow-popover': '0 8px 32px rgb(0 0 0 / 0.4)',
   'shadow-control': '0 1px 3px rgb(0 0 0 / 0.3)',
+
+  // overlays migration
+  // White on the dark amber: 5.6:1.
+  'color-text-on-warning': '#ffffff',
+  'shadow-float': '0 2px 12px rgb(0 0 0 / 0.15)',
 };
 
 /**

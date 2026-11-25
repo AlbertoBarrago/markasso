@@ -28,6 +28,9 @@ describe('stylelint token rules', () => {
     'padding-top: calc(calc(var(--spacing) * 4) + env(safe-area-inset-top));',
     'width: max(calc(var(--spacing) * 2), 50%);',
     'scroll-margin-top: calc(var(--spacing) * 2);',
+    'padding-top: env(safe-area-inset-top);',
+    'left: var(--toolbar-hint-center, 50%);',
+    'top: var(--toolbar-hint-top, calc(100vh - calc(var(--spacing) * 12)));',
   ])('accepts spacing %s', async (decl) => {
     expect(await rulesFor(`a { ${decl} }`)).toEqual([]);
   });
@@ -46,6 +49,7 @@ describe('stylelint token rules', () => {
       'raw px nested in a layout expression',
     ],
     ['padding: var(--runtime, 6px);', 'raw px in a variable fallback'],
+    ['padding: env(keyboard-inset-height);', 'env() other than safe areas'],
   ])('rejects spacing %s (%s)', async (decl) => {
     expect(await rulesFor(`a { ${decl} }`)).toEqual(['markasso/spacing-scale']);
   });
