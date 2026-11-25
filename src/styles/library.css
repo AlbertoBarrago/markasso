@@ -1,7 +1,9 @@
 /* ── Library sidebar (shapes and icons), modeled on Excalidraw's ──────── */
 #library-panel {
   position: fixed;
-  top: max(calc(var(--spacing) * 4), var(--toolbar-panel-top, 0px));
+  /* Below the top-right islands (live, cloud), like the context panel below
+     the menu button: at 16px the live button sat over the close button. */
+  top: max(calc(var(--spacing) * 20), var(--toolbar-panel-top, 0px));
   right: calc(var(--spacing) * 4);
   bottom: max(calc(var(--spacing) * 20), var(--toolbar-panel-bottom, 0px));
   /* Wide enough that shapes and generic icons fit without scrolling;
