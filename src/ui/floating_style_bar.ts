@@ -1,7 +1,10 @@
 import { worldToScreen } from '../core/viewport';
 import type { History } from '../engine/history';
 import { t } from '../i18n';
-import { getElementBounds } from '../rendering/draw_selection';
+import {
+  getElementBounds,
+  getRotationHandleSpan,
+} from '../rendering/draw_selection';
 import {
   createColorPicker,
   loadCustomColor,
@@ -18,6 +21,7 @@ import {
   isSwatchActive,
   reorderSelection,
 } from './style_actions';
+import { styleBarTopForSelection } from './style_bar_placement';
 import {
   isFloatingStyleControls,
   onStyleControlsModeChange,
@@ -505,9 +509,9 @@ export function initFloatingStyleBar(
   }
 
   /**
-   * The bar's top-left: above the selection (below it when there is no room
-   * above), or under the toolbar (above it when docked at the bottom) in tool
-   * mode; always clamped to the window.
+   * The bar's top-left: above the selection and its rotation handle (below
+   * them when there is no room above), or under the toolbar (above it when
+   * docked at the bottom) in tool mode; always clamped to the window.
    */
   function place(state: StyleState): void {
     const w = bar.offsetWidth;
@@ -518,8 +522,15 @@ export function initFloatingStyleBar(
       const r = selectionRect(state);
       if (!r) return;
       centerX = r.left + r.width / 2;
-      top = r.top - GAP - h;
-      if (top < MARGIN) top = r.bottom + GAP;
+      const { elements, viewport } = history.present;
+      const span = getRotationHandleSpan(state.selected, viewport, elements);
+      // The handle is in canvas coordinates, the selection in window ones.
+      const canvasTop = canvas.getBoundingClientRect().top;
+      const handle = span && {
+        top: canvasTop + span.top,
+        bottom: canvasTop + span.bottom,
+      };
+      top = styleBarTopForSelection(r, handle, h, GAP, MARGIN);
     } else {
       const toolbar = document.querySelector<HTMLElement>('.tb-island-tools');
       const r = toolbar?.getBoundingClientRect();
