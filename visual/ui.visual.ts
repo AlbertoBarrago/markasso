@@ -46,6 +46,8 @@ interface SeedOptions {
   theme: Theme;
   /** Load the fixture board; false gives a first visit (welcome card). */
   board: boolean;
+  /** Extra user settings, merged over the defaults the suite seeds. */
+  settings?: Record<string, unknown>;
   /** Extra localStorage entries, applied after the defaults. */
   storage?: Record<string, string>;
   /** Leave the release notice open instead of closing it. */
@@ -55,10 +57,16 @@ interface SeedOptions {
 /** Seeds localStorage before any app script runs, then opens the app. */
 async function openApp(
   page: Page,
-  { theme, board, storage = {}, keepNotice = false }: SeedOptions,
+  {
+    theme,
+    board,
+    settings = {},
+    storage = {},
+    keepNotice = false,
+  }: SeedOptions,
 ) {
   await page.addInitScript(
-    ({ theme, bg, board, storage }) => {
+    ({ theme, bg, board, settings, storage }) => {
       // Runs again on every navigation: seed only once per test.
       if (sessionStorage.getItem('visual-seeded')) return;
       sessionStorage.setItem('visual-seeded', '1');
@@ -66,13 +74,19 @@ async function openApp(
       localStorage.setItem('markasso-theme', theme);
       localStorage.setItem(
         'markasso-ui-settings',
-        JSON.stringify({ bgColor: bg, showTips: false }),
+        JSON.stringify({ bgColor: bg, showTips: false, ...settings }),
       );
       localStorage.setItem('markasso-mac-banner-dismissed', '1');
       if (board) localStorage.setItem('markasso-session', board);
       for (const [k, v] of Object.entries(storage)) localStorage.setItem(k, v);
     },
-    { theme, bg: CANVAS_BG[theme], board: board ? BOARD : null, storage },
+    {
+      theme,
+      bg: CANVAS_BG[theme],
+      board: board ? BOARD : null,
+      settings,
+      storage,
+    },
   );
   await page.goto('/');
   await expect(page).toHaveTitle(/^Markasso/);
@@ -167,6 +181,46 @@ for (const theme of THEMES) {
         await expect(page.locator('#mobile-style-sheet.open')).toBeVisible();
       }
       await snap(page, `${theme}-selection`);
+    });
+
+    test('floating style bar clears the rotation handle', async ({ page }) => {
+      // Touch screens never show the floating bar (they use the sheet).
+      onlyOn(['desktop', 'tablet', 'narrow'], 'no floating bar on touch');
+      await openApp(page, {
+        theme,
+        board: true,
+        settings: { styleControls: 'floating' },
+      });
+      // Click the rhombus: a single element low on the board, so the bar
+      // goes above it, where the rotation handle is. Its screen position
+      // comes from the viewport the fit saved; the session save is
+      // debounced, so wait until it holds the fitted view.
+      let viewport = { offsetX: 0, offsetY: 0, zoom: 1 };
+      await expect
+        .poll(async () => {
+          viewport = await page.evaluate(
+            () =>
+              JSON.parse(localStorage.getItem('markasso-session') ?? '{}')
+                .viewport ?? { offsetX: 0, offsetY: 0, zoom: 1 },
+          );
+          return viewport.zoom;
+        })
+        .not.toBe(1);
+      const rhombus = board.elements.find((el) => el.id === 'el-rhombus');
+      const canvas = await page.locator('#main').boundingBox();
+      if (!rhombus?.width || !rhombus.height || !canvas) {
+        throw new Error('fixture rhombus or canvas missing');
+      }
+      await page.mouse.click(
+        canvas.x +
+          (rhombus.x + rhombus.width / 2) * viewport.zoom +
+          viewport.offsetX,
+        canvas.y +
+          (rhombus.y + rhombus.height / 2) * viewport.zoom +
+          viewport.offsetY,
+      );
+      await expect(page.locator('#floating-style-bar')).toBeVisible();
+      await snap(page, `${theme}-floating-bar`);
     });
 
     test('context menu', async ({ page }) => {
