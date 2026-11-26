@@ -4,6 +4,13 @@ All notable changes to `@markasso/mcp` are documented here. The MCP server is ve
 
 ---
 
+## [0.7.7] - 2026-11-26
+
+### Changed
+- **Smoother elbow connectors in exported diagrams ([#194](https://github.com/AlbertoBarrago/markasso/pull/194)).** `diagram_export_png` and `diagram_export_svg` draw elbow connectors with rounded turns, and connectors leaving the same side of a node get their own line and label instead of piling up on its middle point (a request and its response, a read and a write). Connectors that ran straight stay straight, and spread connectors never cross. Routes still depend only on the diagram, so a live session and the app draw the same thing.
+
+---
+
 ## [0.7.6] - 2026-11-20
 
 ### Changed
