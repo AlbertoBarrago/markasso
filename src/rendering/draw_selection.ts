@@ -645,19 +645,37 @@ function elbowEnd(
   };
 }
 
+/** Where one elbow end leaves its element: point, outward direction, stub. */
+interface ElbowEnd {
+  point: RoutePoint;
+  readonly dir: RouteDirection;
+  readonly stub: number;
+}
+
+/** Both ends of an elbow connector before ports are spread along sides. */
+interface ElbowPlan {
+  readonly start: RoutePoint;
+  readonly end: RoutePoint;
+  readonly startEl: Element | undefined;
+  readonly endEl: Element | undefined;
+  readonly s: ElbowEnd | null;
+  readonly e: ElbowEnd | null;
+  /** Both ends were put on one shared coordinate (see sharedOffset). */
+  readonly aligned: boolean;
+}
+
 /**
- * Polyline a connector is drawn along: its two resolved ends, or the full
- * orthogonal route for `routing: 'elbow'`. Curved lines (cx/cy) are not
- * covered here; callers keep their quadratic path for those.
+ * Plans the two ends of an elbow connector from its own data and the
+ * elements it is attached to: the side each end leaves by, the port it
+ * starts from, and a shared coordinate when two flat sides face each other.
  */
-export function resolveConnectorRoute(
+function planElbowEnds(
   el: LineElement | ArrowElement,
   allElements: ReadonlyArray<Element>,
-): RoutePoint[] {
+): ElbowPlan {
   const pts = resolveArrowEndpoints(el, allElements);
   const start: RoutePoint = [pts.x, pts.y];
   const end: RoutePoint = [pts.x2, pts.y2];
-  if (el.routing !== 'elbow') return [start, end];
 
   const startEl = el.startElementId
     ? allElements.find((e) => e.id === el.startElementId)
@@ -707,19 +725,245 @@ export function resolveConnectorRoute(
       )
     : null;
 
+  let aligned = false;
   if (s && e && startEl && endEl && !el.startAnchor && !el.endAnchor) {
     const shared = sharedOffset(startEl, s.dir, endEl, e.dir);
     if (shared !== null) {
       const vertical = s.dir.dx === 0;
       s.point = vertical ? [shared, s.point[1]] : [s.point[0], shared];
       e.point = vertical ? [shared, e.point[1]] : [e.point[0], shared];
+      aligned = true;
     }
   }
+  return { start, end, startEl, endEl, s, e, aligned };
+}
+
+/** Key of one connector end in the port slot map. */
+const slotKey = (id: string, which: 'start' | 'end') => `${id}:${which}`;
+
+const portSlotCache = new WeakMap<
+  ReadonlyArray<Element>,
+  ReadonlyMap<string, number>
+>();
+
+/** Space between two connector ends that share a side. */
+const PORT_GAP = 20;
+/** Clearance between a spread end and the end of its side (less on short sides). */
+const PORT_MARGIN = 8;
+
+/**
+ * Moves ordered points along a segment as little as possible so that
+ * consecutive ones are at least `PORT_GAP` apart: points that would come too
+ * close are merged into a cluster, spaced evenly and centered on their mean,
+ * then kept inside [lo + PORT_MARGIN, hi - PORT_MARGIN]. A point no other
+ * point crowds keeps its place, so a connector that already runs straight
+ * is not bent. When the side is too short for the full gap, the gap shrinks.
+ */
+export function spreadAlongSide(
+  preferred: ReadonlyArray<number>,
+  lo: number,
+  hi: number,
+): number[] {
+  const n = preferred.length;
+  const margin = Math.min(PORT_MARGIN, (hi - lo) / 4);
+  const min = lo + margin;
+  const max = hi - margin;
+  if (n < 2 || max <= min) return [...preferred];
+  const gap = Math.min(PORT_GAP, (max - min) / (n - 1));
+
+  interface Cluster {
+    readonly first: number;
+    readonly count: number;
+    readonly sum: number;
+    readonly start: number;
+  }
+  const make = (first: number, count: number, sum: number): Cluster => {
+    const width = (count - 1) * gap;
+    const center = sum / count;
+    const start =
+      count === 1
+        ? center
+        : Math.min(Math.max(center - width / 2, min), max - width);
+    return { first, count, sum, start };
+  };
+  const clusters: Cluster[] = [];
+  preferred.forEach((p, i) => {
+    let cur = make(i, 1, p);
+    for (;;) {
+      const prev = clusters[clusters.length - 1];
+      if (!prev || prev.start + prev.count * gap <= cur.start + 0.001) break;
+      clusters.pop();
+      cur = make(prev.first, prev.count + cur.count, prev.sum + cur.sum);
+    }
+    clusters.push(cur);
+  });
+  const out: number[] = [];
+  for (const c of clusters) {
+    for (let k = 0; k < c.count; k++) out.push(c.start + k * gap);
+  }
+  return out;
+}
+
+/**
+ * Separates the floating elbow ends that leave the same flat side of a node
+ * and would sit on top of each other (typically all on its middle port):
+ * see spreadAlongSide. Ends on a side are ordered by where their other end
+ * sits along the side's axis (then by connector id), so fanned-out
+ * connectors do not cross each other. Returns the ends it moved, with their
+ * new coordinate along the side (x for top/bottom, y for left/right).
+ *
+ * Pinned ends, hidden connectors, self-loops and sides that are not flat
+ * (see flatSideRange) keep their planned point, and a side with a single
+ * end is left alone. The result depends only on the scene, so every live
+ * peer computes the same routes; it is cached per elements array, which is
+ * immutable, so a frame resolving N connectors plans each of them once
+ * more, not N times.
+ */
+function elbowPortSlots(
+  allElements: ReadonlyArray<Element>,
+): ReadonlyMap<string, number> {
+  const cached = portSlotCache.get(allElements);
+  if (cached) return cached;
+
+  interface Member {
+    readonly key: string;
+    readonly group: string;
+    readonly node: Element;
+    readonly dir: RouteDirection;
+    /** The end's planned coordinate along the side's axis. */
+    readonly at: number;
+    /**
+     * Angle from the side's normal to the other end. Coincident ends are
+     * ordered by it, like draw.io: the end whose connector turns away
+     * sooner takes the outer slot, so the two never cross.
+     */
+    readonly angle: number;
+    readonly id: string;
+  }
+  const groups = new Map<string, Member[]>();
+  /** Connectors whose ends sharedOffset put on one coordinate. */
+  const aligned: Array<readonly [Member, Member]> = [];
+  for (const el of allElements) {
+    if (el.type !== 'line' && el.type !== 'arrow') continue;
+    if (el.routing !== 'elbow' || el.visible === false) continue;
+    if (el.startElementId && el.startElementId === el.endElementId) continue;
+    const plan = planElbowEnds(el, allElements);
+    const ends = [
+      [
+        plan.s,
+        plan.startEl,
+        el.startAnchor,
+        plan.e?.point ?? plan.end,
+        'start',
+      ],
+      [plan.e, plan.endEl, el.endAnchor, plan.s?.point ?? plan.start, 'end'],
+    ] as const;
+    const added: Member[] = [];
+    for (const [end, node, anchor, other, which] of ends) {
+      if (!end || !node || anchor || !flatSideRange(node, end.dir)) continue;
+      const axis = end.dir.dx === 0 ? 0 : 1;
+      const depth =
+        (other[0] - end.point[0]) * end.dir.dx +
+        (other[1] - end.point[1]) * end.dir.dy;
+      const member: Member = {
+        key: slotKey(el.id, which),
+        group: `${node.id}:${end.dir.dx},${end.dir.dy}`,
+        node,
+        dir: end.dir,
+        at: end.point[axis],
+        angle: Math.atan2(other[axis] - end.point[axis], depth),
+        id: el.id,
+      };
+      const members = groups.get(member.group) ?? [];
+      members.push(member);
+      groups.set(member.group, members);
+      added.push(member);
+    }
+    if (plan.aligned && added.length === 2)
+      aligned.push([added[0]!, added[1]!]);
+  }
+
+  // A connector that ran straight between two facing sides (sharedOffset)
+  // should stay straight: each of its ends prefers the coordinate its
+  // partner was given. Sides are placed from the most crowded down, so the
+  // fewer ends of a quieter side line up with the busier one (a lone end
+  // simply follows its partner), with ties broken by group key.
+  const partnerOf = new Map<string, string>();
+  for (const [a, b] of aligned) {
+    partnerOf.set(a.key, b.key);
+    partnerOf.set(b.key, a.key);
+  }
+  const placedAt = new Map<string, number>();
+  const slots = new Map<string, number>();
+  const order = [...groups.entries()].sort(
+    ([ka, a], [kb, b]) =>
+      b.length - a.length || (ka < kb ? -1 : ka > kb ? 1 : 0),
+  );
+  for (const [, members] of order) {
+    const { node, dir } = members[0]!;
+    const [lo, hi] = flatSideRange(node, dir)!;
+    const preferred = new Map<Member, number>();
+    for (const m of members) {
+      const partner = partnerOf.get(m.key);
+      const there = partner === undefined ? undefined : placedAt.get(partner);
+      preferred.set(
+        m,
+        there !== undefined && there >= lo && there <= hi ? there : m.at,
+      );
+    }
+    const pref = (m: Member) => preferred.get(m)!;
+    // Preferred position first, so ends that are already apart keep their
+    // order and their place; only coincident ones are ordered by angle.
+    members.sort(
+      (a, b) =>
+        (Math.abs(pref(a) - pref(b)) > 0.01 ? pref(a) - pref(b) : 0) ||
+        a.angle - b.angle ||
+        (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+    );
+    const placed = spreadAlongSide(members.map(pref), lo, hi);
+    members.forEach((m, i) => {
+      placedAt.set(m.key, placed[i]!);
+      if (Math.abs(placed[i]! - m.at) > 0.01) slots.set(m.key, placed[i]!);
+    });
+  }
+  portSlotCache.set(allElements, slots);
+  return slots;
+}
+
+/** Moves an end's point to `along` on its side's axis. */
+function placeAlong(end: ElbowEnd, along: number): void {
+  end.point = end.dir.dx === 0 ? [along, end.point[1]] : [end.point[0], along];
+}
+
+/**
+ * Polyline a connector is drawn along: its two resolved ends, or the full
+ * orthogonal route for `routing: 'elbow'`. Curved lines (cx/cy) are not
+ * covered here; callers keep their quadratic path for those.
+ */
+export function resolveConnectorRoute(
+  el: LineElement | ArrowElement,
+  allElements: ReadonlyArray<Element>,
+): RoutePoint[] {
+  if (el.routing !== 'elbow') {
+    const pts = resolveArrowEndpoints(el, allElements);
+    return [
+      [pts.x, pts.y],
+      [pts.x2, pts.y2],
+    ];
+  }
+
+  const plan = planElbowEnds(el, allElements);
+  const { s, e } = plan;
+  const slots = elbowPortSlots(allElements);
+  const startSlot = slots.get(slotKey(el.id, 'start'));
+  const endSlot = slots.get(slotKey(el.id, 'end'));
+  if (s && startSlot !== undefined) placeAlong(s, startSlot);
+  if (e && endSlot !== undefined) placeAlong(e, endSlot);
 
   return computeElbowRoute(
-    s?.point ?? start,
+    s?.point ?? plan.start,
     s?.dir ?? null,
-    e?.point ?? end,
+    e?.point ?? plan.end,
     e?.dir ?? null,
     s?.stub,
     e?.stub,
@@ -1074,6 +1318,22 @@ export function getRotationHandleSpan(
  * Hit-test whether a screen point is on one of the endpoints of a line/arrow.
  * Returns 'start', 'end', or null.
  */
+/**
+ * The two ends a connector is drawn between, where its endpoint handles go:
+ * an elbow's route can leave a shape from a spread port rather than from
+ * the end resolveArrowEndpoints gives.
+ */
+export function getConnectorEnds(
+  el: LineElement | ArrowElement,
+  allElements: ReadonlyArray<Element>,
+): { x: number; y: number; x2: number; y2: number } {
+  if (el.routing !== 'elbow') return resolveArrowEndpoints(el, allElements);
+  const route = resolveConnectorRoute(el, allElements);
+  const [x, y] = route[0]!;
+  const [x2, y2] = route[route.length - 1]!;
+  return { x, y, x2, y2 };
+}
+
 export function hitTestEndpoint(
   el: Element,
   viewport: Viewport,
@@ -1084,7 +1344,7 @@ export function hitTestEndpoint(
   if (el.type !== 'line' && el.type !== 'arrow') return null;
   const R = 5 + 4; // handle radius + tolerance
 
-  const pts = allElements ? resolveArrowEndpoints(el, allElements) : el;
+  const pts = allElements ? getConnectorEnds(el, allElements) : el;
   const [sx1, sy1] = worldToScreen(viewport, pts.x, pts.y);
   const [sx2, sy2] = worldToScreen(viewport, pts.x2, pts.y2);
 
@@ -1227,7 +1487,7 @@ export function drawSelection(
   if (elements.length === 1) {
     const el = elements[0]!;
     if (el.type === 'line' || el.type === 'arrow') {
-      const pts = resolveArrowEndpoints(el, allElements ?? elements);
+      const pts = getConnectorEnds(el, allElements ?? elements);
       const [x1s, y1s] = worldToScreen(viewport, pts.x, pts.y);
       const [x2s, y2s] = worldToScreen(viewport, pts.x2, pts.y2);
 
