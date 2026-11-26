@@ -32,6 +32,8 @@ import {
   getConnectorHeads,
   getRouteHeadVector,
   type RoutePoint,
+  roundRouteCorners,
+  traceRoundedRoute,
 } from './connector_geometry';
 import { getConnectorLabelBoxes } from './connector_labels';
 import {
@@ -786,17 +788,26 @@ function drawElbowConnector(
   const headClip = clipOutClosedHeads(ctx, heads, el.strokeWidth);
   if (roughness < 0.05) {
     ctx.beginPath();
-    route.forEach(([x, y], i) => {
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    });
+    traceRoundedRoute(ctx, route);
     ctx.stroke();
   } else {
-    for (let i = 1; i < route.length; i++) {
-      const [x1, y1] = route[i - 1]!;
-      const [x2, y2] = route[i]!;
-      drawLine(ctx, x1, y1, x2, y2, roughness, seed + i * 31);
+    // One path: sketchy runs (each on its own seed) joined by clean rounded
+    // turns, so short runs are never dropped and a dash pattern flows on.
+    let [ax, ay] = route[0]!;
+    let run = 0;
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    for (const seg of roundRouteCorners(route)) {
+      const [bx, by] = seg.to;
+      if (seg.kind === 'line') {
+        run++;
+        traceRoughLine(ctx, ax, ay, bx, by, roughness, seed + run * 31);
+      } else {
+        ctx.quadraticCurveTo(seg.corner[0], seg.corner[1], bx, by);
+      }
+      [ax, ay] = [bx, by];
     }
+    ctx.stroke();
   }
   if (headClip) ctx.restore();
   drawConnectorHeads(ctx, heads, el.strokeWidth, strokeColor);
@@ -984,8 +995,31 @@ function drawLine(
     return;
   }
 
+  if (Math.hypot(x2 - x1, y2 - y1) < 1) return;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  traceRoughLine(ctx, x1, y1, x2, y2, roughness, seed);
+  ctx.stroke();
+}
+
+/**
+ * Appends a wobbly line from the current point (x1, y1) to (x2, y2) to the
+ * current path. Runs shorter than 1px are traced straight.
+ */
+function traceRoughLine(
+  ctx: CanvasRenderingContext2D,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  roughness: number,
+  seed: number,
+): void {
   const len = Math.hypot(x2 - x1, y2 - y1);
-  if (len < 1) return;
+  if (len < 1 || roughness < 0.05) {
+    ctx.lineTo(x2, y2);
+    return;
+  }
 
   // Perpendicular unit vector for offset direction
   const px = -(y2 - y1) / len;
@@ -994,8 +1028,6 @@ function drawLine(
   const segs = Math.max(2, Math.round(len / 80));
   const amp = roughness * Math.min(len * 0.04, 14);
 
-  ctx.beginPath();
-  ctx.moveTo(x1, y1);
   for (let i = 0; i < segs; i++) {
     const tCtrl = (i + 0.5) / segs;
     const tEnd = (i + 1) / segs;
@@ -1008,7 +1040,6 @@ function drawLine(
       y1 + (y2 - y1) * tEnd,
     );
   }
-  ctx.stroke();
 }
 
 function traceHeadShape(

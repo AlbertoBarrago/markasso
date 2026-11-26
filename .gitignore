@@ -49,3 +49,6 @@ terraform/terraform.tfstate.backup
 # Playwright visual suite output (baselines live in visual/__screenshots__)
 test-results/
 playwright-report/
+
+# Flow gallery renders (scripts/flow-gallery.mjs)
+flow-gallery/

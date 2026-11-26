@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   computeElbowRoute,
   distToQuadraticCurve,
+  distToRoundedRoute,
   distToRoute,
   getArrowHeadLength,
   getArrowHeadShape,
@@ -11,8 +12,11 @@ import {
   getRouteLength,
   getRoutePointAt,
   type RouteDirection,
+  type RoutePathSink,
   type RoutePoint,
+  roundRouteCorners,
   simplifyRoute,
+  traceRoundedRoute,
 } from '../src/rendering/connector_geometry';
 
 describe('getArrowHeadVector', () => {
@@ -209,6 +213,154 @@ describe('route helpers', () => {
 
   it('measures the distance to the closest segment', () => {
     expect(distToRoute(110, 50, route)).toBe(10);
+  });
+});
+
+describe('roundRouteCorners', () => {
+  it('cuts each inner vertex with a turn tangent to both legs', () => {
+    expect(
+      roundRouteCorners([
+        [0, 0],
+        [100, 0],
+        [100, 100],
+      ]),
+    ).toEqual([
+      { kind: 'line', to: [92, 0] },
+      { kind: 'turn', corner: [100, 0], to: [100, 8] },
+      { kind: 'line', to: [100, 100] },
+    ]);
+  });
+
+  it('clamps the radius to half of the shorter adjacent leg', () => {
+    // Z route with a 6px middle leg: both turns shrink to 3px and meet.
+    expect(
+      roundRouteCorners([
+        [0, 0],
+        [50, 0],
+        [50, 6],
+        [100, 6],
+      ]),
+    ).toEqual([
+      { kind: 'line', to: [47, 0] },
+      { kind: 'turn', corner: [50, 0], to: [50, 3] },
+      { kind: 'turn', corner: [50, 6], to: [53, 6] },
+      { kind: 'line', to: [100, 6] },
+    ]);
+  });
+
+  it('keeps straight and degenerate vertices sharp', () => {
+    expect(
+      roundRouteCorners([
+        [0, 0],
+        [50, 0],
+        [100, 0],
+      ]),
+    ).toEqual([
+      { kind: 'line', to: [50, 0] },
+      { kind: 'line', to: [100, 0] },
+    ]);
+    expect(
+      roundRouteCorners([
+        [0, 0],
+        [0, 0],
+        [0, 50],
+      ]),
+    ).toEqual([
+      { kind: 'line', to: [0, 0] },
+      { kind: 'line', to: [0, 50] },
+    ]);
+  });
+
+  it('still rounds a sub-pixel jog that survives simplifyRoute', () => {
+    const turns = roundRouteCorners(
+      simplifyRoute([
+        [0, 0],
+        [10, 0],
+        [10, 0.8],
+        [20, 0.8],
+      ]),
+    ).flatMap((seg) => (seg.kind === 'turn' ? [seg] : []));
+    expect(turns.map((t) => t.corner)).toEqual([
+      [10, 0],
+      [10, 0.8],
+    ]);
+    // Each turn takes half of the 0.8 jog.
+    expect(turns[0]!.to[1]).toBeCloseTo(0.4, 9);
+    expect(turns[1]!.to[0]).toBeCloseTo(10.4, 9);
+  });
+
+  it('leaves a two point route and an empty one as they are', () => {
+    expect(
+      roundRouteCorners([
+        [0, 0],
+        [10, 10],
+      ]),
+    ).toEqual([{ kind: 'line', to: [10, 10] }]);
+    expect(roundRouteCorners([])).toEqual([]);
+  });
+});
+
+describe('distToRoundedRoute', () => {
+  const route: RoutePoint[] = [
+    [0, 0],
+    [100, 0],
+    [100, 100],
+  ];
+
+  it('measures to the drawn turn, not to the cut corner', () => {
+    // Midpoint of the 8px turn at (100, 0): (98, 2).
+    expect(distToRoundedRoute(98, 2, route)).toBeLessThan(0.05);
+    expect(distToRoute(98, 2, route)).toBe(2);
+    expect(distToRoundedRoute(100, 0, route)).toBeGreaterThan(2.5);
+  });
+
+  it('matches the polyline on straight runs', () => {
+    expect(distToRoundedRoute(50, 10, route)).toBeCloseTo(10, 6);
+    expect(distToRoundedRoute(110, 50, route)).toBeCloseTo(10, 6);
+  });
+
+  it('handles routes without a segment', () => {
+    expect(distToRoundedRoute(3, 4, [[0, 0]])).toBe(5);
+    expect(distToRoundedRoute(3, 4, [])).toBe(Infinity);
+  });
+});
+
+describe('traceRoundedRoute', () => {
+  function recorder(): { sink: RoutePathSink; calls: unknown[][] } {
+    const calls: unknown[][] = [];
+    return {
+      calls,
+      sink: {
+        moveTo: (...a) => calls.push(['M', ...a]),
+        lineTo: (...a) => calls.push(['L', ...a]),
+        quadraticCurveTo: (...a) => calls.push(['Q', ...a]),
+      },
+    };
+  }
+
+  it('traces the rounded route through the given mapping', () => {
+    const { sink, calls } = recorder();
+    traceRoundedRoute(
+      sink,
+      [
+        [0, 0],
+        [100, 0],
+        [100, 100],
+      ],
+      (x, y) => [x * 2 + 1, y * 2 + 1],
+    );
+    expect(calls).toEqual([
+      ['M', 1, 1],
+      ['L', 185, 1],
+      ['Q', 201, 1, 201, 17],
+      ['L', 201, 201],
+    ]);
+  });
+
+  it('draws nothing for a route without a segment', () => {
+    const { sink, calls } = recorder();
+    traceRoundedRoute(sink, [[5, 5]]);
+    expect(calls).toEqual([]);
   });
 });
 

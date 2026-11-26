@@ -25,6 +25,7 @@
     "mcp:build": "pnpm --filter @markasso/mcp build",
     "fixtures": "node scripts/dump-fixtures.mjs",
     "corpus": "node scripts/corpus.mjs",
+    "flow-gallery": "node scripts/flow-gallery.mjs",
     "roundtrip-check": "node scripts/roundtrip-check.mjs",
     "tokens": "node scripts/build-tokens.ts"
   },

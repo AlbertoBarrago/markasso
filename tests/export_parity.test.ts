@@ -295,3 +295,96 @@ describe('sticky note padding', () => {
     expect(lines[0]!.cy).toBe(note.y + 12 + note.fontSize / 2);
   });
 });
+
+describe('elbow connector path parity', () => {
+  /** Rectangle at (0, 0) gives the export offset; the elbow has two turns. */
+  const elements: Element[] = [
+    { ...base, id: 'a', type: 'rectangle', x: 0, y: 0, width: 160, height: 80 },
+    {
+      ...base,
+      id: 'b',
+      type: 'rectangle',
+      x: 300,
+      y: 260,
+      width: 140,
+      height: 80,
+    },
+    {
+      ...base,
+      id: 'link',
+      type: 'line',
+      x: 80,
+      y: 40,
+      x2: 370,
+      y2: 300,
+      arrowHead: 'none',
+      routing: 'elbow',
+      startElementId: 'a',
+      endElementId: 'b',
+    },
+  ];
+
+  /** Path commands the canvas renderer issues for one element. */
+  function canvasCommands(el: Element): number[][] {
+    const calls: number[][] = [];
+    const codes: Record<string, number> = {
+      moveTo: 0,
+      lineTo: 1,
+      quadraticCurveTo: 2,
+      stroke: 3,
+    };
+    const ctx = new Proxy({} as Record<string, unknown>, {
+      get(target, prop: string) {
+        if (prop in codes)
+          return (...a: number[]) => calls.push([codes[prop]!, ...a]);
+        if (prop in target) return target[prop];
+        return () => undefined;
+      },
+      set(target, prop: string, value) {
+        target[prop] = value;
+        return true;
+      },
+    }) as unknown as CanvasRenderingContext2D;
+    drawElement(ctx, el, elements);
+    return calls;
+  }
+
+  it('draws the same rounded route on the canvas and in the SVG', () => {
+    const svg = sceneToSVG(elements, {
+      canvasColor: '#080808',
+      withBackground: false,
+    })!;
+    const [, rx, ry] = svg.match(
+      /<rect x="([-\d.]+)" y="([-\d.]+)" width="160"/,
+    )!;
+    const ox = Number(rx);
+    const oy = Number(ry);
+    const d = svg.match(/<path d="(M[^"]*Q[^"]*)"/)![1]!;
+    const exported = [...d.matchAll(/([MLQ])([-\d. ]+)/g)].map(
+      ([, cmd, args]) => {
+        const n = args!.trim().split(/\s+/).map(Number);
+        return [
+          'MLQ'.indexOf(cmd!),
+          ...n.map((v, i) => v - (i % 2 === 0 ? ox : oy)),
+        ];
+      },
+    );
+    const canvas = canvasCommands(elements[2]!).filter((c) => c[0] !== 3);
+
+    expect(canvas.filter((c) => c[0] === 2)).toHaveLength(2);
+    expect(exported.map((c) => c[0])).toEqual(canvas.map((c) => c[0]));
+    exported.forEach((cmd, i) => {
+      cmd.forEach((v, j) => {
+        expect(v).toBeCloseTo(canvas[i]![j]!, 1);
+      });
+    });
+  });
+
+  it('strokes a sketchy elbow as one path, turns and short runs included', () => {
+    const rough = { ...elements[2]!, roughness: 1 } as Element;
+    const calls = canvasCommands(rough);
+    expect(calls.filter((c) => c[0] === 3)).toHaveLength(1);
+    expect(calls.filter((c) => c[0] === 0)).toHaveLength(1);
+    expect(calls.filter((c) => c[0] === 2).length).toBeGreaterThanOrEqual(2);
+  });
+});

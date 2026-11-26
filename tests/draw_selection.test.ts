@@ -12,6 +12,7 @@ import {
   distToShapeBoundary,
   findConnectorSnapTarget,
   findNearestElementSnapTarget,
+  getConnectorEnds,
   getElementBorderPoint,
   getElementBounds,
   getElementCenter,
@@ -23,6 +24,7 @@ import {
   hitTestHandle,
   resolveArrowEndpoints,
   resolveConnectorRoute,
+  spreadAlongSide,
   worldToAnchor,
 } from '../src/rendering/draw_selection';
 
@@ -806,5 +808,201 @@ describe('resolveConnectorRoute', () => {
     // First leg heads right, out of the anchored side.
     expect(route[1]![0]).toBeGreaterThan(100);
     expect(route[1]![1]).toBeCloseTo(30);
+  });
+});
+
+describe('spreadAlongSide', () => {
+  it('keeps points that are already far enough apart', () => {
+    expect(spreadAlongSide([10, 100], 0, 200)).toEqual([10, 100]);
+    expect(spreadAlongSide([42], 0, 200)).toEqual([42]);
+  });
+
+  it('separates coincident points around their mean', () => {
+    expect(spreadAlongSide([100, 100], 0, 200)).toEqual([90, 110]);
+    expect(spreadAlongSide([100, 100, 100], 0, 200)).toEqual([80, 100, 120]);
+  });
+
+  it('merges a cluster with a neighbor it pushes into', () => {
+    expect(spreadAlongSide([100, 100, 118], 0, 200)).toEqual([86, 106, 126]);
+  });
+
+  it('keeps a cluster inside the side, clear of its ends', () => {
+    expect(spreadAlongSide([5, 5], 0, 200)).toEqual([8, 28]);
+    expect(spreadAlongSide([199, 199], 0, 200)).toEqual([172, 192]);
+  });
+
+  it('shrinks the gap when the side is too short', () => {
+    expect(spreadAlongSide([20, 20, 20], 0, 40)).toEqual([8, 20, 32]);
+  });
+
+  it('still separates ends on a very short side', () => {
+    expect(spreadAlongSide([6, 6], 0, 12)).toEqual([3, 9]);
+  });
+});
+
+describe('elbow port spreading', () => {
+  const hub = makeRect('hub', 0, 0, 200, 60);
+  const below = makeRect('below', 0, 200, 200, 60);
+  const further = makeRect('further', 60, 400, 100, 60);
+  const link = (id: string, to: string, extra: Partial<LineElement> = {}) =>
+    makeLine({
+      id,
+      x: 100,
+      y: 30,
+      x2: 100,
+      y2: 230,
+      routing: 'elbow',
+      startElementId: 'hub',
+      endElementId: to,
+      ...extra,
+    });
+
+  it('spreads parallel connectors on both shared sides, keeping them straight', () => {
+    const l1 = link('l1', 'below');
+    const l2 = link('l2', 'below');
+    const all = [hub, below, l1, l2];
+    expect(resolveConnectorRoute(l1, all)).toEqual([
+      [90, 60],
+      [90, 200],
+    ]);
+    expect(resolveConnectorRoute(l2, all)).toEqual([
+      [110, 60],
+      [110, 200],
+    ]);
+  });
+
+  it('does not depend on the order of the elements', () => {
+    const l1 = link('l1', 'below');
+    const l2 = link('l2', 'below');
+    const forward = [hub, below, l1, l2];
+    const backward = [l2, l1, below, hub];
+    expect(resolveConnectorRoute(l1, backward)).toEqual(
+      resolveConnectorRoute(l1, forward),
+    );
+    expect(resolveConnectorRoute(l2, backward)).toEqual(
+      resolveConnectorRoute(l2, forward),
+    );
+  });
+
+  it('moves the other end along when it alone was spread, so it stays straight', () => {
+    const near = link('near', 'below');
+    const far = link('far', 'further');
+    const all = [hub, below, further, near, far];
+    // Both leave the hub's bottom center and point at x = 100: the tie goes
+    // by id, so "far" takes 90 and "near" 110. Each target top has a single
+    // end, which follows its start.
+    expect(resolveConnectorRoute(far, all)).toEqual([
+      [90, 60],
+      [90, 400],
+    ]);
+    expect(resolveConnectorRoute(near, all)).toEqual([
+      [110, 60],
+      [110, 200],
+    ]);
+  });
+
+  it('leaves pinned ends and lone ends where they are', () => {
+    const free = link('free', 'below');
+    const pinned = link('pinned', 'below', {
+      startAnchor: { x: 0.5, y: 1 },
+      endAnchor: { x: 0.5, y: 0 },
+    });
+    const all = [hub, below, free, pinned];
+    expect(resolveConnectorRoute(free, all)).toEqual([
+      [100, 60],
+      [100, 200],
+    ]);
+  });
+
+  it('leaves ends that are already apart where they are', () => {
+    const small = makeRect('small', 20, 200, 40, 60);
+    const straight = link('straight', 'small');
+    const loose = makeLine({
+      id: 'loose',
+      x: 100,
+      y: 30,
+      x2: 0,
+      y2: 300,
+      routing: 'elbow',
+      startElementId: 'hub',
+    });
+    const all = [hub, small, straight, loose];
+    // The straight link sits at x = 40, the loose one at the middle port.
+    expect(resolveConnectorRoute(straight, all)).toEqual([
+      [40, 60],
+      [40, 200],
+    ]);
+    expect(resolveConnectorRoute(loose, all)[0]).toEqual([100, 60]);
+  });
+
+  it('orders coincident ends by angle so their connectors do not cross', () => {
+    const free = (id: string, x2: number, y2: number) =>
+      makeLine({
+        id,
+        x: 100,
+        y: 30,
+        x2,
+        y2,
+        routing: 'elbow',
+        startElementId: 'hub',
+      });
+    // "early" turns right sooner: it takes the outer (right) slot.
+    const early = free('a-early', 140, 140);
+    const late = free('b-late', 160, 220);
+    const all = [hub, early, late];
+    expect(resolveConnectorRoute(late, all)[0]).toEqual([90, 60]);
+    expect(resolveConnectorRoute(early, all)[0]).toEqual([110, 60]);
+  });
+
+  it('keeps parallel connectors straight when both their sides are spread', () => {
+    const api = makeRect('api', 0, 0, 240, 80);
+    const store = makeRect('store', 0, 260, 240, 80);
+    const log = makeRect('log', 360, 260, 180, 80);
+    const edge = (id: string, to: string) =>
+      makeLine({
+        id,
+        x: 120,
+        y: 40,
+        x2: 120,
+        y2: 300,
+        routing: 'elbow',
+        startElementId: 'api',
+        endElementId: to,
+      });
+    const read = edge('read', 'store');
+    const write = edge('write', 'store');
+    const audit = edge('audit', 'log');
+    const all = [api, store, log, read, write, audit];
+    // Three ends leave the api's bottom (100, 120, 140; audit turns right,
+    // so it takes the right slot); the store's two ends line up with them.
+    expect(resolveConnectorRoute(read, all)).toEqual([
+      [100, 80],
+      [100, 260],
+    ]);
+    expect(resolveConnectorRoute(write, all)).toEqual([
+      [120, 80],
+      [120, 260],
+    ]);
+    expect(resolveConnectorRoute(audit, all)[0]).toEqual([140, 80]);
+  });
+
+  it('puts the endpoint handles where the spread route starts and ends', () => {
+    const l1 = link('l1', 'below');
+    const l2 = link('l2', 'below');
+    expect(getConnectorEnds(l2, [hub, below, l1, l2])).toEqual({
+      x: 110,
+      y: 60,
+      x2: 110,
+      y2: 200,
+    });
+  });
+
+  it('skips hidden connectors', () => {
+    const shown = link('shown', 'below');
+    const hidden = link('hidden', 'below', { visible: false });
+    expect(resolveConnectorRoute(shown, [hub, below, shown, hidden])).toEqual([
+      [100, 60],
+      [100, 200],
+    ]);
   });
 });
