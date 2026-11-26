@@ -35,6 +35,7 @@ import {
   getQuadraticBounds,
   type RouteDirection,
   type RoutePoint,
+  traceRoundedRoute,
 } from './connector_geometry';
 import {
   getShapeBorderPointToward,
@@ -1310,11 +1311,7 @@ function drawSelectedElementOutline(
       if (element.routing === 'elbow') {
         const route = resolveConnectorRoute(element, allElements ?? [element]);
         ctx.beginPath();
-        route.forEach(([wx, wy], i) => {
-          const [sx, sy] = s(wx, wy);
-          if (i === 0) ctx.moveTo(sx, sy);
-          else ctx.lineTo(sx, sy);
-        });
+        traceRoundedRoute(ctx, route, s);
         ctx.stroke();
         break;
       }
@@ -1471,11 +1468,7 @@ export function drawHoverHighlight(
         ctx.moveTo(x1s, y1s);
         ctx.quadraticCurveTo(cxs, cys, x2s, y2s);
       } else {
-        resolveConnectorRoute(element, all).forEach(([wx, wy], i) => {
-          const [sx, sy] = s(wx, wy);
-          if (i === 0) ctx.moveTo(sx, sy);
-          else ctx.lineTo(sx, sy);
-        });
+        traceRoundedRoute(ctx, resolveConnectorRoute(element, all), s);
       }
       ctx.stroke();
       break;

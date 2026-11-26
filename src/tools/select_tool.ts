@@ -9,7 +9,7 @@ import {
 } from '../elements/style_snapshot';
 import {
   distToQuadraticCurve,
-  distToRoute,
+  distToRoundedRoute,
 } from '../rendering/connector_geometry';
 import type {
   ElementSnapTarget,
@@ -1368,7 +1368,7 @@ function hitTestElement(
 
   if ((el.type === 'line' || el.type === 'arrow') && el.routing === 'elbow') {
     return (
-      distToRoute(lx, ly, resolveConnectorRoute(el, allElements)) <
+      distToRoundedRoute(lx, ly, resolveConnectorRoute(el, allElements)) <
       el.strokeWidth / 2 + LINE_PAD
     );
   }

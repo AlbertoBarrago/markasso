@@ -178,6 +178,136 @@ export function simplifyRoute(points: ReadonlyArray<RoutePoint>): RoutePoint[] {
   return out;
 }
 
+/** Radius of an elbow connector's turns, in world units. */
+export const ELBOW_CORNER_RADIUS = 8;
+
+/**
+ * One drawing step of a route after its first point: a straight run to `to`,
+ * or a rounded turn that cuts `corner` and ends at `to`.
+ */
+export type RouteSegment =
+  | { readonly kind: 'line'; readonly to: RoutePoint }
+  | {
+      readonly kind: 'turn';
+      readonly corner: RoutePoint;
+      readonly to: RoutePoint;
+    };
+
+/**
+ * Rounds the inner vertices of a polyline route. Each turn is a quadratic
+ * curve whose control point is the original vertex, so it is tangent to both
+ * legs and maps one to one onto the SVG `Q` command (the canvas and the SVG
+ * export draw the same curve). The radius is clamped to half of each adjacent
+ * leg, so two close turns never overlap, and only a straight vertex or one
+ * with a zero-length leg stays sharp. The two ends are never rounded: arrowheads keep reading their
+ * direction from the unrounded first and last legs.
+ *
+ * Only the drawn stroke and hit testing (distToRoundedRoute) follow the
+ * turns. Label placement and bounds keep the polyline: the curve stays
+ * inside its corner, at most `radius / 4` off each leg (2 units at the
+ * default radius).
+ */
+export function roundRouteCorners(
+  route: ReadonlyArray<RoutePoint>,
+  radius = ELBOW_CORNER_RADIUS,
+): RouteSegment[] {
+  const out: RouteSegment[] = [];
+  if (route.length < 2) return out;
+  let at = route[0]!;
+  for (let i = 1; i < route.length - 1; i++) {
+    const a = route[i - 1]!;
+    const b = route[i]!;
+    const c = route[i + 1]!;
+    const inLen = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const outLen = Math.hypot(c[0] - b[0], c[1] - b[1]);
+    const cross = (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]);
+    const r = Math.min(radius, inLen / 2, outLen / 2);
+    if (r < 0.001 || Math.abs(cross) < 0.000001) {
+      out.push({ kind: 'line', to: b });
+      at = b;
+      continue;
+    }
+    const enter: RoutePoint = [
+      b[0] + ((a[0] - b[0]) * r) / inLen,
+      b[1] + ((a[1] - b[1]) * r) / inLen,
+    ];
+    const leave: RoutePoint = [
+      b[0] + ((c[0] - b[0]) * r) / outLen,
+      b[1] + ((c[1] - b[1]) * r) / outLen,
+    ];
+    if (Math.hypot(enter[0] - at[0], enter[1] - at[1]) > 0.01) {
+      out.push({ kind: 'line', to: enter });
+    }
+    out.push({ kind: 'turn', corner: b, to: leave });
+    at = leave;
+  }
+  out.push({ kind: 'line', to: route[route.length - 1]! });
+  return out;
+}
+
+/** Distance from a point to a route as drawn, with its rounded turns. */
+export function distToRoundedRoute(
+  px: number,
+  py: number,
+  route: ReadonlyArray<RoutePoint>,
+): number {
+  if (route.length === 0) return Infinity;
+  let [ax, ay] = route[0]!;
+  if (route.length === 1) return Math.hypot(px - ax, py - ay);
+  let min = Infinity;
+  for (const seg of roundRouteCorners(route)) {
+    const [bx, by] = seg.to;
+    const d =
+      seg.kind === 'line'
+        ? distToSegment(px, py, ax, ay, bx, by)
+        : distToQuadraticCurve(
+            px,
+            py,
+            ax,
+            ay,
+            seg.corner[0],
+            seg.corner[1],
+            bx,
+            by,
+            8,
+          );
+    if (d < min) min = d;
+    [ax, ay] = [bx, by];
+  }
+  return min;
+}
+
+/** The subset of a canvas context (or Path2D) a route is traced on. */
+export interface RoutePathSink {
+  moveTo(x: number, y: number): void;
+  lineTo(x: number, y: number): void;
+  quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void;
+}
+
+/**
+ * Adds a route with rounded turns to the current path of `path` (no
+ * beginPath or stroke). `map` turns world points into the sink's space, e.g.
+ * screen coordinates for a selection outline.
+ */
+export function traceRoundedRoute(
+  path: RoutePathSink,
+  route: ReadonlyArray<RoutePoint>,
+  map: (x: number, y: number) => RoutePoint = (x, y) => [x, y],
+): void {
+  if (route.length < 2) return;
+  const [sx, sy] = map(route[0]![0], route[0]![1]);
+  path.moveTo(sx, sy);
+  for (const seg of roundRouteCorners(route)) {
+    const [x, y] = map(seg.to[0], seg.to[1]);
+    if (seg.kind === 'line') {
+      path.lineTo(x, y);
+    } else {
+      const [cx, cy] = map(seg.corner[0], seg.corner[1]);
+      path.quadraticCurveTo(cx, cy, x, y);
+    }
+  }
+}
+
 /**
  * Orthogonal route from `start` to `end`. `startDir` is the direction the
  * connector leaves its start shape, `endDir` the outward normal of the side

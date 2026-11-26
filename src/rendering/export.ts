@@ -41,6 +41,7 @@ import {
   getConnectorHeads,
   getRouteHeadVector,
   type RoutePoint,
+  traceRoundedRoute,
 } from './connector_geometry';
 import { getConnectorLabelBoxes, type LabelBox } from './connector_labels';
 import {
@@ -824,21 +825,24 @@ function elbowToSVG(
 ): string {
   if (route.length < 2) return '';
   const sp = `stroke="${escapeXml(el.strokeColor)}" stroke-width="${el.strokeWidth}" ${capJoinAttrs(el)} fill="none" opacity="${el.opacity}"${strokeDashAttr(el)}`;
-  const points = route
-    .map(([x, y]) => `${round(x + ox)},${round(y + oy)}`)
-    .join(' ');
+  // Same rounded turns as the canvas (traceRoundedRoute), as SVG commands.
+  const d: string[] = [];
+  const pt = (x: number, y: number) => `${round(x + ox)} ${round(y + oy)}`;
+  traceRoundedRoute(
+    {
+      moveTo: (x, y) => d.push(`M${pt(x, y)}`),
+      lineTo: (x, y) => d.push(`L${pt(x, y)}`),
+      quadraticCurveTo: (cx, cy, x, y) => d.push(`Q${pt(cx, cy)} ${pt(x, y)}`),
+    },
+    route,
+  );
   const heads = getConnectorHeads(el, (placement) =>
     offsetVector(getRouteHeadVector(route, placement), ox, oy),
   );
   // Turned like the canvas turns it, as the straight connectors are.
   const rot = rotateAttr(el, ox, oy);
   const parts = [
-    connectorToSVG(
-      el,
-      `<polyline points="${points}" ${sp}${rot}/>`,
-      heads,
-      rot,
-    ),
+    connectorToSVG(el, `<path d="${d.join(' ')}" ${sp}${rot}/>`, heads, rot),
   ];
   return parts.join('\n');
 }
