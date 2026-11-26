@@ -306,13 +306,13 @@ export function initToolbar(
   liveStartBtn.addEventListener('click', () => {
     if (!getLiveSessionUrl()) void startLiveSession();
   });
-  // Copies a prompt that makes an MCP-enabled agent join this room. With the
-  // cloud on and no licence stored the room refuses agents
-  // (SessionRoom.awaitAgentAuth), so the button leads to the /cloud page and
-  // its label says why.
-  const inviteAgentBtn = mkBtn(agentIcon, t('inviteAiAgent'));
-  inviteAgentBtn.id = 'tb-invite-agent';
-  inviteAgentBtn.addEventListener('click', () => {
+  /**
+   * Copies a prompt that makes an MCP-enabled agent join this room. With the
+   * cloud on and no licence stored the room refuses agents
+   * (SessionRoom.awaitAgentAuth), so it opens the /cloud page instead and
+   * the controls' label says why. Shared by the live island and People.
+   */
+  function inviteAgent(): void {
     if (inviteAgentLocked()) {
       window.open(cloudPageUrl(), '_blank', 'noopener');
       return;
@@ -323,7 +323,28 @@ export function initToolbar(
     void copyToClipboard(prompt).then((copied) =>
       showShareToast(copied, prompt, t('mcpInviteCopied')),
     );
-  });
+  }
+  /** Copies the session link again; the toast shows it when copy fails. */
+  function copyLiveLink(): void {
+    const url = getLiveSessionUrl();
+    if (!url) return;
+    void copyToClipboard(url).then((copied) =>
+      showShareToast(copied, url, t('shareLiveCopied')),
+    );
+  }
+  const inviteAgentBtn = mkBtn(agentIcon, t('inviteAiAgent'));
+  inviteAgentBtn.id = 'tb-invite-agent';
+  inviteAgentBtn.addEventListener('click', inviteAgent);
+  // The same two actions, as items of the People popover (built further
+  // down), where people look for them once a session runs.
+  const peopleCopyLinkBtn = peopleAction(t('copyLiveLink'), copyLiveLink);
+  const peopleInviteBtn = peopleAction(t('inviteAiAgent'), inviteAgent);
+  // Without a licence the item keeps its short label and shows a "Cloud"
+  // tag instead of the long locked label, which would wrap in the popover.
+  const peopleInviteBadge = document.createElement('span');
+  peopleInviteBadge.className = 'pp-badge';
+  peopleInviteBadge.textContent = 'Cloud';
+  peopleInviteBtn.append(peopleInviteBadge);
   liveIsland.append(liveStartBtn, inviteAgentBtn);
   // The top-right row (live, people and name islands) springs into its new
   // layout when a session connects or ends. Resolved lazily: the island is
@@ -355,6 +376,9 @@ export function initToolbar(
       : t('inviteAiAgent');
     inviteAgentBtn.title = label;
     inviteAgentBtn.setAttribute('aria-label', label);
+    peopleInviteBtn.title = label;
+    peopleInviteBtn.setAttribute('aria-label', label);
+    peopleInviteBadge.hidden = !inviteAgentLocked();
   }
   function leaveLive(): void {
     if (!leaveLiveSession()) return;
@@ -394,7 +418,7 @@ export function initToolbar(
         showLiveStatusToast(connected);
         if (connected && linkNoticePending) {
           linkNoticePending = false;
-          showShareToast(true, url, t('shareLiveCopied'));
+          showShareToast(true, url, t('liveStartedCopied'));
         }
       },
       onEnded: (reason) => {
@@ -761,18 +785,16 @@ export function initToolbar(
   const peopleList = document.createElement('div');
   peopleList.className = 'pp-list';
   initPeopleList(peopleList);
-  const leaveDivider = div('menu-divider');
-  leaveDivider.setAttribute('role', 'separator');
-  const leaveBtn = document.createElement('button');
-  leaveBtn.type = 'button';
-  leaveBtn.className = 'pp-leave';
-  leaveBtn.setAttribute('role', 'menuitem');
-  leaveBtn.textContent = t('leaveLiveSession');
-  leaveBtn.addEventListener('click', () => {
-    closePeoplePanel();
-    leaveLive();
-  });
-  peoplePanel.append(peopleList, leaveDivider, leaveBtn);
+  const leaveBtn = peopleAction(t('leaveLiveSession'), leaveLive);
+  leaveBtn.classList.add('pp-leave');
+  peoplePanel.append(
+    peopleList,
+    menuSeparator(),
+    peopleCopyLinkBtn,
+    peopleInviteBtn,
+    menuSeparator(),
+    leaveBtn,
+  );
   // People is the way out of a session, so it shows for the whole session,
   // even alone (the list then says only you are here).
   onLiveReveal(() => {
@@ -784,6 +806,24 @@ export function initToolbar(
     peopleIsland.style.display = 'none';
     closePeoplePanel();
   });
+  /** A People popover item: closes the popover, then runs `action`. */
+  function peopleAction(label: string, action: () => void): HTMLButtonElement {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pp-action';
+    btn.setAttribute('role', 'menuitem');
+    btn.textContent = label;
+    btn.addEventListener('click', () => {
+      closePeoplePanel();
+      action();
+    });
+    return btn;
+  }
+  function menuSeparator(): HTMLElement {
+    const separator = div('menu-divider');
+    separator.setAttribute('role', 'separator');
+    return separator;
+  }
   let peoplePanelOpen = false;
   function closePeoplePanel(): void {
     peoplePanelOpen = false;
