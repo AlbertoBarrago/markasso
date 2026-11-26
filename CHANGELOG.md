@@ -4,6 +4,18 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [1.27.0] - 2026-11-26
+
+### Added
+- **What's New for 1.27.** Returning visitors see the release notice once more, with three highlights: smoother diagrams, the refreshed look and AI agents drawing on the board.
+- **Flow gallery for contributors ([#194](https://github.com/AlbertoBarrago/markasso/pull/194)).** `pnpm flow-gallery` renders six typical agent-made flows in both directions and routings, with their layout warnings, so layout and routing changes can be compared before and after.
+
+### Changed
+- **Rounded elbow arrows ([#194](https://github.com/AlbertoBarrago/markasso/pull/194)).** Elbow connectors turn with rounded corners, on the canvas and in SVG and PNG exports alike. Clicking a turn selects the arrow where it is drawn, and a sketchy elbow arrow is drawn as one stroke, so dashes flow through its turns.
+- **Arrows no longer pile up on a side ([#194](https://github.com/AlbertoBarrago/markasso/pull/194)).** Elbow arrows leaving the same side of a box used to share its middle point, so a request and its response, or a read and a write, looked like one line with their labels stacked. Each now gets its own line, moved apart only as much as needed: arrows that ran straight stay straight, and they never cross each other. Endpoint handles sit where the arrow is drawn.
+
+---
+
 ## [1.26.2] - 2026-11-25
 
 ### Fixed
