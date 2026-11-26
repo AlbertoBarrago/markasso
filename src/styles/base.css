@@ -426,21 +426,24 @@ body.toolbar-placing * {
   border-left: 2px solid var(--color-accent);
   padding-left: calc(var(--spacing) * 2);
 }
-.pp-leave {
+.pp-action {
   width: 100%;
   padding: calc(var(--spacing) * 2);
   border: none;
   border-radius: var(--radius-md);
   background: none;
-  color: var(--color-danger);
+  color: var(--color-text);
   font: inherit;
   font-size: var(--text-sm);
   text-align: left;
   cursor: pointer;
 }
-.pp-leave:hover,
-.pp-leave:focus-visible {
+.pp-action:hover,
+.pp-action:focus-visible {
   background: var(--color-hover);
+}
+.pp-leave {
+  color: var(--color-danger);
 }
 
 .tb-locked-indicator {
