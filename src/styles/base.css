@@ -445,6 +445,23 @@ body.toolbar-placing * {
 .pp-leave {
   color: var(--color-danger);
 }
+.pp-action:has(.pp-badge:not([hidden])) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--spacing) * 2);
+}
+.pp-badge {
+  padding: 0 calc(var(--spacing) * 2);
+  border-radius: var(--radius-full);
+  background: var(--color-accent-subtle);
+  color: var(--color-accent);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+}
+.pp-badge[hidden] {
+  display: none;
+}
 
 .tb-locked-indicator {
   color: var(--color-warning) !important;

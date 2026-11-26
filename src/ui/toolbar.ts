@@ -339,6 +339,12 @@ export function initToolbar(
   // down), where people look for them once a session runs.
   const peopleCopyLinkBtn = peopleAction(t('copyLiveLink'), copyLiveLink);
   const peopleInviteBtn = peopleAction(t('inviteAiAgent'), inviteAgent);
+  // Without a licence the item keeps its short label and shows a "Cloud"
+  // tag instead of the long locked label, which would wrap in the popover.
+  const peopleInviteBadge = document.createElement('span');
+  peopleInviteBadge.className = 'pp-badge';
+  peopleInviteBadge.textContent = 'Cloud';
+  peopleInviteBtn.append(peopleInviteBadge);
   liveIsland.append(liveStartBtn, inviteAgentBtn);
   // The top-right row (live, people and name islands) springs into its new
   // layout when a session connects or ends. Resolved lazily: the island is
@@ -370,7 +376,9 @@ export function initToolbar(
       : t('inviteAiAgent');
     inviteAgentBtn.title = label;
     inviteAgentBtn.setAttribute('aria-label', label);
-    peopleInviteBtn.textContent = label;
+    peopleInviteBtn.title = label;
+    peopleInviteBtn.setAttribute('aria-label', label);
+    peopleInviteBadge.hidden = !inviteAgentLocked();
   }
   function leaveLive(): void {
     if (!leaveLiveSession()) return;
