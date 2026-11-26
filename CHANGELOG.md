@@ -4,6 +4,13 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [1.27.1] - 2026-11-26
+
+### Changed
+- **Copy the link and invite an AI agent from People ([#197](https://github.com/AlbertoBarrago/markasso/pull/197)).** During a live session the People menu now lists Copy link and Invite AI agent above Leave, so you no longer have to find the icons in the corner. Invite copies a ready-made prompt for your agent; without Markasso Cloud it shows a small Cloud tag and opens the Cloud page, since agents join live sessions with Cloud. The toast shown when a session starts points to People.
+
+---
+
 ## [1.27.0] - 2026-11-26
 
 ### Added
