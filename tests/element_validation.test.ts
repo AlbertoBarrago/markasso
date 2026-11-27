@@ -177,8 +177,20 @@ describe('shape element validation', () => {
     expect(validateElements([shape])).toEqual([shape]);
   });
 
-  it('rejects an unknown kind', () => {
-    expect(validateElements([{ ...base, kind: 'script' }])).toBeNull();
+  it('keeps an unknown kind from a newer version unchanged', () => {
+    const newer = { ...base, kind: 'loopStart', label: 'Each order' };
+    expect(validateElements([newer])).toEqual([newer]);
+  });
+
+  it.each([
+    '',
+    'Script',
+    'two words',
+    '<b>',
+    'a'.repeat(41),
+    42,
+  ])('rejects a malformed kind: %j', (kind) => {
+    expect(validateElements([{ ...base, kind }])).toBeNull();
   });
 
   it('rejects a shape without kind', () => {
