@@ -187,3 +187,29 @@ describe('findWarnings', () => {
     expect(text).toMatch(/; and \d+ more\. Hint:/);
   });
 });
+
+describe('fan-outs after layout', () => {
+  it('warn about nothing once routes avoid the siblings', async () => {
+    const d = new Diagram();
+    await d.addNodes([
+      { key: 'gateway', label: 'API gateway' },
+      { key: 'users', label: 'Users service' },
+      { key: 'orders', label: 'Orders service' },
+      { key: 'billing', label: 'Billing service' },
+      { key: 'search', label: 'Search service' },
+      { key: 'bus', label: 'Event bus' },
+    ]);
+    const children = ['users', 'orders', 'billing', 'search'];
+    d.connect([
+      ...children.map((to) => ({ from: 'gateway', to })),
+      ...children.map((from) => ({ from, to: 'bus' })),
+    ]);
+    // Top to bottom only: left to right, the switched routes would share
+    // their middle stretches, so the router keeps today's routes there
+    // (separating parallel stretches is the next routing phase).
+    d.layout('TB');
+    const w = findWarnings(d);
+    expect(w.throughNodes).toEqual([]);
+    expect(w.crossings).toEqual([]);
+  });
+});
