@@ -7,6 +7,7 @@ import type {
   LineElement,
   ShapeKind,
   StencilElement,
+  StencilSource,
 } from '../../src/elements/element';
 import { SHAPE_KINDS } from '../../src/elements/element';
 import { DEFAULT_LABEL_FONT_FAMILY } from '../../src/elements/label_defaults';
@@ -30,6 +31,7 @@ import {
   resolveConnectorRoute,
 } from '../../src/rendering/draw_selection';
 
+import { userIconPacks } from './icon_packs';
 import { type Size, sizeForLabel, sizeForText } from './sizing';
 
 /**
@@ -365,13 +367,13 @@ export class Diagram {
     };
 
     if (kind === 'icon') {
-      const ref = await resolveIconRef(spec.icon ?? label);
+      const source = await resolveIcon(spec.icon ?? label);
       const size = DEFAULT_SIZES.icon!;
       const w = spec.width ?? size.w;
       const h = spec.height ?? size.h;
       const stencil: StencilElement = createStencil(
         id,
-        { kind: 'builtin', ref },
+        source,
         x + w / 2,
         y + h / 2,
         style,
@@ -847,6 +849,16 @@ function autoSizeOf(el: Element): Size | null {
  * bare names are looked up in the generic set first, then in bundled packs.
  */
 export async function resolveIconRef(input: string): Promise<string> {
+  const ref = await findBuiltinRef(input);
+  if (ref) return ref;
+  throw new DiagramError(`Unknown icon "${input.trim()}". Use icons_search.`);
+}
+
+/**
+ * The built-in reference for an icon, or null when no built-in icon has
+ * that name. Throws on a malformed or unknown built-in reference.
+ */
+async function findBuiltinRef(input: string): Promise<string | null> {
   const raw = input.trim();
   if (raw.includes('/')) {
     if (!isValidStencilRef(raw))
@@ -870,6 +882,30 @@ export async function resolveIconRef(input: string): Promise<string> {
       icon.id === raw.toLowerCase() ||
       icon.label.toLowerCase() === raw.toLowerCase(),
   );
-  if (match) return `k8s/${match.id}`;
+  return match ? `k8s/${match.id}` : null;
+}
+
+/**
+ * Where an icon node's artwork comes from. A reference into a pack the user
+ * loaded (`aws/amazon-ec2`) and a bare name no built-in icon has resolve to
+ * that pack's SVG, embedded like the app's imported icons; everything else
+ * is a built-in reference.
+ */
+export async function resolveIcon(input: string): Promise<StencilSource> {
+  await userIconPacks.loadFromEnv();
+  const raw = input.trim();
+  const [pack] = raw.toLowerCase().split('/');
+  const ownsRef =
+    raw.includes('/') && userIconPacks.list().some((p) => p.slug === pack);
+  const builtin = ownsRef ? null : await findBuiltinRef(raw);
+  if (builtin) return { kind: 'builtin', ref: builtin };
+  const icon = userIconPacks.find(raw);
+  if (icon)
+    return {
+      kind: 'embedded',
+      src: icon.src,
+      pack: icon.pack,
+      name: icon.name,
+    };
   throw new DiagramError(`Unknown icon "${raw}". Use icons_search.`);
 }
