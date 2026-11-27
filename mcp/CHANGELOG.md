@@ -4,7 +4,7 @@ All notable changes to `@markasso/mcp` are documented here. The MCP server is ve
 
 ---
 
-## [Unreleased]
+## [0.7.9] - 2026-11-27
 
 ### Changed
 - **Cleaner `diagram_layout`.** A connection that skips layers (a shortcut, a retry loop) now gets a lane of its own: its two ends line up on it and the nodes in between step aside, so it no longer runs through them. Nodes line up with their neighbors (a single child right under its parent, chains straight), and the gap between two layers grows to fit the connection labels crossing it, so long labels in left-to-right diagrams no longer sit on the nodes. In the reference flow gallery, layout warnings drop from 12 diagrams to 2 (the remaining fan-out crossings come from routing, not layout).
