@@ -13,6 +13,13 @@ import {
   getConnectorBox,
   resolveConnectorRoute,
 } from '../../src/rendering/draw_selection';
+import {
+  containerIds,
+  containsRect,
+  lengthInside,
+  MIN_INSIDE,
+  nodeCoreRect,
+} from '../../src/rendering/route_obstacles';
 import { type Diagram, edgeShortId } from './diagram';
 
 /**
@@ -55,8 +62,6 @@ export interface DiagramWarnings {
   readonly nodeOverlaps: ReadonlyArray<readonly [string, string]>;
 }
 
-/** Shortest run of a connector inside a node that counts as crossing it. */
-const MIN_INSIDE = 8;
 /** Smallest overlap, in px on each axis, worth reporting. */
 const MIN_OVERLAP = 2;
 /** Crossings this close to a segment end are joins, not crossings. */
@@ -97,64 +102,10 @@ function segmentsOf(points: ReadonlyArray<RoutePoint>): Segment[] {
   return points.slice(1).map((p, i) => [points[i]!, p] as const);
 }
 
-/**
- * Part of a node a connector must not cross: the rectangle inscribed in an
- * ellipse or rhombus (so passing near a corner of the bounding box is not
- * reported), the connector box otherwise, inset by a couple of pixels so
- * a stroke running along the border doesn't count.
- */
-function coreRect(el: Element): Rect {
-  const b = getConnectorBox(el);
-  const scale =
-    el.type === 'ellipse' ? Math.SQRT1_2 : el.type === 'rhombus' ? 0.5 : 1;
-  const w = b.w * scale - 4;
-  const h = b.h * scale - 4;
-  return {
-    x: b.x + (b.w - w) / 2,
-    y: b.y + (b.h - h) / 2,
-    w: Math.max(0, w),
-    h: Math.max(0, h),
-  };
-}
-
-/** Length of segment a-b inside `r` (Liang-Barsky clipping). */
-function clippedLength(a: RoutePoint, b: RoutePoint, r: Rect): number {
-  const dx = b[0] - a[0];
-  const dy = b[1] - a[1];
-  let t0 = 0;
-  let t1 = 1;
-  const edges: Array<[number, number]> = [
-    [-dx, a[0] - r.x],
-    [dx, r.x + r.w - a[0]],
-    [-dy, a[1] - r.y],
-    [dy, r.y + r.h - a[1]],
-  ];
-  for (const [p, q] of edges) {
-    if (Math.abs(p) < 1e-9) {
-      if (q < 0) return 0;
-      continue;
-    }
-    const t = q / p;
-    if (p < 0) t0 = Math.max(t0, t);
-    else t1 = Math.min(t1, t);
-    if (t0 > t1) return 0;
-  }
-  return (t1 - t0) * Math.hypot(dx, dy);
-}
-
 function overlaps(a: Rect, b: Rect): boolean {
   const w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
   const h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
   return w >= MIN_OVERLAP && h >= MIN_OVERLAP;
-}
-
-function contains(outer: Rect, inner: Rect): boolean {
-  return (
-    inner.x >= outer.x &&
-    inner.y >= outer.y &&
-    inner.x + inner.w <= outer.x + outer.w &&
-    inner.y + inner.h <= outer.y + outer.h
-  );
 }
 
 /**
@@ -191,20 +142,15 @@ export function findWarnings(diagram: Diagram): DiagramWarnings {
   );
   const boxes = new Map(nodes.map((el) => [el.id, getConnectorBox(el)]));
   // A node drawn around others is a frame or group: connectors and labels
-  // inside it are expected, and so is the containment itself.
-  const containers = new Set(
-    nodes
-      .filter((outer) =>
-        nodes.some(
-          (inner) =>
-            inner !== outer &&
-            contains(boxes.get(outer.id)!, boxes.get(inner.id)!),
-        ),
-      )
-      .map((el) => el.id),
+  // inside it are expected, and so is the containment itself. Same rule as
+  // the elbow router (a caption inside a box does not make it a frame).
+  const containers = containerIds(
+    nodes.map((el) => ({ id: el.id, box: boxes.get(el.id)!, type: el.type })),
   );
   const solid = nodes.filter((el) => !containers.has(el.id));
-  const cores = new Map(solid.map((el) => [el.id, coreRect(el)]));
+  const cores = new Map(
+    solid.map((el) => [el.id, nodeCoreRect(el.type, boxes.get(el.id)!)]),
+  );
 
   const edges: Array<{ name: EdgeName; el: Connector; segments: Segment[] }> =
     [];
@@ -235,7 +181,7 @@ export function findWarnings(diagram: Diagram): DiagramWarnings {
         continue;
       const core = cores.get(node.id)!;
       const inside = edge.segments.reduce(
-        (sum, [a, b]) => sum + clippedLength(a, b, core),
+        (sum, [a, b]) => sum + lengthInside(a, b, core),
         0,
       );
       if (inside >= MIN_INSIDE)
@@ -289,7 +235,7 @@ export function findWarnings(diagram: Diagram): DiagramWarnings {
     const ba = boxes.get(a.id)!;
     for (const b of nodes.slice(i + 1)) {
       const bb = boxes.get(b.id)!;
-      if (overlaps(ba, bb) && !contains(ba, bb) && !contains(bb, ba))
+      if (overlaps(ba, bb) && !containsRect(ba, bb) && !containsRect(bb, ba))
         nodeOverlaps.push([keys.get(a.id)!, keys.get(b.id)!]);
     }
   });

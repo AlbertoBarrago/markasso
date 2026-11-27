@@ -34,10 +34,18 @@ import {
   computeElbowRoute,
   ELBOW_STUB,
   getQuadraticBounds,
+  getQuadraticPoint,
   type RouteDirection,
   type RoutePoint,
   traceRoundedRoute,
 } from './connector_geometry';
+import {
+  containerIds,
+  crossedObstacles,
+  isRouteNodeType,
+  nodeCoreRect,
+  type RouteObstacle,
+} from './route_obstacles';
 import {
   getShapeBorderPointToward,
   getShapeDistToBoundary,
@@ -513,12 +521,11 @@ export function resolveArrowEndpoints(
 ): { x: number; y: number; x2: number; y2: number } {
   let { x, y, x2, y2 } = el;
 
+  const byId = elementsById(allElements);
   const startEl = el.startElementId
-    ? (allElements.find((e) => e.id === el.startElementId) ?? null)
+    ? (byId.get(el.startElementId) ?? null)
     : null;
-  const endEl = el.endElementId
-    ? (allElements.find((e) => e.id === el.endElementId) ?? null)
-    : null;
+  const endEl = el.endElementId ? (byId.get(el.endElementId) ?? null) : null;
 
   // Pinned ends are resolved first: a floating end then faces the pinned
   // point instead of the other element's center.
@@ -617,6 +624,7 @@ function elbowEnd(
   pinned: RoutePoint,
   target: RoutePoint,
   targetBox?: { x: number; y: number; w: number; h: number },
+  forcedSide?: number,
 ): { point: RoutePoint; dir: RouteDirection; stub: number } {
   const b = getElementBounds(el);
   const box = getConnectorBox(el);
@@ -635,9 +643,10 @@ function elbowEnd(
     ? rotatePoint(target[0], target[1], cx, cy, -el.rotation)
     : target;
   const side =
-    targetBox && !el.rotation
+    forcedSide ??
+    (targetBox && !el.rotation
       ? sideTowardBox(box, targetBox)
-      : sideFacing(lx - cx, ly - cy, b.w / 2, b.h / 2);
+      : sideFacing(lx - cx, ly - cy, b.w / 2, b.h / 2));
   const port = getElementPorts(el)[side];
   const dir = sideDirection(el, side);
   return {
@@ -652,6 +661,12 @@ interface ElbowEnd {
   point: RoutePoint;
   readonly dir: RouteDirection;
   stub: number;
+}
+
+/** Sides (indices into SIDE_DIRS) forced on the two ends of a connector. */
+interface SidePair {
+  readonly start: number;
+  readonly end: number;
 }
 
 /** Both ends of an elbow connector before ports are spread along sides. */
@@ -674,17 +689,15 @@ interface ElbowPlan {
 function planElbowEnds(
   el: LineElement | ArrowElement,
   allElements: ReadonlyArray<Element>,
+  sides?: SidePair,
 ): ElbowPlan {
   const pts = resolveArrowEndpoints(el, allElements);
   const start: RoutePoint = [pts.x, pts.y];
   const end: RoutePoint = [pts.x2, pts.y2];
 
-  const startEl = el.startElementId
-    ? allElements.find((e) => e.id === el.startElementId)
-    : undefined;
-  const endEl = el.endElementId
-    ? allElements.find((e) => e.id === el.endElementId)
-    : undefined;
+  const byId = elementsById(allElements);
+  const startEl = el.startElementId ? byId.get(el.startElementId) : undefined;
+  const endEl = el.endElementId ? byId.get(el.endElementId) : undefined;
 
   // A floating end faces the other end's pinned point, its element's
   // center, or its free position, in that order.
@@ -715,6 +728,7 @@ function planElbowEnds(
         start,
         targetOf(endEl, el.endAnchor, end),
         boxOf(endEl, el.endAnchor),
+        sides?.start,
       )
     : null;
   const e = endEl
@@ -724,6 +738,7 @@ function planElbowEnds(
         end,
         targetOf(startEl, el.startAnchor, start),
         boxOf(startEl, el.startAnchor),
+        sides?.end,
       )
     : null;
 
@@ -739,13 +754,37 @@ function planElbowEnds(
   return { start, end, startEl, endEl, s, e, aligned };
 }
 
+const byIdCache = new WeakMap<
+  ReadonlyArray<Element>,
+  ReadonlyMap<string, Element>
+>();
+
+/**
+ * Elements of an (immutable) array by id, built once per array: routing a
+ * scene looks up both ends of every connector. The first element with an
+ * id wins, as `Array.find` did.
+ */
+function elementsById(
+  allElements: ReadonlyArray<Element>,
+): ReadonlyMap<string, Element> {
+  let map = byIdCache.get(allElements);
+  if (!map) {
+    const built = new Map<string, Element>();
+    for (const el of allElements) if (!built.has(el.id)) built.set(el.id, el);
+    map = built;
+    byIdCache.set(allElements, map);
+  }
+  return map;
+}
+
 /** Key of one connector end in the port slot map. */
 const slotKey = (id: string, which: 'start' | 'end') => `${id}:${which}`;
 
-const portSlotCache = new WeakMap<
-  ReadonlyArray<Element>,
-  ReadonlyMap<string, number>
->();
+/** A visible elbow connector of the scene and its planned ends. */
+interface PlannedElbow {
+  readonly el: LineElement | ArrowElement;
+  readonly plan: ElbowPlan;
+}
 
 /** Space between two connector ends that share a side. */
 const PORT_GAP = 20;
@@ -815,17 +854,13 @@ export function spreadAlongSide(
  *
  * Pinned ends, hidden connectors, self-loops and sides with a single port
  * (see sideSpan) keep their planned point, and a side with a single
- * end is left alone. The result depends only on the scene, so every live
- * peer computes the same routes; it is cached per elements array, which is
- * immutable, so a frame resolving N connectors plans each of them once
- * more, not N times.
+ * end is left alone. The result depends only on the plans, so every live
+ * peer computes the same routes (see routeElbows, which caches them).
  */
 function elbowPortSlots(
-  allElements: ReadonlyArray<Element>,
+  planned: ReadonlyArray<PlannedElbow>,
+  steered: ReadonlySet<string> = new Set(),
 ): ReadonlyMap<string, number> {
-  const cached = portSlotCache.get(allElements);
-  if (cached) return cached;
-
   interface Member {
     readonly key: string;
     readonly group: string;
@@ -833,6 +868,8 @@ function elbowPortSlots(
     readonly dir: RouteDirection;
     /** The end's planned coordinate along the side's axis. */
     readonly at: number;
+    /** The other end's coordinate along the same axis. */
+    readonly toward: number;
     /**
      * Angle from the side's normal to the other end. Coincident ends are
      * ordered by it, like draw.io: the end whose connector turns away
@@ -844,11 +881,8 @@ function elbowPortSlots(
   const groups = new Map<string, Member[]>();
   /** Connectors whose ends sharedOffset put on one coordinate. */
   const aligned: Array<readonly [Member, Member]> = [];
-  for (const el of allElements) {
-    if (el.type !== 'line' && el.type !== 'arrow') continue;
-    if (el.routing !== 'elbow' || el.visible === false) continue;
+  for (const { el, plan } of planned) {
     if (el.startElementId && el.startElementId === el.endElementId) continue;
-    const plan = planElbowEnds(el, allElements);
     const ends = [
       [
         plan.s,
@@ -872,6 +906,7 @@ function elbowPortSlots(
         node,
         dir: end.dir,
         at: end.point[axis],
+        toward: other[axis],
         angle: Math.atan2(other[axis] - end.point[axis], depth),
         id: el.id,
       };
@@ -907,9 +942,17 @@ function elbowPortSlots(
     for (const m of members) {
       const partner = partnerOf.get(m.key);
       const there = partner === undefined ? undefined : placedAt.get(partner);
+      // On a side it shares, a connector moved to another side pair (see
+      // routeElbows) leaves toward its other end, so a fan-out's outer
+      // arrows take the outer slots instead of crossing the ones already
+      // running straight. Alone on its side it keeps the middle port.
+      const own =
+        steered.has(m.id) && members.length > 1
+          ? Math.min(Math.max(m.toward, lo), hi)
+          : m.at;
       preferred.set(
         m,
-        there !== undefined && there >= lo && there <= hi ? there : m.at,
+        there !== undefined && there >= lo && there <= hi ? there : own,
       );
     }
     const pref = (m: Member) => preferred.get(m)!;
@@ -931,7 +974,6 @@ function elbowPortSlots(
       if (Math.abs(placed[i]! - m.at) > 0.01) slots.set(m.key, placed[i]!);
     });
   }
-  portSlotCache.set(allElements, slots);
   return slots;
 }
 
@@ -977,6 +1019,12 @@ function sideOf(dir: RouteDirection): ShapeSide {
  * Polyline a connector is drawn along: its two resolved ends, or the full
  * orthogonal route for `routing: 'elbow'`. Curved lines (cx/cy) are not
  * covered here; callers keep their quadratic path for those.
+ *
+ * Elbows of the scene come from routeElbows (computed once per elements
+ * array). A connector that is not in `allElements` as this very object (a
+ * preview being drawn, an edited copy) is routed on its own; an edited copy
+ * still attached exactly like the scene's connector of that id reuses its
+ * port slots and side choice.
  */
 export function resolveConnectorRoute(
   el: LineElement | ArrowElement,
@@ -989,17 +1037,67 @@ export function resolveConnectorRoute(
       [pts.x2, pts.y2],
     ];
   }
+  const scene = routeElbows(allElements);
+  const routed = scene.routes.get(el);
+  if (routed) return routed.map((p): RoutePoint => [p[0], p[1]]);
+  const original = elementsById(allElements).get(el.id);
+  const same =
+    original !== undefined &&
+    (original.type === 'line' || original.type === 'arrow') &&
+    sameAttachment(original, el);
+  return finishRoute(
+    {
+      el,
+      plan: planElbowEnds(
+        el,
+        allElements,
+        same ? scene.sides.get(original) : undefined,
+      ),
+    },
+    same ? scene.slots : NO_SLOTS,
+  );
+}
 
-  const plan = planElbowEnds(el, allElements);
-  const { s, e } = plan;
-  const slots = elbowPortSlots(allElements);
+/** Whether two connectors attach to the same nodes in the same way. */
+function sameAttachment(
+  a: LineElement | ArrowElement,
+  b: LineElement | ArrowElement,
+): boolean {
+  const anchor = (x: ConnectorAnchor | undefined) => (x ? `${x.x},${x.y}` : '');
+  return (
+    a.startElementId === b.startElementId &&
+    a.endElementId === b.endElementId &&
+    anchor(a.startAnchor) === anchor(b.startAnchor) &&
+    anchor(a.endAnchor) === anchor(b.endAnchor)
+  );
+}
+
+/** The routes of a scene's elbows and what produced them. */
+interface SceneRoutes {
+  readonly routes: ReadonlyMap<Element, RoutePoint[]>;
+  readonly slots: ReadonlyMap<string, number>;
+  /** Side pairs chosen instead of the baseline, by connector. */
+  readonly sides: ReadonlyMap<Element, SidePair>;
+}
+
+const routeCache = new WeakMap<ReadonlyArray<Element>, SceneRoutes>();
+const NO_SIDES: ReadonlyMap<Element, SidePair> = new Map();
+const NO_SLOTS: ReadonlyMap<string, number> = new Map();
+
+/** The route of a planned elbow once its ends sit on their slots. */
+function finishRoute(
+  { el, plan }: PlannedElbow,
+  slots: ReadonlyMap<string, number>,
+): RoutePoint[] {
+  // Copies: placeAlong moves the ends, and plans may be reused.
+  const s = plan.s && { ...plan.s };
+  const e = plan.e && { ...plan.e };
   const startSlot = slots.get(slotKey(el.id, 'start'));
   const endSlot = slots.get(slotKey(el.id, 'end'));
   if (s && plan.startEl && startSlot !== undefined)
     placeAlong(s, plan.startEl, startSlot);
   if (e && plan.endEl && endSlot !== undefined)
     placeAlong(e, plan.endEl, endSlot);
-
   return computeElbowRoute(
     s?.point ?? plan.start,
     s?.dir ?? null,
@@ -1008,6 +1106,347 @@ export function resolveConnectorRoute(
     s?.stub,
     e?.stub,
   );
+}
+
+/** Plans, port slots and routes of every visible elbow of a scene. */
+function routeScene(
+  allElements: ReadonlyArray<Element>,
+  sides: ReadonlyMap<Element, SidePair>,
+): {
+  planned: PlannedElbow[];
+  slots: ReadonlyMap<string, number>;
+  routes: Map<Element, RoutePoint[]>;
+} {
+  const planned: PlannedElbow[] = [];
+  for (const el of allElements) {
+    if (el.type !== 'line' && el.type !== 'arrow') continue;
+    if (el.routing !== 'elbow' || el.visible === false) continue;
+    planned.push({ el, plan: planElbowEnds(el, allElements, sides.get(el)) });
+  }
+  const steered = new Set([...sides.keys()].map((el) => el.id));
+  const slots = elbowPortSlots(planned, steered);
+  const routes = new Map<Element, RoutePoint[]>();
+  for (const p of planned) routes.set(p.el, finishRoute(p, slots));
+  return { planned, slots, routes };
+}
+
+/**
+ * The nodes routes should not run through (frames and groups excluded). A
+ * rotated node counts with the box around its rotated shape: wider than the
+ * shape itself, so a route that clears it never cuts the real outline.
+ */
+function sceneObstacles(allElements: ReadonlyArray<Element>): RouteObstacle[] {
+  const nodes = allElements
+    .filter((el) => el.visible !== false && isRouteNodeType(el.type))
+    .map((el) => {
+      const box = getConnectorBox(el);
+      return {
+        el,
+        id: el.id,
+        type: el.type,
+        box: el.rotation ? rotateBoxOf(el, box) : box,
+      };
+    });
+  const containers = containerIds(nodes);
+  return nodes
+    .filter((n) => !containers.has(n.id))
+    .map((n) => ({
+      id: n.id,
+      core: nodeCoreRect(n.el.rotation ? 'rectangle' : n.type, n.box),
+    }));
+}
+
+/** Nodes each elbow runs through, by connector. */
+function sceneCrossings(
+  planned: ReadonlyArray<PlannedElbow>,
+  routes: ReadonlyMap<Element, RoutePoint[]>,
+  obstacles: ReadonlyArray<RouteObstacle>,
+): Map<Element, string[]> {
+  const crossings = new Map<Element, string[]>();
+  for (const { el } of planned) {
+    const ends = new Set(
+      [el.startElementId, el.endElementId].filter(
+        (id): id is string => id !== undefined,
+      ),
+    );
+    const crossed = crossedObstacles(routes.get(el)!, obstacles, ends);
+    if (crossed.length > 0) crossings.set(el, crossed);
+  }
+  return crossings;
+}
+
+/**
+ * The facing side pair on the other axis, for a connector the baseline
+ * routes through a node: top and bottom when it left sideways, left and
+ * right when it left vertically. Only for connectors between two distinct,
+ * unrotated nodes with floating ends, and only when the boxes leave room on
+ * that axis for both stubs. Null otherwise.
+ */
+function otherAxisSides({ el, plan }: PlannedElbow): SidePair | null {
+  const { startEl, endEl, s } = plan;
+  if (!startEl || !endEl || !s || startEl === endEl) return null;
+  if (el.startAnchor || el.endAnchor || startEl.rotation || endEl.rotation)
+    return null;
+  const a = getConnectorBox(startEl);
+  const b = getConnectorBox(endEl);
+  const dx = b.x + b.w / 2 - (a.x + a.w / 2);
+  const dy = b.y + b.h / 2 - (a.y + a.h / 2);
+  if (s.dir.dx !== 0) {
+    if (Math.abs(dy) - (a.h + b.h) / 2 < ELBOW_STUB * 2) return null;
+    return dy > 0 ? { start: 2, end: 0 } : { start: 0, end: 2 };
+  }
+  if (Math.abs(dx) - (a.w + b.w) / 2 < ELBOW_STUB * 2) return null;
+  return dx > 0 ? { start: 1, end: 3 } : { start: 3, end: 1 };
+}
+
+/** Number of `(connector, node)` crossings. */
+function crossingCount(crossings: ReadonlyMap<Element, string[]>): number {
+  let count = 0;
+  for (const nodes of crossings.values()) count += nodes.length;
+  return count;
+}
+
+/** Whether `next` drops some node crossings of `base` and adds none. */
+function isStrictSubset(
+  next: ReadonlyMap<Element, string[]>,
+  base: ReadonlyMap<Element, string[]>,
+): boolean {
+  for (const [el, nodes] of next) {
+    const before = base.get(el);
+    if (!before || nodes.some((node) => !before.includes(node))) return false;
+  }
+  return crossingCount(next) < crossingCount(base);
+}
+
+/**
+ * Most side switches tried in one scene. Beyond it the scene keeps today's
+ * routes: checking a batch costs time with every switch, and a board that
+ * tangled is not fixed by one alternative side pair per connector.
+ */
+const MAX_SIDE_SWITCHES = 32;
+
+/** Samples of a curved line drawn by its control point. */
+const CURVE_SAMPLES = 12;
+
+/** Every connector's drawn polyline, curves sampled, elbows from `routes`. */
+function connectorPolylines(
+  allElements: ReadonlyArray<Element>,
+  routes: ReadonlyMap<Element, RoutePoint[]>,
+): Map<Element, RoutePoint[]> {
+  const lines = new Map<Element, RoutePoint[]>();
+  for (const el of allElements) {
+    if ((el.type !== 'line' && el.type !== 'arrow') || el.visible === false)
+      continue;
+    const routed = routes.get(el);
+    if (routed) {
+      lines.set(el, routed);
+      continue;
+    }
+    const pts = resolveArrowEndpoints(el, allElements);
+    if (el.type === 'line' && el.cx !== undefined && el.cy !== undefined) {
+      const { cx, cy } = el;
+      lines.set(
+        el,
+        Array.from({ length: CURVE_SAMPLES + 1 }, (_, i): RoutePoint => {
+          const p = getQuadraticPoint(
+            pts.x,
+            pts.y,
+            cx,
+            cy,
+            pts.x2,
+            pts.y2,
+            i / CURVE_SAMPLES,
+          );
+          return [p.x, p.y];
+        }),
+      );
+    } else {
+      lines.set(el, [
+        [pts.x, pts.y],
+        [pts.x2, pts.y2],
+      ]);
+    }
+  }
+  return lines;
+}
+
+/**
+ * Whether segments a-b and c-d cross. A segment's start counts when it is
+ * an inner vertex of its polyline (`aInner`, `cInner`), so a crossing right
+ * on a vertex is seen once, while connectors meeting at their own ends
+ * (on a node's border) are not crossings.
+ */
+function segmentsCross(
+  a: RoutePoint,
+  b: RoutePoint,
+  c: RoutePoint,
+  d: RoutePoint,
+  aInner: boolean,
+  cInner: boolean,
+): boolean {
+  const rx = b[0] - a[0];
+  const ry = b[1] - a[1];
+  const sx = d[0] - c[0];
+  const sy = d[1] - c[1];
+  const den = rx * sy - ry * sx;
+  if (Math.abs(den) < 1e-9) return false;
+  const u = ((c[0] - a[0]) * sy - (c[1] - a[1]) * sx) / den;
+  const v = ((c[0] - a[0]) * ry - (c[1] - a[1]) * rx) / den;
+  const slack = 1e-6;
+  const within = (t: number, inner: boolean) =>
+    (inner ? t > -slack : t > slack) && t < 1 - slack;
+  return within(u, aInner) && within(v, cInner);
+}
+
+/** Shortest shared stretch of two collinear segments that reads as one line. */
+const MIN_OVERLAP = 2;
+
+/**
+ * Whether two axis-aligned segments run along the same line for a while:
+ * drawn on top of each other they read as one connector.
+ */
+function segmentsOverlap(
+  a: RoutePoint,
+  b: RoutePoint,
+  c: RoutePoint,
+  d: RoutePoint,
+): boolean {
+  const vertical = (p: RoutePoint, q: RoutePoint) =>
+    Math.abs(p[0] - q[0]) < 0.5;
+  const horizontal = (p: RoutePoint, q: RoutePoint) =>
+    Math.abs(p[1] - q[1]) < 0.5;
+  let along: 0 | 1;
+  if (vertical(a, b) && vertical(c, d) && Math.abs(a[0] - c[0]) < 0.5)
+    along = 1;
+  else if (horizontal(a, b) && horizontal(c, d) && Math.abs(a[1] - c[1]) < 0.5)
+    along = 0;
+  else return false;
+  const lo = Math.max(
+    Math.min(a[along], b[along]),
+    Math.min(c[along], d[along]),
+  );
+  const hi = Math.min(
+    Math.max(a[along], b[along]),
+    Math.max(c[along], d[along]),
+  );
+  return hi - lo > MIN_OVERLAP;
+}
+
+/**
+ * Crossings and shared stretches between the `changed` connectors and every
+ * other connector.
+ */
+function connectorCrossings(
+  lines: ReadonlyMap<Element, RoutePoint[]>,
+  changed: ReadonlySet<Element>,
+  limit = Infinity,
+): number {
+  let count = 0;
+  const all = [...lines.entries()];
+  for (let ia = 0; ia < all.length; ia++) {
+    const [a, pa] = all[ia]!;
+    if (!changed.has(a)) continue;
+    for (let ib = 0; ib < all.length; ib++) {
+      const [b, pb] = all[ib]!;
+      // A pair of changed connectors is counted once.
+      if (ib === ia || (changed.has(b) && ib < ia)) continue;
+      for (let i = 1; i < pa.length; i++)
+        for (let j = 1; j < pb.length; j++)
+          if (
+            segmentsCross(
+              pa[i - 1]!,
+              pa[i]!,
+              pb[j - 1]!,
+              pb[j]!,
+              i > 1,
+              j > 1,
+            ) ||
+            segmentsOverlap(pa[i - 1]!, pa[i]!, pb[j - 1]!, pb[j]!)
+          ) {
+            count++;
+            // Past the limit the answer is already "worse": stop counting.
+            if (count > limit) return count;
+          }
+    }
+  }
+  return count;
+}
+
+/**
+ * Routes every visible elbow of a scene, once per (immutable) elements
+ * array. The baseline is today's routing: side choice by free gap, ports
+ * spread on shared sides, routes from their ends. A connector that runs
+ * through a node may switch to the facing side pair on the other axis (a
+ * fan-out leaving its hub by the bottom instead of sideways), when that
+ * route alone crosses nothing. All switches are then applied together, the
+ * ports spread again, and the result kept only if its node crossings are a
+ * strict subset of the baseline's and the connectors whose routes changed
+ * cross or run along no more connectors than before; otherwise the
+ * baseline stands.
+ * Scenes whose routes cross nothing are untouched, and the outcome depends
+ * only on the scene, so live peers agree.
+ */
+function routeElbows(allElements: ReadonlyArray<Element>): SceneRoutes {
+  const cached = routeCache.get(allElements);
+  if (cached) return cached;
+  const base = routeScene(allElements, NO_SIDES);
+  let result: SceneRoutes = { ...base, sides: NO_SIDES };
+  const candidates = base.planned.filter((p) => otherAxisSides(p) !== null);
+  // Obstacles cost a scan of the board: skip them when nothing can switch.
+  if (candidates.length > 0) {
+    const obstacles = sceneObstacles(allElements);
+    const baseCrossings = sceneCrossings(base.planned, base.routes, obstacles);
+    const proposals = new Map<Element, SidePair>();
+    for (const p of candidates) {
+      if (!baseCrossings.has(p.el)) continue;
+      const pair = otherAxisSides(p)!;
+      const alone: PlannedElbow = {
+        el: p.el,
+        plan: planElbowEnds(p.el, allElements, pair),
+      };
+      const route = finishRoute(alone, NO_SLOTS);
+      const single = sceneCrossings(
+        [alone],
+        new Map([[p.el, route]]),
+        obstacles,
+      );
+      if (single.size === 0) proposals.set(p.el, pair);
+    }
+    if (proposals.size > 0 && proposals.size <= MAX_SIDE_SWITCHES) {
+      const next = routeScene(allElements, proposals);
+      const nextCrossings = sceneCrossings(
+        next.planned,
+        next.routes,
+        obstacles,
+      );
+      if (isStrictSubset(nextCrossings, baseCrossings)) {
+        const changed = new Set(
+          next.planned
+            .filter((p) => {
+              const a = base.routes.get(p.el)!;
+              const b = next.routes.get(p.el)!;
+              return (
+                a.length !== b.length ||
+                a.some((pt, i) => pt[0] !== b[i]![0] || pt[1] !== b[i]![1])
+              );
+            })
+            .map((p) => p.el),
+        );
+        const before = connectorCrossings(
+          connectorPolylines(allElements, base.routes),
+          changed,
+        );
+        const after = connectorCrossings(
+          connectorPolylines(allElements, next.routes),
+          changed,
+          before,
+        );
+        if (after <= before) result = { ...next, sides: proposals };
+      }
+    }
+  }
+  routeCache.set(allElements, result);
+  return result;
 }
 
 /**
