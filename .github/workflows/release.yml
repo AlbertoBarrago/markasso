@@ -1,5 +1,10 @@
 name: Release
 
+# Publishes the GitHub Release for a v*.*.* tag from its CHANGELOG.md section.
+# It does not deploy: production follows main through Cloudflare Workers
+# Builds (the "Deploy default branch" trigger), so every push to main goes
+# live and a tag only marks and documents a release.
+
 on:
   push:
     tags:
@@ -69,8 +74,3 @@ jobs:
               --title "Markasso ${GITHUB_REF_NAME#v}" \
               --notes-file release-notes.md
           fi
-
-      - name: Deploy to Cloudflare
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: pnpm exec wrangler deploy
