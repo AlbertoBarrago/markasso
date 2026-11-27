@@ -44,11 +44,13 @@ describe('layeredLayout', () => {
       ['a', 'b', 'c'].map((id) => node(id)),
       [edge('a', 'b'), edge('b', 'c'), edge('a', 'c')],
     );
-    expect([...positions.values()]).toEqual([
-      { x: 0, y: 0 },
-      { x: 0, y: 140 },
-      { x: 0, y: 280 },
-    ]);
+    const [a, b, c] = ['a', 'b', 'c'].map((id) => positions.get(id)!);
+    expect([a!.y, b!.y, c!.y]).toEqual([0, 140, 280]);
+    // a -> c skips a rank: its ends line up on a lane of their own, and b
+    // steps aside so the connector never runs through it.
+    expect(a!.x).toBe(c!.x);
+    const lane = a!.x + 40;
+    expect(b!.x + 80 < lane || b!.x > lane).toBe(true);
   });
 
   it('centers a tree parent above its children', () => {
