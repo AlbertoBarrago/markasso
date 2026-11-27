@@ -3,6 +3,17 @@ import { History } from '../src/engine/history';
 import { insertShape, insertStencil } from '../src/ui/library_insert';
 
 describe('library insertion', () => {
+  it('inserts symbols with an insert size at that size', () => {
+    const history = new History();
+    insertShape(history, 'offPageConnector', { x: 100, y: 100 });
+    expect(history.present.elements[0]).toMatchObject({
+      x: 60,
+      y: 60,
+      width: 80,
+      height: 80,
+    });
+  });
+
   it('inserts a flowchart shape centered on the drop point', () => {
     const history = new History();
     insertShape(history, 'database', { x: 500, y: 300 });

@@ -729,7 +729,7 @@ describe('boards from a newer version', () => {
     const newer = {
       id: 'loop',
       type: 'shape',
-      kind: 'loopStart',
+      kind: 'futureSymbol',
       x: 0,
       y: 0,
       width: 160,
@@ -745,12 +745,31 @@ describe('boards from a newer version', () => {
     await d.addNodes([{ key: 'next', label: 'Next' }]);
     d.connect([{ from: d.nodeKeys().get('loop')!, to: 'next' }]);
     expect(d.layout('TB')).toBeGreaterThan(0);
-    expect(describeDiagram(d)).toContain('[loopStart] "Each order"');
+    expect(describeDiagram(d)).toContain('[futureSymbol] "Each order"');
     const [image] = await exportPng(d, {});
     expect(image).toMatchObject({ type: 'image' });
     // Kept as written, so saving the board does not lose it.
     expect(d.elements.find((el) => el.id === 'loop')).toMatchObject({
-      kind: 'loopStart',
+      kind: 'futureSymbol',
     });
+  });
+});
+
+describe('ISO flowchart symbols', () => {
+  it('adds the new symbols, at their own default size where they have one', async () => {
+    const d = new Diagram();
+    await d.addNodes([
+      { key: 'next', kind: 'offPageConnector', label: 'A' },
+      { key: 'loop', kind: 'loopStart', label: 'Each order' },
+      { key: 'done', kind: 'loopEnd', label: 'Next order' },
+    ]);
+    const [next, loop] = d.elements;
+    expect(next).toMatchObject({
+      kind: 'offPageConnector',
+      width: 80,
+      height: 80,
+    });
+    expect(loop).toMatchObject({ kind: 'loopStart', width: 160, height: 80 });
+    expect(describeDiagram(d)).toContain('- loop [loopStart] "Each order"');
   });
 });

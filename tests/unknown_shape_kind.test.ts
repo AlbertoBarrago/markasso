@@ -15,7 +15,7 @@ import { shapeKindIcon, shapeKindLabelKey } from '../src/ui/shape_icons';
 const newer = {
   id: 'loop',
   type: 'shape',
-  kind: 'loopStart',
+  kind: 'futureSymbol',
   x: 100,
   y: 50,
   width: 160,

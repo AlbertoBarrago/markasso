@@ -178,7 +178,7 @@ describe('shape element validation', () => {
   });
 
   it('keeps an unknown kind from a newer version unchanged', () => {
-    const newer = { ...base, kind: 'loopStart', label: 'Each order' };
+    const newer = { ...base, kind: 'futureSymbol', label: 'Each order' };
     expect(validateElements([newer])).toEqual([newer]);
   });
 

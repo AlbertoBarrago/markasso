@@ -42,6 +42,11 @@ export interface ShapeDefinition {
   details?(w: number, h: number): ShapeCommand[];
   /** Area where the label is laid out, in shape-local coordinates. */
   textBox(w: number, h: number): ShapeBox;
+  /**
+   * Size a new symbol gets when inserted, for symbols that read badly at
+   * the common 160 x 80 (a square off-page connector, a merge triangle).
+   */
+  insertSize?: { readonly w: number; readonly h: number };
 }
 
 /** Cubic bezier constant approximating a quarter circle. */
@@ -67,6 +72,16 @@ function quarter(
 /** Middle half of `0..length`: the usable part of a cap or a point. */
 function middleHalf(length: number): readonly [number, number] {
   return [length * 0.25, length * 0.75];
+}
+
+/**
+ * How far each sheet of the multiple documents symbol sits behind the
+ * next: 8% of the short side, but at least 2 units (without exceeding 20%)
+ * so the sheets stay apart in a 16 px icon too.
+ */
+function sheetOffset(w: number, h: number): number {
+  const short = Math.min(w, h);
+  return Math.min(Math.max(short * 0.08, 2), short * 0.2);
 }
 
 /** Every side usable along its full length. */
@@ -288,6 +303,272 @@ export const SHAPE_DEFINITIONS: Readonly<Record<ShapeKind, ShapeDefinition>> = {
     textBox(w, h) {
       const r = Math.min(w / 2, h / 2);
       return { x: 0, y: 0, w: Math.max(0, w - r * 0.4), h };
+    },
+  },
+
+  // ISO 5807 symbols added in 1.29 (appended: kind order is stable).
+
+  // Manual operation: trapezoid narrowing downward.
+  manualOperation: {
+    outline(w, h) {
+      const s = Math.min(w * 0.2, h * 0.5);
+      return [['M', 0, 0], ['L', w, 0], ['L', w - s, h], ['L', s, h], ['Z']];
+    },
+    // The slanted sides take ends too, placed on the slant.
+    sides(w, h) {
+      const s = Math.min(w * 0.2, h * 0.5);
+      return { top: [0, w], right: [0, h], bottom: [s, w - s], left: [0, h] };
+    },
+    textBox(w, h) {
+      const s = Math.min(w * 0.2, h * 0.5);
+      return { x: s, y: 0, w: Math.max(0, w - s * 2), h };
+    },
+  },
+
+  // Display: pointed left end, round right end.
+  display: {
+    outline(w, h) {
+      const s = Math.min(w * 0.15, h * 0.5);
+      return [
+        ['M', s, 0],
+        ['L', w - s, 0],
+        quarter(w - s, 0, w, h / 2, 'x'),
+        quarter(w, h / 2, w - s, h, 'y'),
+        ['L', s, h],
+        ['L', 0, h / 2],
+        ['Z'],
+      ];
+    },
+    // Flat top and bottom; on the point and the cap, their middle half.
+    sides(w, h) {
+      const s = Math.min(w * 0.15, h * 0.5);
+      return {
+        top: [s, w - s],
+        right: middleHalf(h),
+        bottom: [s, w - s],
+        left: middleHalf(h),
+      };
+    },
+    // Between the point and the cap, so its corners stay inside.
+    textBox(w, h) {
+      const s = Math.min(w * 0.15, h * 0.5);
+      return { x: s, y: 0, w: Math.max(0, w - s * 2), h };
+    },
+  },
+
+  // Off-page connector: a box ending in a point, the flow continues on
+  // another page.
+  offPageConnector: {
+    outline(w, h) {
+      const p = Math.min(h * 0.35, w * 0.5);
+      return [
+        ['M', 0, 0],
+        ['L', w, 0],
+        ['L', w, h - p],
+        ['L', w / 2, h],
+        ['L', 0, h - p],
+        ['Z'],
+      ];
+    },
+    sides(w, h) {
+      const p = Math.min(h * 0.35, w * 0.5);
+      return {
+        top: [0, w],
+        right: [0, h - p],
+        bottom: middleHalf(w),
+        left: [0, h - p],
+      };
+    },
+    textBox(w, h) {
+      const p = Math.min(h * 0.35, w * 0.5);
+      return { x: 0, y: 0, w, h: Math.max(0, h - p) };
+    },
+    insertSize: { w: 80, h: 80 },
+  },
+
+  // Stored data: convex left side, concave right side.
+  storedData: {
+    outline(w, h) {
+      const s = Math.min(w * 0.12, h * 0.35);
+      return [
+        ['M', s, 0],
+        ['L', w, 0],
+        // One curve for the concave side, s deep at mid height: leaving the
+        // corners steeply keeps the outline star-shaped around its center
+        // (two quarter arcs would leave them flat and form pockets).
+        ['C', w - (s * 4) / 3, h / 3, w - (s * 4) / 3, (h * 2) / 3, w, h],
+        ['L', s, h],
+        quarter(s, h, 0, h / 2, 'x'),
+        quarter(0, h / 2, s, 0, 'y'),
+        ['Z'],
+      ];
+    },
+    // Flat top and bottom; on both curved sides, their middle half.
+    sides(w, h) {
+      const s = Math.min(w * 0.12, h * 0.35);
+      return {
+        top: [s, w],
+        right: middleHalf(h),
+        bottom: [s, w],
+        left: middleHalf(h),
+      };
+    },
+    textBox(w, h) {
+      const s = Math.min(w * 0.12, h * 0.35);
+      return { x: s, y: 0, w: Math.max(0, w - s * 2), h };
+    },
+  },
+
+  // Internal storage: a box with a top band and a left band.
+  internalStorage: {
+    outline: rectCommands,
+    sides: allSides,
+    details(w, h) {
+      const d = Math.min(w * 0.1, h * 0.2, 16);
+      return [
+        ['M', d, 0],
+        ['L', d, h],
+        ['M', 0, d],
+        ['L', w, d],
+      ];
+    },
+    textBox(w, h) {
+      const d = Math.min(w * 0.1, h * 0.2, 16);
+      return { x: d, y: d, w: Math.max(0, w - d), h: Math.max(0, h - d) };
+    },
+  },
+
+  // Multiple documents: three stacked sheets as one silhouette, the front
+  // one with the document's wavy bottom; the hidden sheet edges are details.
+  multiDocument: {
+    outline(w, h) {
+      const o = sheetOffset(w, h);
+      const fw = w - 2 * o;
+      const a = (h - 2 * o) * 0.1;
+      const base = h - a;
+      return [
+        ['M', 0, 2 * o],
+        ['L', o, 2 * o],
+        ['L', o, o],
+        ['L', 2 * o, o],
+        ['L', 2 * o, 0],
+        ['L', w, 0],
+        ['L', w, base - 2 * o],
+        ['L', w - o, base - 2 * o],
+        ['L', w - o, base - o],
+        ['L', fw, base - o],
+        ['L', fw, base],
+        ['C', (fw * 2) / 3, base - a * 1.8, fw / 3, base + a * 1.8, 0, base],
+        ['Z'],
+      ];
+    },
+    details(w, h) {
+      const o = sheetOffset(w, h);
+      const fw = w - 2 * o;
+      const base = h - (h - 2 * o) * 0.1;
+      return [
+        ['M', o, 2 * o],
+        ['L', fw, 2 * o],
+        ['L', fw, base - o],
+        ['M', 2 * o, o],
+        ['L', w - o, o],
+        ['L', w - o, base - 2 * o],
+      ];
+    },
+    sides(w, h) {
+      const o = sheetOffset(w, h);
+      const base = h - (h - 2 * o) * 0.1;
+      return {
+        top: [2 * o, w],
+        right: [0, base - 2 * o],
+        bottom: [0, w - 2 * o],
+        left: [2 * o, base],
+      };
+    },
+    textBox(w, h) {
+      const o = sheetOffset(w, h);
+      return { x: 0, y: 2 * o, w: w - 2 * o, h: (h - 2 * o) * 0.82 };
+    },
+  },
+
+  // Merge: a triangle pointing down.
+  merge: {
+    outline(w, h) {
+      return [['M', 0, 0], ['L', w, 0], ['L', w / 2, h], ['Z']];
+    },
+    // The flat top; at the bottom point, its middle half.
+    sides(w) {
+      return { top: [0, w], right: null, bottom: middleHalf(w), left: null };
+    },
+    textBox(w, h) {
+      return { x: w * 0.25, y: 0, w: w * 0.5, h: h * 0.5 };
+    },
+    insertSize: { w: 100, h: 80 },
+  },
+
+  // Loop limit, start: top corners cut. A pair with loopEnd, since shapes
+  // cannot be flipped and rotating would turn the label upside down.
+  loopStart: {
+    outline(w, h) {
+      const c = Math.min(w * 0.2, h * 0.3);
+      return [
+        ['M', c, 0],
+        ['L', w - c, 0],
+        ['L', w, c],
+        ['L', w, h],
+        ['L', 0, h],
+        ['L', 0, c],
+        ['Z'],
+      ];
+    },
+    sides(w, h) {
+      const c = Math.min(w * 0.2, h * 0.3);
+      return { top: [c, w - c], right: [c, h], bottom: [0, w], left: [c, h] };
+    },
+    // Its top corners sit on the cut edges, so the box stays inside.
+    textBox(w, h) {
+      const c = Math.min(w * 0.2, h * 0.3);
+      return {
+        x: c / 2,
+        y: c / 2,
+        w: Math.max(0, w - c),
+        h: Math.max(0, h - c / 2),
+      };
+    },
+  },
+
+  // Loop limit, end: bottom corners cut.
+  loopEnd: {
+    outline(w, h) {
+      const c = Math.min(w * 0.2, h * 0.3);
+      return [
+        ['M', 0, 0],
+        ['L', w, 0],
+        ['L', w, h - c],
+        ['L', w - c, h],
+        ['L', c, h],
+        ['L', 0, h - c],
+        ['Z'],
+      ];
+    },
+    sides(w, h) {
+      const c = Math.min(w * 0.2, h * 0.3);
+      return {
+        top: [0, w],
+        right: [0, h - c],
+        bottom: [c, w - c],
+        left: [0, h - c],
+      };
+    },
+    // Its bottom corners sit on the cut edges, so the box stays inside.
+    textBox(w, h) {
+      const c = Math.min(w * 0.2, h * 0.3);
+      return {
+        x: c / 2,
+        y: 0,
+        w: Math.max(0, w - c),
+        h: Math.max(0, h - c / 2),
+      };
     },
   },
 };

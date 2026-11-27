@@ -204,3 +204,152 @@ describe('getLabelWrapWidth', () => {
     expect(getLabelWrapWidth(tiny, 10, H)).toBe(24);
   });
 });
+
+/** Points where the segment p..q crosses the ray from c along (dx, dy). */
+function rayCrossings(
+  polygon: ReadonlyArray<readonly [number, number]>,
+  cx: number,
+  cy: number,
+  dx: number,
+  dy: number,
+): number {
+  let count = 0;
+  for (let i = 0; i + 1 < polygon.length; i++) {
+    const [px, py] = polygon[i]!;
+    const [qx, qy] = polygon[i + 1]!;
+    const ex = qx - px;
+    const ey = qy - py;
+    const den = dx * ey - dy * ex;
+    if (Math.abs(den) < 1e-12) continue;
+    const t = ((px - cx) * ey - (py - cy) * ex) / den;
+    const u = ((px - cx) * dy - (py - cy) * dx) / den;
+    // Half-open on u so a ray through a vertex counts it once.
+    if (t > 1e-9 && u >= 0 && u < 1) count++;
+  }
+  return count;
+}
+
+describe('every flowchart symbol', () => {
+  for (const kind of SHAPE_KINDS) {
+    it(`${kind} is star-shaped around its center`, () => {
+      // Border snapping casts rays from the center and takes the first
+      // crossing: every ray must cross the outline exactly once, at any
+      // proportions. Densely sampled, since pockets can be narrow.
+      for (const [w, h] of [
+        [200, 100],
+        [100, 200],
+        [300, 60],
+        [80, 80],
+      ] as const) {
+        const polygon = getShapeOutlinePolygon(kind, w, h);
+        for (let i = 0; i < 720; i++) {
+          const angle = (i / 720) * Math.PI * 2 + 0.001;
+          const crossings = rayCrossings(
+            polygon,
+            w / 2,
+            h / 2,
+            Math.cos(angle),
+            Math.sin(angle),
+          );
+          if (crossings !== 1)
+            throw new Error(`${kind} ${w}x${h}: ${crossings} at ${angle}`);
+        }
+      }
+    });
+
+    it(`${kind} declares side stretches inside its box`, () => {
+      const sides = SHAPE_DEFINITIONS[kind].sides(W, H);
+      for (const [side, span] of Object.entries(sides)) {
+        if (!span) continue;
+        const length = side === 'top' || side === 'bottom' ? W : H;
+        expect(span[0]).toBeGreaterThanOrEqual(-EPS);
+        expect(span[1]).toBeLessThanOrEqual(length + EPS);
+        expect(span[1]).toBeGreaterThan(span[0]);
+      }
+    });
+  }
+});
+
+describe('ISO symbols added in 1.29', () => {
+  it('meet the border where their shape says', () => {
+    // Stored data: the concave right side is deepest at mid height.
+    const s = Math.min(W * 0.12, H * 0.35);
+    const [rx, ry] = getShapeBorderPointToward('storedData', W, H, 1, 0);
+    expect(rx).toBeCloseTo(W - s, 1);
+    expect(ry).toBeCloseTo(H / 2, 1);
+    // Off-page connector and merge end in a point at the bottom center.
+    for (const kind of ['offPageConnector', 'merge'] as const) {
+      const [bx, by] = getShapeBorderPointToward(kind, W, H, 0, 1);
+      expect(bx).toBeCloseTo(W / 2);
+      expect(by).toBeCloseTo(H);
+    }
+  });
+
+  it('draw multiple documents as one outline with the hidden edges as details', () => {
+    const def = SHAPE_DEFINITIONS.multiDocument;
+    expect(flattenShapeCommands(def.outline(W, H))).toHaveLength(1);
+    expect(flattenShapeCommands(def.details!(W, H))).toHaveLength(2);
+  });
+
+  it('keep their text box inside the outline', () => {
+    const added = [
+      'manualOperation',
+      'display',
+      'offPageConnector',
+      'storedData',
+      'internalStorage',
+      'multiDocument',
+      'merge',
+      'loopStart',
+      'loopEnd',
+    ] as const;
+    const inside = (
+      polygon: ReadonlyArray<readonly [number, number]>,
+      x: number,
+      y: number,
+    ) => {
+      // Point in polygon, or within half a unit of its outline.
+      let hit = false;
+      for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const [xi, yi] = polygon[i]!;
+        const [xj, yj] = polygon[j]!;
+        if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi)
+          hit = !hit;
+      }
+      return hit || near(polygon, x, y);
+    };
+    const near = (
+      polygon: ReadonlyArray<readonly [number, number]>,
+      x: number,
+      y: number,
+    ) =>
+      polygon.some(([px, py], i) => {
+        const [qx, qy] = polygon[(i + 1) % polygon.length]!;
+        const len = Math.hypot(qx - px, qy - py) || 1;
+        const t = Math.max(
+          0,
+          Math.min(1, ((x - px) * (qx - px) + (y - py) * (qy - py)) / len ** 2),
+        );
+        return Math.hypot(px + t * (qx - px) - x, py + t * (qy - py) - y) < 0.5;
+      });
+    for (const kind of added) {
+      const polygon = getShapeOutlinePolygon(kind, W, H);
+      const box = getShapeTextBox(kind, W, H);
+      for (const [x, y] of [
+        [box.x, box.y],
+        [box.x + box.w, box.y],
+        [box.x, box.y + box.h],
+        [box.x + box.w, box.y + box.h],
+      ] as const)
+        if (!inside(polygon, x, y))
+          throw new Error(`${kind}: text box corner (${x}, ${y}) outside`);
+    }
+  });
+
+  it('declare an insert size only where 160 x 80 reads badly', () => {
+    const sized = Object.entries(SHAPE_DEFINITIONS)
+      .filter(([, def]) => def.insertSize)
+      .map(([kind]) => kind);
+    expect(sized.sort()).toEqual(['merge', 'offPageConnector']);
+  });
+});

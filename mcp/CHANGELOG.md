@@ -4,6 +4,16 @@ All notable changes to `@markasso/mcp` are documented here. The MCP server is ve
 
 ---
 
+## [0.9.0] - 2026-11-27
+
+### Added
+- **Nine more ISO 5807 flowchart symbols.** Node kinds `manualOperation` (a manual step), `display`, `offPageConnector` (the flow continues on another page), `storedData`, `internalStorage`, `multiDocument`, `merge`, `loopStart` and `loopEnd` (loop limits) join the eight existing ones, with the same connector snapping and spread ports. The off-page connector starts at 80 x 80 and the merge triangle at 100 x 80.
+
+### Fixed
+- **Flowchart symbol sizing.** A symbol whose text area is not proportional to it (a merge triangle) no longer grows much wider than its label needs, and changing a symbol's label keeps its own default size.
+
+---
+
 ## [0.8.2] - 2026-11-27
 
 ### Changed
