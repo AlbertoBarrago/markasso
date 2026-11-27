@@ -24,6 +24,7 @@ import type {
   Element,
   LineElement,
 } from '../elements/element';
+import { SHAPE_DEFINITIONS, type ShapeSide } from '../elements/shapes';
 import {
   getStencilLabelBox,
   getStencilLabelHeight,
@@ -41,6 +42,7 @@ import {
   getShapeBorderPointToward,
   getShapeDistToBoundary,
   getShapeNearestBorderPoint,
+  getShapeSideEdge,
 } from './shape_geometry';
 
 /**
@@ -649,7 +651,7 @@ function elbowEnd(
 interface ElbowEnd {
   point: RoutePoint;
   readonly dir: RouteDirection;
-  readonly stub: number;
+  stub: number;
 }
 
 /** Both ends of an elbow connector before ports are spread along sides. */
@@ -729,9 +731,8 @@ function planElbowEnds(
   if (s && e && startEl && endEl && !el.startAnchor && !el.endAnchor) {
     const shared = sharedOffset(startEl, s.dir, endEl, e.dir);
     if (shared !== null) {
-      const vertical = s.dir.dx === 0;
-      s.point = vertical ? [shared, s.point[1]] : [s.point[0], shared];
-      e.point = vertical ? [shared, e.point[1]] : [e.point[0], shared];
+      placeAlong(s, startEl, shared);
+      placeAlong(e, endEl, shared);
       aligned = true;
     }
   }
@@ -812,8 +813,8 @@ export function spreadAlongSide(
  * connectors do not cross each other. Returns the ends it moved, with their
  * new coordinate along the side (x for top/bottom, y for left/right).
  *
- * Pinned ends, hidden connectors, self-loops and sides that are not flat
- * (see flatSideRange) keep their planned point, and a side with a single
+ * Pinned ends, hidden connectors, self-loops and sides with a single port
+ * (see sideSpan) keep their planned point, and a side with a single
  * end is left alone. The result depends only on the scene, so every live
  * peer computes the same routes; it is cached per elements array, which is
  * immutable, so a frame resolving N connectors plans each of them once
@@ -860,7 +861,7 @@ function elbowPortSlots(
     ] as const;
     const added: Member[] = [];
     for (const [end, node, anchor, other, which] of ends) {
-      if (!end || !node || anchor || !flatSideRange(node, end.dir)) continue;
+      if (!end || !node || anchor || !sideSpan(node, end.dir)) continue;
       const axis = end.dir.dx === 0 ? 0 : 1;
       const depth =
         (other[0] - end.point[0]) * end.dir.dx +
@@ -901,7 +902,7 @@ function elbowPortSlots(
   );
   for (const [, members] of order) {
     const { node, dir } = members[0]!;
-    const [lo, hi] = flatSideRange(node, dir)!;
+    const [lo, hi] = sideSpan(node, dir)!;
     const preferred = new Map<Member, number>();
     for (const m of members) {
       const partner = partnerOf.get(m.key);
@@ -934,9 +935,42 @@ function elbowPortSlots(
   return slots;
 }
 
-/** Moves an end's point to `along` on its side's axis. */
-function placeAlong(end: ElbowEnd, along: number): void {
-  end.point = end.dir.dx === 0 ? [along, end.point[1]] : [end.point[0], along];
+/**
+ * Moves an end's point to `along` on its side's axis. On a flowchart symbol
+ * the point also moves across, onto the outline, since that side may be
+ * slanted or curved; flat sides keep their line.
+ */
+function placeAlong(end: ElbowEnd, node: Element, along: number): void {
+  const vertical = end.dir.dx === 0;
+  let across = vertical ? end.point[1] : end.point[0];
+  if (node.type === 'shape' && !node.rotation) {
+    const b = getElementBounds(node);
+    const [start, length] = vertical ? [b.x, b.w] : [b.y, b.h];
+    // Clamped: at huge coordinates a span end can round just past the box.
+    const local = Math.min(Math.max(along - start, 0), length);
+    const edge = getShapeSideEdge(node.kind, b.w, b.h, sideOf(end.dir), local);
+    if (edge !== null) {
+      across = edge + (vertical ? b.y : b.x);
+      // An end deep in a slant or a wave gets a longer stub, so the first
+      // turn clears the box instead of cutting back through the symbol.
+      const outer = vertical
+        ? end.dir.dy === 1
+          ? b.y + b.h
+          : b.y
+        : end.dir.dx === 1
+          ? b.x + b.w
+          : b.x;
+      end.stub = ELBOW_STUB + Math.abs(outer - across);
+    }
+  }
+  end.point = vertical ? [along, across] : [across, along];
+}
+
+/** The box side an outward axis direction leaves by. */
+function sideOf(dir: RouteDirection): ShapeSide {
+  if (dir.dy === -1) return 'top';
+  if (dir.dy === 1) return 'bottom';
+  return dir.dx === 1 ? 'right' : 'left';
 }
 
 /**
@@ -961,8 +995,10 @@ export function resolveConnectorRoute(
   const slots = elbowPortSlots(allElements);
   const startSlot = slots.get(slotKey(el.id, 'start'));
   const endSlot = slots.get(slotKey(el.id, 'end'));
-  if (s && startSlot !== undefined) placeAlong(s, startSlot);
-  if (e && endSlot !== undefined) placeAlong(e, endSlot);
+  if (s && plan.startEl && startSlot !== undefined)
+    placeAlong(s, plan.startEl, startSlot);
+  if (e && plan.endEl && endSlot !== undefined)
+    placeAlong(e, plan.endEl, endSlot);
 
   return computeElbowRoute(
     s?.point ?? plan.start,
@@ -975,15 +1011,26 @@ export function resolveConnectorRoute(
 }
 
 /**
- * Extent of the flat side a connector leaves `el` by, along that side (x for
- * top/bottom, y for left/right), inset from rounded corners; null for shapes
- * whose sides aren't flat (ellipse, rhombus, flowchart symbols) or rotated.
+ * Stretch of the side a connector leaves `el` by where several ends can
+ * spread, along that side (x for top/bottom, y for left/right): a flat side
+ * inset from rounded corners, or the stretch a flowchart symbol declares
+ * (see ShapeSides), which may be slanted or curved. Null for sides with a
+ * single port (ellipse, rhombus, round or pointed symbol ends) and for
+ * rotated elements.
  */
-function flatSideRange(
+function sideSpan(
   el: Element,
   dir: RouteDirection,
 ): readonly [number, number] | null {
   if (el.rotation) return null;
+  const b = getElementBounds(el);
+  const vertical = dir.dx === 0;
+  if (el.type === 'shape') {
+    const span = SHAPE_DEFINITIONS[el.kind].sides(b.w, b.h)[sideOf(dir)];
+    if (!span || span[1] - span[0] < 1) return null;
+    const offset = vertical ? b.x : b.y;
+    return [span[0] + offset, span[1] + offset];
+  }
   if (
     el.type !== 'rectangle' &&
     el.type !== 'stencil' &&
@@ -991,13 +1038,13 @@ function flatSideRange(
     el.type !== 'image'
   )
     return null;
-  const b = getElementBounds(el);
   // A stencil's bottom side is the bottom of its label.
   const side =
     el.type === 'stencil' && dir.dy === 1 ? (getStencilLabelBox(el) ?? b) : b;
   const inset = el.type === 'rectangle' ? (el.cornerRadius ?? 0) : 0;
-  const [lo, hi] =
-    dir.dx === 0 ? [side.x, side.x + side.w] : [side.y, side.y + side.h];
+  const [lo, hi] = vertical
+    ? [side.x, side.x + side.w]
+    : [side.y, side.y + side.h];
   return hi - lo > inset * 2 ? [lo + inset, hi - inset] : null;
 }
 
@@ -1016,8 +1063,8 @@ function sharedOffset(
   endDir: RouteDirection,
 ): number | null {
   if (startDir.dx !== -endDir.dx || startDir.dy !== -endDir.dy) return null;
-  const a = flatSideRange(startEl, startDir);
-  const b = flatSideRange(endEl, endDir);
+  const a = sideSpan(startEl, startDir);
+  const b = sideSpan(endEl, endDir);
   if (!a || !b) return null;
   const lo = Math.max(a[0], b[0]);
   const hi = Math.min(a[1], b[1]);

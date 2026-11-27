@@ -4,6 +4,7 @@ import type {
   ArrowElement,
   LineElement,
   RectangleElement,
+  RhombusElement,
   ShapeElement,
 } from '../src/elements/element';
 import type { Handle } from '../src/rendering/draw_selection';
@@ -1004,6 +1005,183 @@ describe('elbow port spreading', () => {
       [100, 60],
       [100, 200],
     ]);
+  });
+});
+
+describe('elbow port spreading on flowchart symbols', () => {
+  const link = (
+    id: string,
+    from: string,
+    to: string,
+    extra: Partial<LineElement> = {},
+  ) =>
+    makeLine({
+      id,
+      x: 0,
+      y: 0,
+      x2: 0,
+      y2: 0,
+      routing: 'elbow',
+      startElementId: from,
+      endElementId: to,
+      ...extra,
+    });
+
+  it('spreads a request and its response on a terminator, keeping them straight', () => {
+    // The demo case: an agent and the server below it, connected both ways.
+    const agent = makeShape({ id: 'agent', kind: 'terminator', x: 0, y: 0 });
+    const server = makeRect('server', 0, 300, 200, 80);
+    const request = link('request', 'agent', 'server');
+    const response = link('response', 'server', 'agent');
+    const all = [agent, server, request, response];
+    const a = resolveConnectorRoute(request, all);
+    const b = resolveConnectorRoute(response, all);
+    // Two separate, straight vertical connectors on the terminator's flat
+    // bottom (between its round ends, x in [50, 150]).
+    expect(a).toHaveLength(2);
+    expect(b).toHaveLength(2);
+    expect(a[0]![0]).not.toBe(b[b.length - 1]![0]);
+    for (const [x, y] of [a[0]!, b[b.length - 1]!]) {
+      expect(y).toBeCloseTo(100);
+      expect(x).toBeGreaterThan(50);
+      expect(x).toBeLessThan(150);
+    }
+  });
+
+  it('places spread ends on a slanted side, on the slant', () => {
+    // A data parallelogram: its left side runs from (40, 0) down to (0, 100).
+    const data = makeShape({ id: 'data', kind: 'data', x: 400, y: 0 });
+    const left = makeRect('left', 0, 0, 100, 100);
+    const l1 = link('l1', 'left', 'data');
+    const l2 = link('l2', 'left', 'data');
+    const all = [data, left, l1, l2];
+    const ends = [l1, l2].map((l) => {
+      const route = resolveConnectorRoute(l, all);
+      return route[route.length - 1]!;
+    });
+    expect(ends[0]![1]).not.toBeCloseTo(ends[1]![1]);
+    for (const [x, y] of ends) {
+      // On the slant: x = 400 + 40 * (1 - y / 100).
+      expect(x).toBeCloseTo(400 + 40 * (1 - y / 100), 3);
+    }
+  });
+
+  it('spreads on the walls and the middle of the rims of a cylinder', () => {
+    const db = makeShape({ id: 'db', kind: 'database', x: 0, y: 300 });
+    const app = makeRect('app', 0, 0, 200, 80);
+    const read = link('read', 'app', 'db');
+    const write = link('write', 'app', 'db');
+    const all = [db, app, read, write];
+    const tops = [read, write].map((l) => {
+      const route = resolveConnectorRoute(l, all);
+      return route[route.length - 1]!;
+    });
+    expect(tops[0]![0]).not.toBeCloseTo(tops[1]![0]);
+    for (const [x, y] of tops) {
+      // Within the middle half of the top rim, on the ellipse (above the
+      // rim's lowest point at y = 300 + 15).
+      expect(x).toBeGreaterThanOrEqual(50);
+      expect(x).toBeLessThanOrEqual(150);
+      expect(y).toBeGreaterThanOrEqual(300);
+      expect(y).toBeLessThan(315);
+    }
+  });
+
+  it('spreads on the middle half of a round end, on the curve', () => {
+    // Left to right: the terminator's round right end takes both.
+    const hub = makeShape({ id: 'hub', kind: 'terminator', x: 0, y: 0 });
+    const right = makeRect('right', 400, 0, 100, 100);
+    const r1 = link('r1', 'hub', 'right');
+    const r2 = link('r2', 'right', 'hub');
+    const all = [hub, right, r1, r2];
+    const a = resolveConnectorRoute(r1, all)[0]!;
+    const b = resolveConnectorRoute(r2, all).at(-1)!;
+    expect(a[1]).not.toBeCloseTo(b[1]);
+    for (const [x, y] of [a, b]) {
+      expect(y).toBeGreaterThanOrEqual(25);
+      expect(y).toBeLessThanOrEqual(75);
+      // On the drawn cap: four cubics approximating a circle of radius 50
+      // centered at (150, 50), within 0.01 of it. The flattened polygon,
+      // used before, sat up to 0.06 inside.
+      expect(Math.hypot(x - 150, y - 50)).toBeCloseTo(50, 1);
+    }
+  });
+
+  it('spreads on the bottom rim of a cylinder, exactly on the curve', () => {
+    // 200 x 100 cylinder: bottom rim is a half ellipse, rx 100, ry 15,
+    // centered at (100, 85).
+    const db = makeShape({ id: 'db', kind: 'database', x: 0, y: 0 });
+    const out = makeRect('out', 0, 300, 200, 80);
+    const l1 = link('l1', 'db', 'out');
+    const l2 = link('l2', 'db', 'out');
+    const all = [db, out, l1, l2];
+    const starts = [l1, l2].map((l) => resolveConnectorRoute(l, all)[0]!);
+    expect(starts[0]![0]).not.toBeCloseTo(starts[1]![0]);
+    for (const [x, y] of starts) {
+      expect(y).toBeGreaterThan(85);
+      expect(((x - 100) / 100) ** 2 + ((y - 85) / 15) ** 2).toBeCloseTo(1, 2);
+    }
+  });
+
+  it('spreads vertical links on a circular terminator too', () => {
+    const circle = makeShape({
+      id: 'circle',
+      kind: 'terminator',
+      width: 100,
+      height: 100,
+    });
+    const below = makeRect('below', 0, 300, 100, 80);
+    const l1 = link('l1', 'circle', 'below');
+    const l2 = link('l2', 'circle', 'below');
+    const all = [circle, below, l1, l2];
+    const a = resolveConnectorRoute(l1, all)[0]!;
+    const b = resolveConnectorRoute(l2, all)[0]!;
+    expect(a[0]).not.toBeCloseTo(b[0]);
+    // On the drawn outline (cubics within 0.01 of the circle).
+    for (const [x, y] of [a, b])
+      expect(Math.hypot(x - 50, y - 50)).toBeCloseTo(50, 1);
+  });
+
+  it('gives an end deep in a wave a stub that clears the box', () => {
+    // A tall document and a thin box tucked beside its wavy bottom: they
+    // align at x = 45, where the wave dips to y ~ 456, and the route must
+    // detour. Its first turn has to clear the document's box (y = 500),
+    // not run back through the wave.
+    const doc = makeShape({
+      id: 'doc',
+      kind: 'document',
+      width: 100,
+      height: 500,
+    });
+    const box = makeRect('box', 41, 486, 8, 80);
+    const l = link('l', 'doc', 'box');
+    const route = resolveConnectorRoute(l, [doc, box, l]);
+    expect(route[0]![0]).toBeCloseTo(45);
+    expect(route[0]![1]).toBeLessThan(500);
+    expect(route[1]![1]).toBeGreaterThan(500);
+  });
+
+  it('keeps decisions on their vertices', () => {
+    const decision: RhombusElement = {
+      ...makeRect('decision', 0, 0, 200, 100),
+      type: 'rhombus',
+    };
+    const below = makeRect('below', 0, 300, 200, 80);
+    const d1 = link('d1', 'decision', 'below');
+    const d2 = link('d2', 'decision', 'below');
+    const all = [decision, below, d1, d2];
+    expect(resolveConnectorRoute(d1, all)[0]).toEqual([100, 100]);
+    expect(resolveConnectorRoute(d2, all)[0]).toEqual([100, 100]);
+  });
+
+  it('runs straight between a symbol and a box that face each other', () => {
+    // Offset, but the terminator's flat bottom overlaps the box's top.
+    const start = makeShape({ id: 'start', kind: 'terminator', x: 0, y: 0 });
+    const step = makeRect('step', 120, 300, 200, 80);
+    const flow = link('flow', 'start', 'step');
+    const route = resolveConnectorRoute(flow, [start, step, flow]);
+    expect(route).toHaveLength(2);
+    expect(route[0]![0]).toBeCloseTo(route[1]![0]);
   });
 });
 

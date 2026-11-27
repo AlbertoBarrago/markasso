@@ -19,9 +19,25 @@ export interface ShapeBox {
   readonly h: number;
 }
 
+export type ShapeSide = 'top' | 'right' | 'bottom' | 'left';
+
+/**
+ * For each side, the stretch where several elbow connector ends can attach
+ * spread out, in shape-local coordinates along that side (x for top and
+ * bottom, y for left and right), or null to keep a single middle port. The
+ * stretch may be slanted or curved: ends are placed on the outline there.
+ * On a round cap or a point, only its middle half is used, where the
+ * outline still faces the side.
+ */
+export type ShapeSides = Readonly<
+  Record<ShapeSide, readonly [number, number] | null>
+>;
+
 export interface ShapeDefinition {
   /** Closed outline: filled, stroked, and used for connector snapping. */
   outline(w: number, h: number): ShapeCommand[];
+  /** Where connector ends may spread on each side (see ShapeSides). */
+  sides(w: number, h: number): ShapeSides;
   /** Inner strokes that are drawn but never filled (e.g. cylinder rim). */
   details?(w: number, h: number): ShapeCommand[];
   /** Area where the label is laid out, in shape-local coordinates. */
@@ -48,6 +64,16 @@ function quarter(
     : ['C', x0, y0 + (y1 - y0) * K, x1 - (x1 - x0) * K, y1, x1, y1];
 }
 
+/** Middle half of `0..length`: the usable part of a cap or a point. */
+function middleHalf(length: number): readonly [number, number] {
+  return [length * 0.25, length * 0.75];
+}
+
+/** Every side usable along its full length. */
+function allSides(w: number, h: number): ShapeSides {
+  return { top: [0, w], right: [0, h], bottom: [0, w], left: [0, h] };
+}
+
 function rectCommands(w: number, h: number): ShapeCommand[] {
   return [['M', 0, 0], ['L', w, 0], ['L', w, h], ['L', 0, h], ['Z']];
 }
@@ -68,6 +94,20 @@ export const SHAPE_DEFINITIONS: Readonly<Record<ShapeKind, ShapeDefinition>> = {
         ['Z'],
       ];
     },
+    // Flat between the round ends; on the ends, their middle half. A short
+    // or circular terminator has (almost) no flat top: the middle half of
+    // its width, on the curve, is used instead.
+    sides(w, h) {
+      const r = Math.min(w / 2, h / 2);
+      const flat: readonly [number, number] =
+        w - 2 * r >= w * 0.5 ? [r, w - r] : middleHalf(w);
+      return {
+        top: flat,
+        right: middleHalf(h),
+        bottom: flat,
+        left: middleHalf(h),
+      };
+    },
     textBox(w, h) {
       const r = Math.min(w / 2, h / 2);
       return { x: r * 0.4, y: 0, w: Math.max(0, w - r * 0.8), h };
@@ -79,6 +119,11 @@ export const SHAPE_DEFINITIONS: Readonly<Record<ShapeKind, ShapeDefinition>> = {
     outline(w, h) {
       const s = Math.min(w * 0.2, h * 0.5);
       return [['M', s, 0], ['L', w, 0], ['L', w - s, h], ['L', 0, h], ['Z']];
+    },
+    // The slanted sides take ends too, placed on the slant.
+    sides(w, h) {
+      const s = Math.min(w * 0.2, h * 0.5);
+      return { top: [s, w], right: [0, h], bottom: [0, w - s], left: [0, h] };
     },
     textBox(w, h) {
       const s = Math.min(w * 0.2, h * 0.5);
@@ -99,6 +144,11 @@ export const SHAPE_DEFINITIONS: Readonly<Record<ShapeKind, ShapeDefinition>> = {
         ['Z'],
       ];
     },
+    // Ends on the bottom sit on the wave.
+    sides(w, h) {
+      const base = h - h * 0.1;
+      return { top: [0, w], right: [0, base], bottom: [0, w], left: [0, base] };
+    },
     textBox(w, h) {
       return { x: 0, y: 0, w, h: h * 0.82 };
     },
@@ -118,6 +168,16 @@ export const SHAPE_DEFINITIONS: Readonly<Record<ShapeKind, ShapeDefinition>> = {
         ['Z'],
       ];
     },
+    // Straight walls; on the rims, their middle half.
+    sides(w, h) {
+      const ry = Math.min(h * 0.15, w * 0.25);
+      return {
+        top: middleHalf(w),
+        right: [ry, h - ry],
+        bottom: middleHalf(w),
+        left: [ry, h - ry],
+      };
+    },
     details(w, h) {
       const ry = Math.min(h * 0.15, w * 0.25);
       return [
@@ -135,6 +195,7 @@ export const SHAPE_DEFINITIONS: Readonly<Record<ShapeKind, ShapeDefinition>> = {
   // Predefined process (subroutine): rectangle with two inner side bars.
   predefinedProcess: {
     outline: rectCommands,
+    sides: allSides,
     details(w, h) {
       const d = Math.min(w * 0.1, 16);
       return [
@@ -164,6 +225,16 @@ export const SHAPE_DEFINITIONS: Readonly<Record<ShapeKind, ShapeDefinition>> = {
         ['Z'],
       ];
     },
+    // On the pointed ends, their middle half.
+    sides(w, h) {
+      const s = Math.min(w * 0.2, h * 0.5);
+      return {
+        top: [s, w - s],
+        right: middleHalf(h),
+        bottom: [s, w - s],
+        left: middleHalf(h),
+      };
+    },
     textBox(w, h) {
       const s = Math.min(w * 0.2, h * 0.5);
       return { x: s * 0.6, y: 0, w: Math.max(0, w - s * 1.2), h };
@@ -175,6 +246,15 @@ export const SHAPE_DEFINITIONS: Readonly<Record<ShapeKind, ShapeDefinition>> = {
     outline(w, h) {
       const t = h * 0.25;
       return [['M', 0, t], ['L', w, 0], ['L', w, h], ['L', 0, h], ['Z']];
+    },
+    // Ends on the sloping top sit on the slope.
+    sides(w, h) {
+      return {
+        top: [0, w],
+        right: [0, h],
+        bottom: [0, w],
+        left: [h * 0.25, h],
+      };
     },
     textBox(w, h) {
       const t = h * 0.25;
@@ -194,6 +274,16 @@ export const SHAPE_DEFINITIONS: Readonly<Record<ShapeKind, ShapeDefinition>> = {
         ['L', 0, h],
         ['Z'],
       ];
+    },
+    // On the round right side, its middle half.
+    sides(w, h) {
+      const r = Math.min(w / 2, h / 2);
+      return {
+        top: [0, w - r],
+        right: middleHalf(h),
+        bottom: [0, w - r],
+        left: [0, h],
+      };
     },
     textBox(w, h) {
       const r = Math.min(w / 2, h / 2);

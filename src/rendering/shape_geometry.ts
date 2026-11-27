@@ -4,6 +4,7 @@ import {
   SHAPE_DEFINITIONS,
   type ShapeBox,
   type ShapeCommand,
+  type ShapeSide,
 } from '../elements/shapes';
 
 type Point = readonly [number, number];
@@ -74,6 +75,100 @@ export function getShapeOutlinePolygon(
   h: number,
 ): Point[] {
   return flattenShapeCommands(SHAPE_DEFINITIONS[kind].outline(w, h))[0] ?? [];
+}
+
+/** Samples per cubic when looking for crossings, before refining them. */
+const EDGE_SCAN_STEPS = 32;
+/** Bisection rounds per crossing: far below a pixel on any shape size. */
+const EDGE_REFINE_STEPS = 40;
+
+/**
+ * Where a side's outline lies at `along` (x for top and bottom, y for left
+ * and right), in box-local coordinates: the outline crossing of the line
+ * through `along` perpendicular to the side, the outermost one toward that
+ * side. Curves are intersected exactly (scanned, then refined by
+ * bisection), not through the flattened polygon, so an end placed there
+ * touches the drawn stroke on large shapes too. Null when the line misses
+ * the outline.
+ */
+export function getShapeSideEdge(
+  kind: ShapeKind,
+  w: number,
+  h: number,
+  side: ShapeSide,
+  along: number,
+): number | null {
+  const vertical = side === 'top' || side === 'bottom';
+  const outward = side === 'bottom' || side === 'right' ? 1 : -1;
+  /** Along and across coordinates of a point. */
+  const a = (p: Point) => (vertical ? p[0] : p[1]);
+  const c = (p: Point) => (vertical ? p[1] : p[0]);
+  let best: number | null = null;
+  const consider = (at: number) => {
+    if (best === null || at * outward > best * outward) best = at;
+  };
+  const line = (p: Point, q: Point) => {
+    const lo = Math.min(a(p), a(q));
+    const hi = Math.max(a(p), a(q));
+    if (along < lo || along > hi) return;
+    const span = a(q) - a(p);
+    // A segment running along the line itself: both of its ends count.
+    if (Math.abs(span) < 1e-9) {
+      consider(c(p));
+      consider(c(q));
+    } else {
+      consider(c(p) + ((along - a(p)) / span) * (c(q) - c(p)));
+    }
+  };
+  const cubic = (p0: Point, p1: Point, p2: Point, p3: Point) => {
+    const at = (t: number): Point => [
+      cubicAt(p0[0], p1[0], p2[0], p3[0], t),
+      cubicAt(p0[1], p1[1], p2[1], p3[1], t),
+    ];
+    const offset = (t: number) => a(at(t)) - along;
+    let t0 = 0;
+    let f0 = offset(0);
+    for (let i = 1; i <= EDGE_SCAN_STEPS; i++) {
+      const t1 = i / EDGE_SCAN_STEPS;
+      const f1 = offset(t1);
+      if (f0 === 0) consider(c(at(t0)));
+      else if (f0 * f1 < 0) {
+        let lo = t0;
+        let hi = t1;
+        for (let k = 0; k < EDGE_REFINE_STEPS; k++) {
+          const mid = (lo + hi) / 2;
+          if (offset(lo) * offset(mid) <= 0) hi = mid;
+          else lo = mid;
+        }
+        consider(c(at((lo + hi) / 2)));
+      }
+      t0 = t1;
+      f0 = f1;
+    }
+    if (f0 === 0) consider(c(at(1)));
+  };
+
+  let start: Point | null = null;
+  let current: Point | null = null;
+  for (const cmd of SHAPE_DEFINITIONS[kind].outline(w, h)) {
+    if (cmd[0] === 'M') {
+      // The outline is one closed path: only its first subpath counts.
+      if (start) break;
+      start = current = [cmd[1], cmd[2]];
+    } else if (cmd[0] === 'L' && current) {
+      const next: Point = [cmd[1], cmd[2]];
+      line(current, next);
+      current = next;
+    } else if (cmd[0] === 'C' && current) {
+      const next: Point = [cmd[5], cmd[6]];
+      cubic(current, [cmd[1], cmd[2]], [cmd[3], cmd[4]], next);
+      current = next;
+    } else if (cmd[0] === 'Z' && current && start) {
+      line(current, start);
+      current = start;
+    }
+  }
+  return best;
 }
 
 export function getShapeTextBox(
