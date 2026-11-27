@@ -914,9 +914,13 @@ function elbowPortSlots(
     const pref = (m: Member) => preferred.get(m)!;
     // Preferred position first, so ends that are already apart keep their
     // order and their place; only coincident ones are ordered by angle.
+    // Positions are compared on a 0.01 grid, not with a tolerance, which
+    // would not be transitive (a ~ b ~ c but a < c) and could make the
+    // order depend on the order of the elements.
+    const grid = (m: Member) => Math.round(pref(m) * 100);
     members.sort(
       (a, b) =>
-        (Math.abs(pref(a) - pref(b)) > 0.01 ? pref(a) - pref(b) : 0) ||
+        grid(a) - grid(b) ||
         a.angle - b.angle ||
         (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
     );

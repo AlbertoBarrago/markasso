@@ -1006,3 +1006,33 @@ describe('elbow port spreading', () => {
     ]);
   });
 });
+
+describe('elbow port spreading order', () => {
+  it('orders nearly coincident ends the same whatever the element order', () => {
+    const hub = makeRect('hub', 0, 400, 200, 100);
+    // Three boxes above whose centers differ by less than 0.01: comparing
+    // with a tolerance instead of a grid was not transitive.
+    const boxes = [99.994, 100, 100.006].map((cx, i) =>
+      makeRect(`b${i}`, cx - 20, 0, 40, 60),
+    );
+    const links = ['z', 'm', 'a'].map((id, i) =>
+      makeLine({
+        id,
+        x: 0,
+        y: 0,
+        x2: 0,
+        y2: 0,
+        routing: 'elbow',
+        startElementId: `b${i}`,
+        endElementId: 'hub',
+      }),
+    );
+    const ends = (all: Parameters<typeof resolveConnectorRoute>[1]) =>
+      links.map((l) => resolveConnectorRoute(l, all).at(-1));
+    const forward = ends([hub, ...boxes, ...links]);
+    expect(ends([...[...links].reverse(), ...boxes, hub])).toEqual(forward);
+    expect(ends([links[1]!, hub, links[2]!, ...boxes, links[0]!])).toEqual(
+      forward,
+    );
+  });
+});
