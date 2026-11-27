@@ -4,10 +4,10 @@ All notable changes to `@markasso/mcp` are documented here. The MCP server is ve
 
 ---
 
-## [Unreleased]
+## [0.7.8] - 2026-11-27
 
 ### Changed
-- **Elbow connections by default.** `diagram_connect` draws orthogonal routes with rounded turns when no `routing` is given, which suits the flowcharts and architecture diagrams agents draw; pass `routing: "straight"` for radial or dense diagrams. Existing connections keep their routing. `diagram_read` now names only straight connections, and the crossing-connections hint suggests elbow routing only when one of the crossing connections is straight.
+- **Elbow connections by default ([#202](https://github.com/AlbertoBarrago/markasso/pull/202)).** `diagram_connect` draws orthogonal routes with rounded turns when no `routing` is given, which suits the flowcharts and architecture diagrams agents draw; pass `routing: "straight"` for radial or dense diagrams. Existing connections keep their routing. `diagram_read` now names only straight connections, and the crossing-connections hint suggests elbow routing only when one of the crossing connections is straight.
 
 ---
 
