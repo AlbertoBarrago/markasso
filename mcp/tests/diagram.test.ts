@@ -729,7 +729,7 @@ describe('boards from a newer version', () => {
     const newer = {
       id: 'loop',
       type: 'shape',
-      kind: 'loopStart',
+      kind: 'futureSymbol',
       x: 0,
       y: 0,
       width: 160,
@@ -745,12 +745,12 @@ describe('boards from a newer version', () => {
     await d.addNodes([{ key: 'next', label: 'Next' }]);
     d.connect([{ from: d.nodeKeys().get('loop')!, to: 'next' }]);
     expect(d.layout('TB')).toBeGreaterThan(0);
-    expect(describeDiagram(d)).toContain('[loopStart] "Each order"');
+    expect(describeDiagram(d)).toContain('[futureSymbol] "Each order"');
     const [image] = await exportPng(d, {});
     expect(image).toMatchObject({ type: 'image' });
     // Kept as written, so saving the board does not lose it.
     expect(d.elements.find((el) => el.id === 'loop')).toMatchObject({
-      kind: 'loopStart',
+      kind: 'futureSymbol',
     });
   });
 });

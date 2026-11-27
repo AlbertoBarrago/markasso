@@ -225,7 +225,7 @@ describe('shape kinds in live edits', () => {
         id: 'a',
         props: { kind },
       });
-    expect(update('loopStart')).toBe(true);
+    expect(update('futureSymbol')).toBe(true);
     expect(update('two words')).toBe(false);
     expect(update(42)).toBe(false);
   });
@@ -234,7 +234,7 @@ describe('shape kinds in live edits', () => {
     const style = (shapeKind: unknown) =>
       isValidSessionCommand({ type: 'APPLY_STYLE', shapeKind });
     expect(style('database')).toBe(true);
-    expect(style('loopStart')).toBe(false);
+    expect(style('futureSymbol')).toBe(false);
     expect(style(undefined)).toBe(true);
   });
 });
