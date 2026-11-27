@@ -1,30 +1,10 @@
+import { FORBIDDEN_SVG_ELEMENTS, isSafeSvgReference } from '../io/svg_safety';
+
 /**
- * Cleans an imported SVG before it is stored and embedded in diagrams.
- *
- * Icons are only ever rendered as images (canvas drawImage, <img>, SVG
- * <image>), where browsers already run no scripts and load no external
- * resources. This is defense in depth for anything that might later handle
- * the markup differently: active content is removed outright.
+ * Cleans an imported SVG before it is stored and embedded in diagrams,
+ * removing what breaks the shared rules of `src/io/svg_safety.ts` (see
+ * there for why they are defense in depth).
  */
-
-const FORBIDDEN_ELEMENTS = [
-  'script',
-  'foreignObject',
-  'iframe',
-  'object',
-  'embed',
-  'audio',
-  'video',
-  'animate',
-  'animateMotion',
-  'animateTransform',
-  'set',
-];
-
-function isSafeReference(value: string): boolean {
-  const v = value.trim();
-  return v.startsWith('#') || /^data:image\/(png|jpe?g|gif|webp);/i.test(v);
-}
 
 /** Returns sanitized SVG markup, or null when the file is not a usable SVG. */
 export function sanitizeSvg(markup: string): string | null {
@@ -37,7 +17,7 @@ export function sanitizeSvg(markup: string): string | null {
     return null;
   }
 
-  for (const name of FORBIDDEN_ELEMENTS) {
+  for (const name of FORBIDDEN_SVG_ELEMENTS) {
     for (const el of [...doc.getElementsByTagName(name)]) el.remove();
   }
   for (const el of [root, ...root.querySelectorAll('*')]) {
@@ -47,7 +27,7 @@ export function sanitizeSvg(markup: string): string | null {
         el.removeAttribute(attr.name);
       } else if (
         (name === 'href' || name === 'xlink:href') &&
-        !isSafeReference(attr.value)
+        !isSafeSvgReference(attr.value)
       ) {
         el.removeAttribute(attr.name);
       }
