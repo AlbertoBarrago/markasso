@@ -103,7 +103,7 @@ Bump `version` in `mcp/package.json` and both `version` fields in `mcp/server.js
 | `diagram_update_edge` | Change a connection's label, label font size, routing, heads, dash or color |
 | `diagram_disconnect` | Remove connections (by id or by from/to), keeping the nodes |
 | `diagram_remove` | Remove nodes and their connections |
-| `diagram_layout` | Arrange nodes in layers (top-to-bottom or left-to-right), then report layout warnings |
+| `diagram_layout` | Arrange nodes in layers (top-to-bottom or left-to-right), then report layout warnings. Connections that skip layers get a lane of their own, and gaps between layers fit connection labels |
 | `icons_search` | Find generic architecture icons and Kubernetes icons |
 | `diagram_save` | Save as `.markasso` |
 | `diagram_export_svg` | Export an SVG image |
