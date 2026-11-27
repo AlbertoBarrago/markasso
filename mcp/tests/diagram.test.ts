@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { wrapTextLines } from '../../src/core/text_metrics';
 import type { Element } from '../../src/elements/element';
 import { DEFAULT_LABEL_FONT_FAMILY } from '../../src/elements/label_defaults';
+import { getConnectorLabelBoxes } from '../../src/rendering/connector_labels';
 import {
   getConnectorBox,
   getElementBounds,
@@ -399,6 +400,25 @@ describe('icon labels in layout', () => {
     const iconBox = getConnectorBox(icon!);
     expect(iconBox.h).toBeGreaterThan(64 + 4 * 14);
     expect(getElementBounds(rect!).y).toBeGreaterThan(iconBox.y + iconBox.h);
+  });
+});
+
+describe('connection labels in layout', () => {
+  it('spaces LR ranks so a long connection label fits between them', async () => {
+    const d = new Diagram();
+    await d.addNodes([
+      { key: 'a', label: 'A' },
+      { key: 'b', label: 'B' },
+    ]);
+    d.connect([
+      { from: 'a', to: 'b', label: 'a rather long connection label' },
+    ]);
+    d.layout('LR');
+    const [a, b] = d.elements.map((el) => getElementBounds(el));
+    const label = getConnectorLabelBoxes(d.elements).values().next().value!;
+    // The default 100 px gap would not hold it: the layout widened the gap.
+    expect(label.w).toBeGreaterThan(100);
+    expect(b!.x - (a!.x + a!.w)).toBeGreaterThanOrEqual(label.w + 2 * 20 - 1);
   });
 });
 

@@ -22,6 +22,7 @@ import {
 } from '../../src/elements/stencils/registry';
 import { History } from '../../src/engine/history';
 import { validateElements } from '../../src/io/element_validation';
+import { getConnectorLabelSize } from '../../src/rendering/connector_labels';
 import {
   getConnectorBox,
   getElementBounds,
@@ -717,15 +718,26 @@ export class Diagram {
     if (nodes.length === 0) return 0;
     const ids = new Set(nodes.map((el) => el.id));
     const boxes = new Map(nodes.map((el) => [el.id, getConnectorBox(el)]));
-    const edges = this.elements.flatMap((el) =>
-      isConnector(el) &&
-      el.startElementId &&
-      el.endElementId &&
-      ids.has(el.startElementId) &&
-      ids.has(el.endElementId)
-        ? [{ from: el.startElementId, to: el.endElementId }]
-        : [],
-    );
+    const edges = this.elements.flatMap((el) => {
+      if (
+        !isConnector(el) ||
+        !el.startElementId ||
+        !el.endElementId ||
+        !ids.has(el.startElementId) ||
+        !ids.has(el.endElementId)
+      )
+        return [];
+      // A label's size does not depend on where the nodes are, so it is
+      // measured without resolving any route.
+      const label = el.label ? getConnectorLabelSize(el) : undefined;
+      return [
+        {
+          from: el.startElementId,
+          to: el.endElementId,
+          ...(label && { label: { width: label.w, height: label.h } }),
+        },
+      ];
+    });
     const origin = {
       x: Math.min(...[...boxes.values()].map((b) => b.x)),
       y: Math.min(...[...boxes.values()].map((b) => b.y)),
