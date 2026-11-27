@@ -107,16 +107,45 @@ export function sizeForLabel(
         : (b.h + 8) / (1 - across);
     return { w, h: Math.ceil(clamp(h, defaults.h, MAX_H)) };
   }
-  // Flowchart symbols: grow until the symbol's text box holds the block.
-  let w = Math.ceil(clamp(text + pad * 2, defaults.w, maxW));
-  for (let i = 0; i < 4; i++) {
-    const wrap = getLabelWrapWidth(shape, w, defaults.h);
-    if (wrap >= Math.min(text, maxW - pad * 2)) break;
-    w = Math.min(maxW * 1.5, Math.ceil(w * (w / Math.max(1, wrap))));
+  // Flowchart symbols. Text boxes are not proportional to the symbol (a
+  // merge triangle's is half its width, multiple documents lose their
+  // sheet offsets, which grow with the short side), so the width is found
+  // by bisection: the narrowest one, from the default up, whose text box
+  // wraps as wide as the label needs. Then the height grows until the
+  // wrapped block fits, and the width is checked again at that height.
+  const wrapAt = (w: number, h: number) => getLabelWrapWidth(shape, w, h);
+  const cap = Math.ceil(maxW * 1.5);
+  const target = Math.min(text, maxW - pad * 2);
+  const narrowest = (h: number, from: number): number => {
+    if (wrapAt(from, h) >= target) return from;
+    if (wrapAt(cap, h) < target) return cap;
+    let lo = from;
+    let hi = cap;
+    while (hi - lo > 1) {
+      const mid = Math.floor((lo + hi) / 2);
+      if (wrapAt(mid, h) >= target) hi = mid;
+      else lo = mid;
+    }
+    return hi;
+  };
+  const fitHeight = (w: number): number => {
+    let h = defaults.h;
+    for (;;) {
+      const b = block(label, wrapAt(w, h), fontSize);
+      if (h >= MAX_H || getShapeTextBox(kind, w, h).h >= b.h + 8) return h;
+      h += 10;
+    }
+  };
+  let w = narrowest(defaults.h, Math.ceil(defaults.w));
+  let h = fitHeight(w);
+  // A taller box can narrow the text box (multiple documents): widen until
+  // the label wraps as at the default height again.
+  for (let i = 0; i < 3 && w < cap; i++) {
+    const wider = narrowest(h, w);
+    if (wider === w) break;
+    w = wider;
+    h = fitHeight(w);
   }
-  const b = block(label, getLabelWrapWidth(shape, w, defaults.h), fontSize);
-  let h = defaults.h;
-  while (h < MAX_H && getShapeTextBox(kind, w, h).h < b.h + 8) h += 10;
   return { w, h };
 }
 

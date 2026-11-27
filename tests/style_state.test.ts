@@ -171,7 +171,11 @@ describe('shape kind of a selection with a symbol from a newer version', () => {
     width: 160,
     height: 80,
   } as Element;
-  const newer = { ...db, id: 'loop', kind: 'loopStart' } as unknown as Element;
+  const newer = {
+    ...db,
+    id: 'loop',
+    kind: 'futureSymbol',
+  } as unknown as Element;
 
   it('highlights no kind, whatever the selection order', () => {
     for (const order of [

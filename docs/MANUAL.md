@@ -127,12 +127,13 @@ Open the **Library** with `I` or **⋯ More tools → Library**. It is a searcha
 - On touch devices the Library opens as a bottom sheet from the tools menu.
 
 ### Flowchart Shapes
-Eight standard flowchart symbols: **Start / End**, **Data (I/O)**, **Document**, **Database**, **Predefined process**, **Preparation**, **Manual input** and **Delay**.
+Seventeen standard (ISO 5807) flowchart symbols: **Start / End**, **Data (I/O)**, **Document**, **Database**, **Predefined process**, **Preparation**, **Manual input**, **Delay**, **Manual operation**, **Display**, **Off-page connector**, **Stored data**, **Internal storage**, **Multiple documents**, **Merge**, **Loop start** and **Loop end**. Use the plain shapes for the rest: rectangle for a process step, rhombus for a decision, ellipse for an on-page connector.
 
 - Insert them from the Library, or press `S` and drag to draw the last symbol you picked.
 - Double-click a shape to type a label; it is laid out in the symbol's text area.
 - With shapes selected, the **Shape** row in the properties panel switches their symbol in place (undoable).
-- They support fill, stroke styles, roughness, rotation, PNG/SVG export and live sessions, and connectors snap to their real outline.
+- They support fill, stroke styles, roughness, rotation, PNG/SVG export and live sessions, and connectors snap to their real outline. Several elbow arrows on one side spread out instead of sharing a point.
+- A symbol from a newer version of Markasso shows as a rectangle named "Symbol from a newer version" and is kept as is when you save.
 
 ### Icons
 The **Icons** section holds Markasso's own architecture icons: server, database, cache, queue, storage, load balancer, firewall, router, network, API, container, function, browser, mobile and desktop apps, user, users, external system, secret and document.

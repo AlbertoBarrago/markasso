@@ -1,4 +1,3 @@
-import { isShapeKind } from '../elements/element';
 import {
   isAcceptedShapeKind,
   isImageSource,
@@ -242,9 +241,11 @@ const CHECKS: Record<string, (c: Fields) => boolean> = {
     ),
   APPLY_STYLE: (c) =>
     optionalIdList(c.ids) &&
-    // The shape picker only offers kinds this version knows.
+    // A newer peer's picker may offer kinds this version does not know:
+    // accept them in the element format, or switching a symbol to a new
+    // kind would apply on newer peers only and the room would diverge.
     (c.shapeKind === undefined ||
-      (typeof c.shapeKind === 'string' && isShapeKind(c.shapeKind))) &&
+      (typeof c.shapeKind === 'string' && isAcceptedShapeKind(c.shapeKind))) &&
     STYLE_STRINGS.every((key) => optionalString(c[key])) &&
     STYLE_NUMBERS.every((key) => optionalNumber(c[key])) &&
     STYLE_BOOLEANS.every((key) => optionalBoolean(c[key])),

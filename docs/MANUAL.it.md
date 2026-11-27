@@ -127,12 +127,13 @@ Apri la **Libreria** con `I` o da **⋯ Altri strumenti → Libreria**. È un pa
 - Sui dispositivi touch la Libreria si apre come foglio dal basso, dal menu degli strumenti.
 
 ### Forme flowchart
-Otto simboli standard: **Inizio / Fine**, **Dati (I/O)**, **Documento**, **Database**, **Processo predefinito**, **Preparazione**, **Input manuale** e **Attesa**.
+Diciassette simboli standard (ISO 5807): **Inizio / Fine**, **Dati (I/O)**, **Documento**, **Database**, **Processo predefinito**, **Preparazione**, **Input manuale**, **Attesa**, **Operazione manuale**, **Visualizzazione**, **Connettore fuori pagina**, **Dati memorizzati**, **Memoria interna**, **Documenti multipli**, **Unione**, **Inizio ciclo** e **Fine ciclo**. Per il resto usa le forme base: rettangolo per un passo del processo, rombo per una decisione, ellisse per un connettore nella pagina.
 
 - Inseriscili dalla Libreria, oppure premi `S` e trascina per disegnare l'ultimo simbolo scelto.
 - Doppio clic su una forma per scrivere un'etichetta, che si dispone nell'area di testo del simbolo.
 - Con delle forme selezionate, la riga **Forma** del pannello proprietà cambia il simbolo sul posto (si può annullare).
-- Supportano riempimento, stili del tratto, imprecisione, rotazione, export PNG/SVG e sessioni live; i connettori si agganciano al loro contorno reale.
+- Supportano riempimento, stili del tratto, imprecisione, rotazione, export PNG/SVG e sessioni live; i connettori si agganciano al loro contorno reale. Più frecce elbow sullo stesso lato si distribuiscono invece di partire tutte dallo stesso punto.
+- Un simbolo di una versione più recente di Markasso compare come rettangolo con il nome "Simbolo di una versione più recente" e viene conservato così com'è quando salvi.
 
 ### Icone
 La sezione **Icone** contiene le icone di architettura di Markasso: server, database, cache, coda, storage, load balancer, firewall, router, rete, API, container, funzione, browser, app mobile e desktop, utente, utenti, sistema esterno, segreto e documento.

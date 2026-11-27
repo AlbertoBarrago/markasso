@@ -81,6 +81,15 @@ export const SHAPE_KINDS = [
   'preparation',
   'manualInput',
   'delay',
+  'manualOperation',
+  'display',
+  'offPageConnector',
+  'storedData',
+  'internalStorage',
+  'multiDocument',
+  'merge',
+  'loopStart',
+  'loopEnd',
 ] as const;
 
 export type ShapeKind = (typeof SHAPE_KINDS)[number];

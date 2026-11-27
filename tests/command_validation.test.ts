@@ -225,16 +225,18 @@ describe('shape kinds in live edits', () => {
         id: 'a',
         props: { kind },
       });
-    expect(update('loopStart')).toBe(true);
+    expect(update('futureSymbol')).toBe(true);
     expect(update('two words')).toBe(false);
     expect(update(42)).toBe(false);
   });
 
-  it('only applies kinds this version knows from the shape picker', () => {
+  it('accepts kinds from a newer peer picker in the element format', () => {
+    // Refusing them would make a kind switch apply on newer peers only.
     const style = (shapeKind: unknown) =>
       isValidSessionCommand({ type: 'APPLY_STYLE', shapeKind });
     expect(style('database')).toBe(true);
-    expect(style('loopStart')).toBe(false);
+    expect(style('futureSymbol')).toBe(true);
+    expect(style('two words')).toBe(false);
     expect(style(undefined)).toBe(true);
   });
 });

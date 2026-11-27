@@ -11,6 +11,7 @@ import type {
 } from '../../src/elements/element';
 import { isShapeKind, SHAPE_KINDS } from '../../src/elements/element';
 import { DEFAULT_LABEL_FONT_FAMILY } from '../../src/elements/label_defaults';
+import { SHAPE_DEFINITIONS } from '../../src/elements/shapes';
 import {
   getBundledIcon,
   isBundledPack,
@@ -160,6 +161,15 @@ const DEFAULT_SIZES: Readonly<Record<string, { w: number; h: number }>> = {
   icon: { w: 64, h: 64 },
   shape: { w: 160, h: 80 },
 };
+
+/**
+ * Starting size of a flowchart symbol: its own insert size where 160 x 80
+ * reads badly (off-page connector, merge), like in the app's library, so
+ * creating and relabeling it agree.
+ */
+function shapeDefaultSize(kind: ShapeKind): { w: number; h: number } {
+  return SHAPE_DEFINITIONS[kind].insertSize ?? DEFAULT_SIZES.shape!;
+}
 
 /** Gap used when placing new nodes before an explicit layout. */
 const PLACEMENT_GAP = 60;
@@ -406,10 +416,9 @@ export class Diagram {
       };
     }
 
-    const sizeKey = (SHAPE_KINDS as readonly string[]).includes(kind)
-      ? 'shape'
-      : kind;
-    const defaults = DEFAULT_SIZES[sizeKey] ?? DEFAULT_SIZES.rectangle!;
+    const defaults = isShapeKind(kind)
+      ? shapeDefaultSize(kind)
+      : (DEFAULT_SIZES[kind] ?? DEFAULT_SIZES.rectangle!);
     const size = labelSize(kind, label, defaults, spec.fontSize);
     const box = {
       x,
@@ -833,13 +842,20 @@ function autoSizeOf(el: Element): Size | null {
         el.labelFontSize,
       );
     case 'shape':
-      return labelSize(
-        // A kind from a newer version is drawn as a rectangle: size it so.
-        isShapeKind(el.kind) ? el.kind : 'rectangle',
-        el.label ?? '',
-        DEFAULT_SIZES.shape!,
-        el.labelFontSize,
-      );
+      // A kind from a newer version is drawn as a rectangle: size it so.
+      return isShapeKind(el.kind)
+        ? labelSize(
+            el.kind,
+            el.label ?? '',
+            shapeDefaultSize(el.kind),
+            el.labelFontSize,
+          )
+        : labelSize(
+            'rectangle',
+            el.label ?? '',
+            DEFAULT_SIZES.rectangle!,
+            el.labelFontSize,
+          );
     default:
       return null;
   }
