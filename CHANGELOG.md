@@ -4,6 +4,16 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [1.29.0] - 2026-11-27
+
+### Added
+- **Nine more flowchart symbols ([#208](https://github.com/AlbertoBarrago/markasso/pull/208)).** The Library and the Shape row now offer the full ISO 5807 set: Manual operation, Display, Off-page connector, Stored data, Internal storage, Multiple documents, Merge, Loop start and Loop end, next to the eight existing ones. They snap, spread their arrows and export like the others; the off-page connector and the merge triangle are inserted at their own proportions.
+
+### Fixed
+- **Switching to a new symbol in a live session ([#208](https://github.com/AlbertoBarrago/markasso/pull/208)).** A participant on 1.28 no longer refuses a switch to a kind it does not know, so the room stays in sync.
+
+---
+
 ## [1.28.0] - 2026-11-27
 
 ### Changed
