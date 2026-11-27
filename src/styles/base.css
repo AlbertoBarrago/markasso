@@ -472,6 +472,24 @@ body.toolbar-placing * {
   color: var(--color-warning) !important;
 }
 
+/* Cloud mark on Invite AI agent while a Markasso Cloud licence is needed. */
+.tb-cloud-mark {
+  position: absolute;
+  top: calc(var(--spacing) * 0.5);
+  right: calc(var(--spacing) * 0.5);
+  display: flex;
+  pointer-events: none;
+}
+.tb-cloud-mark[hidden] {
+  display: none;
+}
+.tb-cloud-mark path {
+  fill: var(--color-accent);
+  stroke: var(--color-surface-island);
+  stroke-width: 1.5;
+  paint-order: stroke;
+}
+
 /* Subscript shortcut number */
 .tb-btn-key {
   position: absolute;
