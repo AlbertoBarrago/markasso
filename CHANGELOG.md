@@ -4,6 +4,13 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [1.30.0] - 2026-11-27
+
+### Changed
+- **Elbow arrows go around boxes instead of through them ([#210](https://github.com/AlbertoBarrago/markasso/pull/210)).** An elbow arrow that ran across another box now switches to the other pair of sides when that clears it, as long as it does not cross or overlap other arrows instead: a top-to-bottom fan-out leaves its hub from the bottom and reaches each box from above, with the outer arrows on the outer slots. Arrows that crossed nothing are unchanged, and everyone in a live session sees the same routes.
+
+---
+
 ## [1.29.0] - 2026-11-27
 
 ### Added
