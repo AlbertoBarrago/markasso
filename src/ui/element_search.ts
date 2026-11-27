@@ -7,7 +7,7 @@ import { resolveStrokeColorForTheme } from '../rendering/draw_element';
 import { getElementBounds } from '../rendering/draw_selection';
 import { isCompactLayout, onCompactLayoutEnter } from './compact_layout';
 import { isEditableTarget, keyBelongsToDialog } from './keyboard_utils';
-import { SHAPE_KIND_LABEL_KEYS, shapeKindIcon } from './shape_icons';
+import { shapeKindIcon, shapeKindLabelKey } from './shape_icons';
 import { GENERIC_ICON_LABEL_KEYS, genericIconSvg } from './stencil_icons';
 
 const TYPE_ICONS: Record<string, string> = {
@@ -23,7 +23,7 @@ const TYPE_ICONS: Record<string, string> = {
 
 /** Localized type name; flowchart shapes use their kind ("Database"…). */
 function getTypeName(el: Element): string {
-  if (el.type === 'shape') return t(SHAPE_KIND_LABEL_KEYS[el.kind]);
+  if (el.type === 'shape') return t(shapeKindLabelKey(el.kind));
   if (el.type === 'stencil') {
     if (el.source.kind === 'embedded') return el.source.name;
     const id = genericIconIdOf(el.source.ref);

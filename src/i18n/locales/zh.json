@@ -272,6 +272,7 @@
   "shapePreparation": "准备",
   "shapeManualInput": "手动输入",
   "shapeDelay": "延迟",
+  "shapeUnknown": "来自较新版本的符号",
   "routing": "路径",
   "routingStraight": "直线",
   "routingElbow": "折线",

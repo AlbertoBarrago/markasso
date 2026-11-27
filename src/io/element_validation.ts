@@ -4,9 +4,9 @@ import {
   CONNECTOR_ROUTINGS,
   type Element,
   type ElementType,
+  isShapeKind,
   MAX_FONT_SIZE,
   MIN_FONT_SIZE,
-  SHAPE_KINDS,
 } from '../elements/element';
 import {
   isValidEmbeddedSvg,
@@ -34,7 +34,17 @@ const LINE_CAPS = new Set(['round', 'butt', 'square']);
 const LINE_JOINS = new Set(['round', 'miter', 'bevel']);
 const TEXT_ALIGNS = new Set(['left', 'center', 'right']);
 const ARROW_HEADS = new Set(['none', 'start', 'end', 'both']);
-const SHAPE_KIND_SET: ReadonlySet<string> = new Set(SHAPE_KINDS);
+/**
+ * Shape kinds a newer version may add look like the current ones: a short
+ * camelCase word. An unknown kind of that form is kept (and drawn as a
+ * rectangle) instead of dropped, so opening a newer board here and saving
+ * it again never deletes its symbols.
+ */
+const SHAPE_KIND_FORMAT = /^[a-z][A-Za-z0-9]{0,39}$/;
+
+export function isAcceptedShapeKind(kind: string): boolean {
+  return isShapeKind(kind) || SHAPE_KIND_FORMAT.test(kind);
+}
 const ROUTINGS: ReadonlySet<string> = new Set(CONNECTOR_ROUTINGS);
 const HEAD_STYLES: ReadonlySet<string> = new Set(ARROW_HEAD_STYLES);
 
@@ -226,7 +236,7 @@ export function isValidElement(value: unknown): value is Element {
         hasBoxFields(value) &&
         hasShapeLabelFields(value) &&
         typeof value.kind === 'string' &&
-        SHAPE_KIND_SET.has(value.kind)
+        isAcceptedShapeKind(value.kind)
       );
 
     case 'stencil':

@@ -161,3 +161,28 @@ describe('getStyleState', () => {
     expect(state.values.allLocked).toBe(true);
   });
 });
+
+describe('shape kind of a selection with a symbol from a newer version', () => {
+  const db = {
+    ...base,
+    id: 'db',
+    type: 'shape',
+    kind: 'database',
+    width: 160,
+    height: 80,
+  } as Element;
+  const newer = { ...db, id: 'loop', kind: 'loopStart' } as unknown as Element;
+
+  it('highlights no kind, whatever the selection order', () => {
+    for (const order of [
+      ['db', 'loop'],
+      ['loop', 'db'],
+    ]) {
+      const state = getStyleState(sceneWith([db, newer], order))!;
+      expect(state.values.shapeKind).toBeUndefined();
+    }
+    expect(getStyleState(sceneWith([db], ['db']))!.values.shapeKind).toBe(
+      'database',
+    );
+  });
+});

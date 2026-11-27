@@ -216,3 +216,25 @@ describe('live replay', () => {
     expect(errors).toHaveLength(1);
   });
 });
+
+describe('shape kinds in live edits', () => {
+  it('accepts a newer kind in patches but not a malformed one', () => {
+    const update = (kind: unknown) =>
+      isValidSessionCommand({
+        type: 'UPDATE_ELEMENT',
+        id: 'a',
+        props: { kind },
+      });
+    expect(update('loopStart')).toBe(true);
+    expect(update('two words')).toBe(false);
+    expect(update(42)).toBe(false);
+  });
+
+  it('only applies kinds this version knows from the shape picker', () => {
+    const style = (shapeKind: unknown) =>
+      isValidSessionCommand({ type: 'APPLY_STYLE', shapeKind });
+    expect(style('database')).toBe(true);
+    expect(style('loopStart')).toBe(false);
+    expect(style(undefined)).toBe(true);
+  });
+});

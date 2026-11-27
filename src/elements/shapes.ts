@@ -1,4 +1,4 @@
-import type { ShapeKind } from './element';
+import { type AnyShapeKind, isShapeKind, type ShapeKind } from './element';
 
 /**
  * Path commands in shape-local coordinates, where (0, 0) is the top-left
@@ -311,4 +311,20 @@ export function shapeCommandsToPathData(
       return `${cmd[0]} ${round2(cmd[1] + ox)} ${round2(cmd[2] + oy)}`;
     })
     .join(' ');
+}
+
+/**
+ * Stand-in for a kind this version does not know (written by a newer one):
+ * a plain rectangle, so the element stays visible, selectable and
+ * connectable until the app is updated.
+ */
+const UNKNOWN_SHAPE: ShapeDefinition = {
+  outline: rectCommands,
+  sides: allSides,
+  textBox: (w, h) => ({ x: 0, y: 0, w, h }),
+};
+
+/** The geometry of a kind, or the rectangle stand-in for an unknown one. */
+export function getShapeDefinition(kind: AnyShapeKind): ShapeDefinition {
+  return isShapeKind(kind) ? SHAPE_DEFINITIONS[kind] : UNKNOWN_SHAPE;
 }

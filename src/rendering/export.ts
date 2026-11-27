@@ -21,7 +21,10 @@ import {
   DEFAULT_SHAPE_LABEL_FONT_SIZE,
   DEFAULT_STENCIL_LABEL_FONT_SIZE,
 } from '../elements/label_defaults';
-import { SHAPE_DEFINITIONS, shapeCommandsToPathData } from '../elements/shapes';
+import {
+  getShapeDefinition,
+  shapeCommandsToPathData,
+} from '../elements/shapes';
 import { ICON_GRID } from '../elements/stencils/generic';
 import { getBundledIcon } from '../elements/stencils/packs';
 import {
@@ -688,7 +691,7 @@ function shapeToSVG(el: ShapeElement, ox: number, oy: number): string {
   const { x: left, y: top, w, h } = normalizeRect(el);
   const x = left + ox;
   const y = top + oy;
-  const def = SHAPE_DEFINITIONS[el.kind];
+  const def = getShapeDefinition(el.kind);
   const parts = [
     `<path d="${shapeCommandsToPathData(def.outline(w, h), x, y)}" ${shapeProps(el)}/>`,
   ];

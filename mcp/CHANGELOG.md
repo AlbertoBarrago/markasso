@@ -4,6 +4,13 @@ All notable changes to `@markasso/mcp` are documented here. The MCP server is ve
 
 ---
 
+## [0.8.2] - 2026-11-27
+
+### Changed
+- **Boards from newer versions keep their symbols.** Opening a board (file, share link or live room) that uses a flowchart symbol this version does not know now keeps it, drawn as a rectangle, instead of dropping it, so saving or editing the board never deletes it. `diagram_read` shows its kind as written. New flowchart symbols are coming in a later release.
+
+---
+
 ## [0.8.1] - 2026-11-27
 
 ### Changed

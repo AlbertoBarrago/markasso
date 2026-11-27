@@ -272,6 +272,7 @@
   "shapePreparation": "Préparation",
   "shapeManualInput": "Saisie manuelle",
   "shapeDelay": "Attente",
+  "shapeUnknown": "Symbole d'une version plus récente",
   "routing": "Tracé",
   "routingStraight": "Droit",
   "routingElbow": "En coude",

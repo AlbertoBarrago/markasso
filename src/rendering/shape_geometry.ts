@@ -1,7 +1,7 @@
-import type { ShapeKind } from '../elements/element';
+import type { AnyShapeKind } from '../elements/element';
 import { DEFAULT_SHAPE_LABEL_FONT_SIZE } from '../elements/label_defaults';
 import {
-  SHAPE_DEFINITIONS,
+  getShapeDefinition,
   type ShapeBox,
   type ShapeCommand,
   type ShapeSide,
@@ -70,11 +70,11 @@ export function flattenShapeCommands(
 
 /** Closed outline polygon of a shape in box-local coordinates. */
 export function getShapeOutlinePolygon(
-  kind: ShapeKind,
+  kind: AnyShapeKind,
   w: number,
   h: number,
 ): Point[] {
-  return flattenShapeCommands(SHAPE_DEFINITIONS[kind].outline(w, h))[0] ?? [];
+  return flattenShapeCommands(getShapeDefinition(kind).outline(w, h))[0] ?? [];
 }
 
 /** Samples per cubic when looking for crossings, before refining them. */
@@ -92,7 +92,7 @@ const EDGE_REFINE_STEPS = 40;
  * the outline.
  */
 export function getShapeSideEdge(
-  kind: ShapeKind,
+  kind: AnyShapeKind,
   w: number,
   h: number,
   side: ShapeSide,
@@ -150,7 +150,7 @@ export function getShapeSideEdge(
 
   let start: Point | null = null;
   let current: Point | null = null;
-  for (const cmd of SHAPE_DEFINITIONS[kind].outline(w, h)) {
+  for (const cmd of getShapeDefinition(kind).outline(w, h)) {
     if (cmd[0] === 'M') {
       // The outline is one closed path: only its first subpath counts.
       if (start) break;
@@ -172,11 +172,11 @@ export function getShapeSideEdge(
 }
 
 export function getShapeTextBox(
-  kind: ShapeKind,
+  kind: AnyShapeKind,
   w: number,
   h: number,
 ): ShapeBox {
-  return SHAPE_DEFINITIONS[kind].textBox(w, h);
+  return getShapeDefinition(kind).textBox(w, h);
 }
 
 /** Horizontal room kept free on each side of a shape label, in total. */
@@ -191,7 +191,7 @@ export const ROUND_LABEL_AREA = 0.7;
  */
 export type LabeledShape = { readonly labelFontSize?: number } & (
   | { readonly type: 'rectangle' | 'ellipse' | 'rhombus' }
-  | { readonly type: 'shape'; readonly kind: ShapeKind }
+  | { readonly type: 'shape'; readonly kind: AnyShapeKind }
 );
 
 /**
@@ -242,7 +242,7 @@ function nearestOnSegment(px: number, py: number, a: Point, b: Point): Point {
  * fallback used for the built-in shapes.
  */
 export function getShapeBorderPointToward(
-  kind: ShapeKind,
+  kind: AnyShapeKind,
   w: number,
   h: number,
   dx: number,
@@ -275,7 +275,7 @@ export function getShapeBorderPointToward(
 
 /** Closest outline point to (px, py), both in box-local coordinates. */
 export function getShapeNearestBorderPoint(
-  kind: ShapeKind,
+  kind: AnyShapeKind,
   w: number,
   h: number,
   px: number,
@@ -297,7 +297,7 @@ export function getShapeNearestBorderPoint(
 
 /** Distance from (px, py) to the outline, in box-local coordinates. */
 export function getShapeDistToBoundary(
-  kind: ShapeKind,
+  kind: AnyShapeKind,
   w: number,
   h: number,
   px: number,
