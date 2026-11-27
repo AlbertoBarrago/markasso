@@ -4,6 +4,16 @@ All notable changes to `@markasso/mcp` are documented here. The MCP server is ve
 
 ---
 
+## [0.8.1] - 2026-11-27
+
+### Changed
+- **Cleaner connectors on flowchart symbols.** In exported diagrams, several elbow connectors on one side of a flowchart symbol (a request and its response on a terminator, reads and writes on a database cylinder) now get their own line instead of piling up on its middle point, and a connector between a symbol and a box that face each other runs straight. Ends sit exactly on the outline, slanted and curved sides included. Decisions (rhombus) keep their connectors on the vertices.
+
+### Fixed
+- **Labels of elbows that used to be curves.** A connection switched from curved to elbow no longer has its label, or the layout warnings, follow the old curve when its route becomes a straight line.
+
+---
+
 ## [0.8.0] - 2026-11-27
 
 ### Added
