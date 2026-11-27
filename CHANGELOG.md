@@ -4,6 +4,22 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [1.28.0] - 2026-11-27
+
+### Changed
+- **Arrows no longer pile up on flowchart symbols ([#205](https://github.com/AlbertoBarrago/markasso/pull/205)).** The spreading of elbow arrows that share a side, added in 1.27 for boxes, now works on the flowchart symbols too: a request and its response on a Start / End shape, reads and writes on a database cylinder, two arrows on the slanted side of a data shape each get their own line. Ends sit exactly on the outline, on slanted and curved sides too, and an arrow between a symbol and a box that face each other runs straight. Decisions keep their arrows on the corners.
+- **Invite AI agent shows when Cloud is needed ([#200](https://github.com/AlbertoBarrago/markasso/pull/200)).** Without a Markasso Cloud licence, the robot button in the live island carries a small cloud, like the Cloud tag on the People item.
+- **Releases deploy once ([#199](https://github.com/AlbertoBarrago/markasso/pull/199)).** Production follows main; a release tag now only publishes the GitHub Release.
+
+### Fixed
+- **Boards from newer versions keep their symbols ([#206](https://github.com/AlbertoBarrago/markasso/pull/206)).** A flowchart symbol this version does not know (from a newer one) is kept and drawn as a rectangle, named "Symbol from a newer version", instead of being dropped, so saving the board never deletes it. This prepares the new flowchart symbols coming next.
+- **Labels of elbow arrows that used to be curves ([#205](https://github.com/AlbertoBarrago/markasso/pull/205)).** An arrow switched from curved to elbow no longer has its label follow the old curve when it becomes a straight line.
+- **Spread arrows keep their order ([#205](https://github.com/AlbertoBarrago/markasso/pull/205)).** Nearly coincident arrows on a side are ordered the same for everyone in a live session, whatever the order of the elements.
+- **Share toast spacing.** The green toast clears the top-right islands instead of touching them.
+- **Chinese and Japanese What's New ([#201](https://github.com/AlbertoBarrago/markasso/pull/201))** use the app's own word for AI agent.
+
+---
+
 ## [1.27.1] - 2026-11-26
 
 ### Changed
