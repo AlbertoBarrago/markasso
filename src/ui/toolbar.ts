@@ -335,6 +335,14 @@ export function initToolbar(
   const inviteAgentBtn = mkBtn(agentIcon, t('inviteAiAgent'));
   inviteAgentBtn.id = 'tb-invite-agent';
   inviteAgentBtn.addEventListener('click', inviteAgent);
+  // Small cloud in the corner while a licence is needed: the title alone
+  // left the lock invisible until hover.
+  const inviteAgentCloudMark = document.createElement('span');
+  inviteAgentCloudMark.className = 'tb-cloud-mark';
+  inviteAgentCloudMark.setAttribute('aria-hidden', 'true');
+  inviteAgentCloudMark.innerHTML =
+    '<svg width="12" height="12" viewBox="0 0 16 16"><path d="M4.5 13a3.5 3.5 0 0 1-.4-6.98A4.5 4.5 0 0 1 12.8 6.6 3.2 3.2 0 0 1 12.5 13z"/></svg>';
+  inviteAgentBtn.append(inviteAgentCloudMark);
   // The same two actions, as items of the People popover (built further
   // down), where people look for them once a session runs.
   const peopleCopyLinkBtn = peopleAction(t('copyLiveLink'), copyLiveLink);
@@ -371,14 +379,16 @@ export function initToolbar(
     liveStartBtn.classList.toggle('tb-btn--connecting', connecting);
     liveStartBtn.setAttribute('aria-busy', String(connecting));
     inviteAgentBtn.style.display = liveActive ? '' : 'none';
-    const label = inviteAgentLocked()
+    const locked = inviteAgentLocked();
+    const label = locked
       ? `${t('inviteAiAgent')} (${t('inviteAiAgentLocked')})`
       : t('inviteAiAgent');
     inviteAgentBtn.title = label;
     inviteAgentBtn.setAttribute('aria-label', label);
     peopleInviteBtn.title = label;
     peopleInviteBtn.setAttribute('aria-label', label);
-    peopleInviteBadge.hidden = !inviteAgentLocked();
+    peopleInviteBadge.hidden = !locked;
+    inviteAgentCloudMark.hidden = !locked;
   }
   function leaveLive(): void {
     if (!leaveLiveSession()) return;
