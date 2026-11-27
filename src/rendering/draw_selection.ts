@@ -24,7 +24,7 @@ import type {
   Element,
   LineElement,
 } from '../elements/element';
-import { SHAPE_DEFINITIONS, type ShapeSide } from '../elements/shapes';
+import { getShapeDefinition, type ShapeSide } from '../elements/shapes';
 import {
   getStencilLabelBox,
   getStencilLabelHeight,
@@ -1026,7 +1026,7 @@ function sideSpan(
   const b = getElementBounds(el);
   const vertical = dir.dx === 0;
   if (el.type === 'shape') {
-    const span = SHAPE_DEFINITIONS[el.kind].sides(b.w, b.h)[sideOf(dir)];
+    const span = getShapeDefinition(el.kind).sides(b.w, b.h)[sideOf(dir)];
     if (!span || span[1] - span[0] < 1) return null;
     const offset = vertical ? b.x : b.y;
     return [span[0] + offset, span[1] + offset];

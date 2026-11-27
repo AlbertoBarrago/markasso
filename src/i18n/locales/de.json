@@ -272,6 +272,7 @@
   "shapePreparation": "Vorbereitung",
   "shapeManualInput": "Manuelle Eingabe",
   "shapeDelay": "Verzögerung",
+  "shapeUnknown": "Symbol aus einer neueren Version",
   "routing": "Verlauf",
   "routingStraight": "Gerade",
   "routingElbow": "Gewinkelt",

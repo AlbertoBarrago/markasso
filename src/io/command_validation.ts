@@ -1,4 +1,6 @@
+import { isShapeKind } from '../elements/element';
 import {
+  isAcceptedShapeKind,
   isImageSource,
   isValidElement,
   isValidStencilSource,
@@ -89,6 +91,13 @@ function isElementPatch(value: unknown): boolean {
   if ('id' in value || 'type' in value) return false;
   if ('src' in value && !isImageSource(value.src)) return false;
   if ('source' in value && !isValidStencilSource(value.source)) return false;
+  // A shape's kind follows the element rules: known, or kept from a newer
+  // version in the same format.
+  if (
+    'kind' in value &&
+    !(typeof value.kind === 'string' && isAcceptedShapeKind(value.kind))
+  )
+    return false;
   return true;
 }
 
@@ -233,6 +242,9 @@ const CHECKS: Record<string, (c: Fields) => boolean> = {
     ),
   APPLY_STYLE: (c) =>
     optionalIdList(c.ids) &&
+    // The shape picker only offers kinds this version knows.
+    (c.shapeKind === undefined ||
+      (typeof c.shapeKind === 'string' && isShapeKind(c.shapeKind))) &&
     STYLE_STRINGS.every((key) => optionalString(c[key])) &&
     STYLE_NUMBERS.every((key) => optionalNumber(c[key])) &&
     STYLE_BOOLEANS.every((key) => optionalBoolean(c[key])),

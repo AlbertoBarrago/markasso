@@ -85,6 +85,26 @@ export const SHAPE_KINDS = [
 
 export type ShapeKind = (typeof SHAPE_KINDS)[number];
 
+declare const unknownShapeKind: unique symbol;
+
+/**
+ * A flowchart symbol kind this version does not know, written by a newer
+ * one. Such elements are kept unchanged (so saving never deletes them) and
+ * drawn as a rectangle. Branded so code cannot mistake it for a ShapeKind:
+ * narrow with `isShapeKind` first.
+ */
+export type UnknownShapeKind = string & { readonly [unknownShapeKind]: true };
+
+/** A shape element's kind: known to this version, or kept from a newer one. */
+export type AnyShapeKind = ShapeKind | UnknownShapeKind;
+
+const SHAPE_KIND_SET: ReadonlySet<string> = new Set(SHAPE_KINDS);
+
+/** Whether this version knows the kind (it has a definition and a name). */
+export function isShapeKind(kind: string): kind is ShapeKind {
+  return SHAPE_KIND_SET.has(kind);
+}
+
 /**
  * Parametric flowchart shape. Its outline is defined by the geometry
  * registry in `elements/shapes.ts`, so every kind shares bounds, connector
@@ -92,7 +112,7 @@ export type ShapeKind = (typeof SHAPE_KINDS)[number];
  */
 export interface ShapeElement extends BaseElement {
   readonly type: 'shape';
-  readonly kind: ShapeKind;
+  readonly kind: AnyShapeKind;
   readonly width: number;
   readonly height: number;
   readonly label?: string;

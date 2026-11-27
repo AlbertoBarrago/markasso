@@ -275,6 +275,7 @@
   "shapePreparation": "Preparation",
   "shapeManualInput": "Manual input",
   "shapeDelay": "Delay",
+  "shapeUnknown": "Symbol from a newer version",
   "routing": "Routing",
   "routingStraight": "Straight",
   "routingElbow": "Elbow",
