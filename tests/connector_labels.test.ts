@@ -119,3 +119,17 @@ describe('connector label placement', () => {
     expect(getConnectorLabelBoxes(elements)).toBe(boxes);
   });
 });
+
+describe('labels of elbows that were curves', () => {
+  it('ignores the control point an elbow kept from its curved past', () => {
+    // Two aligned boxes: the elbow between them is one straight segment.
+    const elements: Element[] = [
+      rect('top', 0, 0),
+      rect('bottom', 0, 300),
+      { ...edge('e', 'top', 'bottom', 'flow'), cx: 600, cy: 200 },
+    ];
+    const box = getConnectorLabelBoxes(elements).get('e')!;
+    // On the straight stroke at x = 80, not near the old curve's bulge.
+    expect(box.x).toBeCloseTo(80, 0);
+  });
+});

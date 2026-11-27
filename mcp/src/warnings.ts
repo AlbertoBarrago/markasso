@@ -78,6 +78,8 @@ function polylineOf(
   const route = resolveConnectorRoute(el, elements);
   if (
     el.type !== 'line' ||
+    // An elbow keeps a curve's control point but is never drawn as one.
+    el.routing === 'elbow' ||
     el.cx === undefined ||
     el.cy === undefined ||
     route.length !== 2
