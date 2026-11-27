@@ -107,6 +107,31 @@ describe('findWarnings', () => {
     );
   });
 
+  it('suggests elbow routing only when a crossing connection is straight', () => {
+    const edge = (from: string, to: string, routing: 'straight' | 'elbow') => ({
+      id: `${from}${to}`,
+      from,
+      to,
+      routing,
+    });
+    const crossing = (routing: 'straight' | 'elbow') =>
+      formatWarnings({
+        throughNodes: [],
+        labelOverlaps: [],
+        crossings: [
+          { a: edge('a', 'b', 'elbow'), b: edge('c', 'd', routing), count: 1 },
+        ],
+        nodeOverlaps: [],
+      });
+    expect(crossing('straight')).toContain(
+      'Hint: try the other layout direction, or routing "elbow" on the straight ones (diagram_update_edge).',
+    );
+    expect(crossing('elbow')).toContain(
+      'Hint: try the other layout direction.',
+    );
+    expect(crossing('elbow')).not.toContain('routing "elbow"');
+  });
+
   it('checks the drawn route, not the stored ends', async () => {
     const d = await boxes({
       a: [0, 0],

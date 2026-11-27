@@ -84,7 +84,8 @@ export function describeDiagram(diagram: Diagram): string {
       if (el.label) parts.push(quote(el.label));
       const edgeFont = customFontSize(el);
       if (edgeFont !== undefined) parts.push(`font ${edgeFont}px`);
-      if (el.routing === 'elbow') parts.push('elbow');
+      // Agents create elbow connections by default: name only the exception.
+      if (el.routing !== 'elbow') parts.push('straight');
       if (el.strokeStyle && el.strokeStyle !== 'solid')
         parts.push(el.strokeStyle);
       if (el.type === 'line' && el.arrowHead !== 'end') {

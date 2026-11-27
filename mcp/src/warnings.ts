@@ -1,5 +1,6 @@
 import type {
   ArrowElement,
+  ConnectorRouting,
   Element,
   LineElement,
 } from '../../src/elements/element';
@@ -33,6 +34,8 @@ export interface EdgeName {
   readonly id: string;
   readonly from: string;
   readonly to: string;
+  /** Decides which hints apply (elbow routing only helps straight ones). */
+  readonly routing: ConnectorRouting;
 }
 
 export interface DiagramWarnings {
@@ -209,7 +212,12 @@ export function findWarnings(diagram: Diagram): DiagramWarnings {
     const to = el.endElementId ? keys.get(el.endElementId) : undefined;
     if (!from || !to) continue;
     edges.push({
-      name: { id: edgeShortId(el), from, to },
+      name: {
+        id: edgeShortId(el),
+        from,
+        to,
+        routing: el.routing ?? 'straight',
+      },
       el,
       segments: segmentsOf(polylineOf(el, elements)),
     });
@@ -327,8 +335,14 @@ export function formatWarnings(w: DiagramWarnings): string {
     );
   if (w.crossings.length > 0) {
     const total = w.crossings.reduce((sum, c) => sum + c.count, 0);
+    const anyStraight = w.crossings.some(
+      (c) => c.a.routing === 'straight' || c.b.routing === 'straight',
+    );
+    const hint = anyStraight
+      ? 'try the other layout direction, or routing "elbow" on the straight ones (diagram_update_edge)'
+      : 'try the other layout direction';
     lines.push(
-      `- Crossing connections (${total}): ${listed(w.crossings.map((c) => `${edgeText(c.a)} x ${edgeText(c.b)}`))}. Hint: try the other layout direction, or routing "elbow" (diagram_update_edge).`,
+      `- Crossing connections (${total}): ${listed(w.crossings.map((c) => `${edgeText(c.a)} x ${edgeText(c.b)}`))}. Hint: ${hint}.`,
     );
   }
   if (w.nodeOverlaps.length > 0)

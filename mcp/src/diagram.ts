@@ -83,10 +83,18 @@ export interface NodeSpec {
   readonly height?: number;
 }
 
+/**
+ * Routing for connections an agent creates without choosing one. Agents draw
+ * flowcharts and architecture diagrams, where orthogonal routes with rounded
+ * turns read better than diagonals.
+ */
+export const DEFAULT_ROUTING: ConnectorRouting = 'elbow';
+
 export interface EdgeSpec {
   readonly from: string;
   readonly to: string;
   readonly label?: string;
+  /** Default {@link DEFAULT_ROUTING}. */
   readonly routing?: ConnectorRouting;
   /** Which ends get a head. Default "end". */
   readonly arrow?: 'none' | 'start' | 'end' | 'both';
@@ -444,7 +452,7 @@ export class Diagram {
         startElementId: fromId,
         endElementId: toId,
         arrowHead: spec.arrow ?? 'end',
-        routing: spec.routing ?? 'straight',
+        routing: spec.routing ?? DEFAULT_ROUTING,
         ...(spec.dashed && { strokeStyle: 'dashed' as const }),
         ...(spec.startHead && { startHeadStyle: spec.startHead }),
         ...(spec.endHead && { endHeadStyle: spec.endHead }),
