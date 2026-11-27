@@ -250,7 +250,7 @@ describe('connectors follow moved nodes', () => {
       { key: 'a', label: 'A' },
       { key: 'b', label: 'B' },
     ]);
-    d.connect([{ from: 'a', to: 'b' }]);
+    d.connect([{ from: 'a', to: 'b', routing: 'straight' }]);
     return d;
   }
 

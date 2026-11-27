@@ -57,15 +57,15 @@ describe('findWarnings', () => {
     await d.addNodes([
       { key: 'e', kind: 'ellipse', x: 150, y: 10, width: 100, height: 60 },
     ]);
-    d.connect([{ from: 'a', to: 'c' }]);
+    d.connect([{ from: 'a', to: 'c', routing: 'straight' }]);
     expect(findWarnings(d).throughNodes).toEqual([]);
   });
 
   it('reports labels on nodes and on each other', async () => {
     const d = await boxes({ a: [0, 0], b: [120, 0] });
     d.connect([
-      { from: 'a', to: 'b', label: 'a rather long label' },
-      { from: 'b', to: 'a', label: 'another long label' },
+      { from: 'a', to: 'b', label: 'a rather long label', routing: 'straight' },
+      { from: 'b', to: 'a', label: 'another long label', routing: 'straight' },
     ]);
     const w = findWarnings(d);
     expect(w.labelOverlaps).toContainEqual({
@@ -89,8 +89,8 @@ describe('findWarnings', () => {
       d: [0, 300],
     });
     d.connect([
-      { from: 'a', to: 'b' },
-      { from: 'c', to: 'd' },
+      { from: 'a', to: 'b', routing: 'straight' },
+      { from: 'c', to: 'd', routing: 'straight' },
       // Shares a node with both: meets them at a border, never crosses.
       { from: 'a', to: 'c' },
     ]);
