@@ -156,3 +156,42 @@ describe('layout with disconnected flows', () => {
     expect(qMax <= iMin || iMax <= qMin).toBe(true);
   });
 });
+
+describe('sizing of the ISO symbols', () => {
+  it('fits a short merge label without stretching the triangle', async () => {
+    const d = new Diagram();
+    await d.addNodes([
+      { key: 'm', kind: 'merge', label: 'Merge', fontSize: 16 },
+    ]);
+    const el = d.elements[0]!;
+    if (el.type !== 'shape') throw new Error('expected a shape');
+    // Narrow enough to stay a triangle, wide enough for one line.
+    expect(el.width).toBeLessThan(160);
+    expect(labelLines(el, getLabelWrapWidth(el, el.width, el.height))).toEqual([
+      'Merge',
+    ]);
+  });
+
+  it('keeps long lines unwrapped on multiple documents grown taller', async () => {
+    const line = 'W'.repeat(17);
+    const label = Array.from({ length: 7 }, () => line).join('\n');
+    const d = new Diagram();
+    await d.addNodes([
+      { key: 'docs', kind: 'multiDocument', label, fontSize: 16 },
+    ]);
+    const el = d.elements[0]!;
+    if (el.type !== 'shape') throw new Error('expected a shape');
+    const wrap = getLabelWrapWidth(el, el.width, el.height);
+    // At the final size the text box still holds each line on one row.
+    expect(labelLines(el, wrap)).toHaveLength(7);
+    const box = getShapeTextBox(el.kind, el.width, el.height);
+    expect(7 * 16 * 1.2).toBeLessThanOrEqual(box.h);
+  });
+
+  it('keeps an off-page connector square when its label changes', async () => {
+    const d = new Diagram();
+    await d.addNodes([{ key: 'p', kind: 'offPageConnector', label: 'A' }]);
+    d.update('p', { label: 'B' });
+    expect(d.elements[0]).toMatchObject({ width: 80, height: 80 });
+  });
+});

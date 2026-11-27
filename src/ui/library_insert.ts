@@ -3,6 +3,7 @@ import type {
   ShapeKind,
   StencilSource,
 } from '../elements/element';
+import { SHAPE_DEFINITIONS } from '../elements/shapes';
 import { createStencil } from '../elements/stencils/registry';
 import type { History } from '../engine/history';
 
@@ -63,14 +64,18 @@ export function insertShape(
   at?: WorldPoint,
 ): void {
   const { x, y } = at ?? viewCenter(history);
+  const { w, h } = SHAPE_DEFINITIONS[kind].insertSize ?? {
+    w: SHAPE_INSERT_WIDTH,
+    h: SHAPE_INSERT_HEIGHT,
+  };
   const element: ShapeElement = {
     id: crypto.randomUUID(),
     type: 'shape',
     kind,
-    x: x - SHAPE_INSERT_WIDTH / 2,
-    y: y - SHAPE_INSERT_HEIGHT / 2,
-    width: SHAPE_INSERT_WIDTH,
-    height: SHAPE_INSERT_HEIGHT,
+    x: x - w / 2,
+    y: y - h / 2,
+    width: w,
+    height: h,
     ...currentStyle(history),
     strokeStyle: history.present.appState.strokeStyle,
   };
