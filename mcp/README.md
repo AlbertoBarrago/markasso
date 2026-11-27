@@ -98,7 +98,7 @@ Bump `version` in `mcp/package.json` and both `version` fields in `mcp/server.js
 | `diagram_open` | Open a `.markasso` file or a markasso.it share link |
 | `diagram_read` | Describe nodes (key, kind, label, position, size), connections (with their ids) and layout warnings |
 | `diagram_add_nodes` | Add nodes by key: rectangle, ellipse, rhombus, text, flowchart symbols, icons, with an optional font size. Nodes without a size fit their label |
-| `diagram_connect` | Connect nodes by key: label and its font size, straight/elbow routing, arrowhead styles, dashed |
+| `diagram_connect` | Connect nodes by key: label and its font size, elbow (default) or straight routing, arrowhead styles, dashed |
 | `diagram_update` | Change a node's label, color, font size, position or size |
 | `diagram_update_edge` | Change a connection's label, label font size, routing, heads, dash or color |
 | `diagram_disconnect` | Remove connections (by id or by from/to), keeping the nodes |

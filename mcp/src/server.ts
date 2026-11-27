@@ -115,7 +115,9 @@ const edgeSchema = z.object({
   routing: z
     .enum(['straight', 'elbow'])
     .optional()
-    .describe('elbow = orthogonal route (good for flowcharts)'),
+    .describe(
+      'elbow (default) = orthogonal route with rounded turns, for flowcharts and architecture; straight = direct line, for radial or dense diagrams',
+    ),
   arrow: z
     .enum(['none', 'start', 'end', 'both'])
     .optional()
@@ -446,7 +448,11 @@ server.registerTool(
     inputSchema: {
       ...edgeRefSchema,
       newLabel: z.string().max(200).optional().describe('New label'),
-      routing: edgeSchema.shape.routing,
+      // Same values as diagram_connect, but omitting it keeps the current
+      // routing: the connect description's "default" would mislead here.
+      routing: edgeSchema.shape.routing.describe(
+        'elbow = orthogonal route with rounded turns; straight = direct line. Omit to keep the current routing',
+      ),
       arrow: edgeSchema.shape.arrow,
       startHead: edgeSchema.shape.startHead,
       endHead: edgeSchema.shape.endHead,

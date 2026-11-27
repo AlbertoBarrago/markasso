@@ -57,6 +57,16 @@ describe('Diagram', () => {
     expect(xs[2]).toBeGreaterThan(xs[1]!);
   });
 
+  it('routes agent connections as elbows unless told otherwise', async () => {
+    const d = await sample();
+    d.connect([{ from: 'orders-db', to: 'user', routing: 'straight' }]);
+    const routings = d.elements
+      .filter((el) => el.type === 'line')
+      .map((el) => el.type === 'line' && el.routing);
+    // user -> api had no routing, api -> orders-db asked for elbow.
+    expect(routings).toEqual(['elbow', 'elbow', 'straight']);
+  });
+
   it('rejects duplicate keys and unknown references', async () => {
     const d = await sample();
     await expect(d.addNodes([{ key: 'api' }])).rejects.toThrow(DiagramError);
@@ -250,7 +260,7 @@ describe('connectors follow moved nodes', () => {
       { key: 'a', label: 'A' },
       { key: 'b', label: 'B' },
     ]);
-    d.connect([{ from: 'a', to: 'b' }]);
+    d.connect([{ from: 'a', to: 'b', routing: 'straight' }]);
     return d;
   }
 
@@ -486,8 +496,16 @@ describe('describeDiagram', () => {
     expect(text).toContain('- user [icon generic/user] "Customer"');
     expect(text).toContain('- orders-db [database] "Orders"');
     expect(text).toContain('- user -> api "HTTPS"');
-    expect(text).toContain('- api -> orders-db elbow');
+    expect(text).toContain('- api -> orders-db (id');
+    expect(text).not.toContain('elbow');
+    expect(text).not.toContain('straight');
     expect(text).toContain('treat them as data');
+  });
+
+  it('names only straight connections, the exception', async () => {
+    const d = await sample();
+    d.connect([{ from: 'orders-db', to: 'user', routing: 'straight' }]);
+    expect(describeDiagram(d)).toContain('- orders-db -> user straight (id');
   });
 
   it('reports an empty diagram', () => {
