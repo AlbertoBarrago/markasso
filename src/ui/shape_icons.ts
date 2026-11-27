@@ -1,5 +1,12 @@
-import type { ShapeKind } from '../elements/element';
-import { SHAPE_DEFINITIONS, shapeCommandsToPathData } from '../elements/shapes';
+import {
+  type AnyShapeKind,
+  isShapeKind,
+  type ShapeKind,
+} from '../elements/element';
+import {
+  getShapeDefinition,
+  shapeCommandsToPathData,
+} from '../elements/shapes';
 
 /** i18n key of each flowchart kind's display name. */
 export const SHAPE_KIND_LABEL_KEYS: Readonly<Record<ShapeKind, string>> = {
@@ -13,12 +20,17 @@ export const SHAPE_KIND_LABEL_KEYS: Readonly<Record<ShapeKind, string>> = {
   delay: 'shapeDelay',
 };
 
+/** i18n key of a kind's name; kinds from a newer version share one. */
+export function shapeKindLabelKey(kind: AnyShapeKind): string {
+  return isShapeKind(kind) ? SHAPE_KIND_LABEL_KEYS[kind] : 'shapeUnknown';
+}
+
 /**
  * Toolbar/menu icon for a flowchart kind, generated from the same geometry
  * the canvas renders so icons can never drift from the actual shapes.
  */
-export function shapeKindIcon(kind: ShapeKind, size = 18): string {
-  const def = SHAPE_DEFINITIONS[kind];
+export function shapeKindIcon(kind: AnyShapeKind, size = 18): string {
+  const def = getShapeDefinition(kind);
   // Shape box inside the 20x20 viewBox; database reads better taller.
   const [w, h] = kind === 'database' ? [12, 15] : [16, 11];
   const ox = (20 - w) / 2;

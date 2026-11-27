@@ -15,7 +15,7 @@ import {
   DEFAULT_SHAPE_LABEL_FONT_SIZE,
   DEFAULT_STENCIL_LABEL_FONT_SIZE,
 } from '../elements/label_defaults';
-import { SHAPE_DEFINITIONS, type ShapeCommand } from '../elements/shapes';
+import { getShapeDefinition, type ShapeCommand } from '../elements/shapes';
 import { type GenericIcon, ICON_GRID } from '../elements/stencils/generic';
 import { getBundledIcon } from '../elements/stencils/packs';
 import {
@@ -260,7 +260,7 @@ export function drawElement(
         ctx.beginPath();
         traceShapeCommands(
           ctx,
-          SHAPE_DEFINITIONS[el.kind].outline(bw, bh),
+          getShapeDefinition(el.kind).outline(bw, bh),
           bx,
           by,
         );
@@ -744,7 +744,7 @@ function drawShape(
   seed: number,
 ): void {
   const { x: bx, y: by, w: bw, h: bh } = normalizeRect(el);
-  const def = SHAPE_DEFINITIONS[el.kind];
+  const def = getShapeDefinition(el.kind);
   const outline = def.outline(bw, bh);
   const details = def.details?.(bw, bh);
 

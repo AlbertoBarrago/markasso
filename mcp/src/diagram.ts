@@ -9,7 +9,7 @@ import type {
   StencilElement,
   StencilSource,
 } from '../../src/elements/element';
-import { SHAPE_KINDS } from '../../src/elements/element';
+import { isShapeKind, SHAPE_KINDS } from '../../src/elements/element';
 import { DEFAULT_LABEL_FONT_FAMILY } from '../../src/elements/label_defaults';
 import {
   getBundledIcon,
@@ -834,7 +834,8 @@ function autoSizeOf(el: Element): Size | null {
       );
     case 'shape':
       return labelSize(
-        el.kind,
+        // A kind from a newer version is drawn as a rectangle: size it so.
+        isShapeKind(el.kind) ? el.kind : 'rectangle',
         el.label ?? '',
         DEFAULT_SIZES.shape!,
         el.labelFontSize,

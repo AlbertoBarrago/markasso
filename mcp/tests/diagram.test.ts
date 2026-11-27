@@ -18,7 +18,7 @@ import {
   resolveIconRef,
   slugify,
 } from '../src/diagram';
-import { svgToPng } from '../src/png';
+import { exportPng, svgToPng } from '../src/png';
 
 async function sample(): Promise<Diagram> {
   const d = new Diagram();
@@ -721,5 +721,36 @@ describe('unconnected text in layout', () => {
     d.layout('TB');
     d.history.undo();
     expect(d.elements).toEqual(before);
+  });
+});
+
+describe('boards from a newer version', () => {
+  it('reads, lays out and exports a flowchart kind it does not know', async () => {
+    const newer = {
+      id: 'loop',
+      type: 'shape',
+      kind: 'loopStart',
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 80,
+      strokeColor: '#e2e2ef',
+      fillColor: 'transparent',
+      strokeWidth: 2,
+      opacity: 1,
+      roughness: 0,
+      label: 'Each order',
+    } as unknown as Element;
+    const d = new Diagram([newer]);
+    await d.addNodes([{ key: 'next', label: 'Next' }]);
+    d.connect([{ from: d.nodeKeys().get('loop')!, to: 'next' }]);
+    expect(d.layout('TB')).toBeGreaterThan(0);
+    expect(describeDiagram(d)).toContain('[loopStart] "Each order"');
+    const [image] = await exportPng(d, {});
+    expect(image).toMatchObject({ type: 'image' });
+    // Kept as written, so saving the board does not lose it.
+    expect(d.elements.find((el) => el.id === 'loop')).toMatchObject({
+      kind: 'loopStart',
+    });
   });
 });

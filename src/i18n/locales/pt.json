@@ -272,6 +272,7 @@
   "shapePreparation": "Preparação",
   "shapeManualInput": "Entrada manual",
   "shapeDelay": "Espera",
+  "shapeUnknown": "Símbolo de uma versão mais recente",
   "routing": "Traçado",
   "routingStraight": "Reto",
   "routingElbow": "Em cotovelo",

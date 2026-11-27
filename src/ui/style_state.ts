@@ -1,9 +1,10 @@
 import type { Scene } from '../core/scene';
-import type {
-  ArrowHeadStyle,
-  ConnectorRouting,
-  Element,
-  ShapeKind,
+import {
+  type ArrowHeadStyle,
+  type ConnectorRouting,
+  type Element,
+  isShapeKind,
+  type ShapeKind,
 } from '../elements/element';
 import { hasEndHead, hasStartHead } from '../rendering/connector_geometry';
 import { hasFillStyle, hasStrokeStyle, styleTypeOf } from './style_type';
@@ -268,7 +269,15 @@ function selectionState(scene: Scene, selected: Element[]): StyleState {
           ? firstConnector.routing
           : undefined) ?? 'straight',
       rounded: cornerRadius > 0,
-      shapeKind: firstShape?.type === 'shape' ? firstShape.kind : undefined,
+      shapeKind:
+        // No kind is highlighted while a symbol from a newer version is
+        // selected, whatever the selection order: one click on a
+        // highlighted kind would convert it too.
+        firstShape?.type === 'shape' &&
+        isShapeKind(firstShape.kind) &&
+        selected.every((el) => el.type !== 'shape' || isShapeKind(el.kind))
+          ? firstShape.kind
+          : undefined,
       fontSize: allText ? firstText?.fontSize : undefined,
       fontFamily: allText ? firstText?.fontFamily : undefined,
       textMode: firstText?.isCode ? 'code' : 'text',
