@@ -4,6 +4,13 @@ All notable changes to `@markasso/mcp` are documented here. The MCP server is ve
 
 ---
 
+## [0.9.1] - 2026-11-27
+
+### Changed
+- **Elbow connections avoid the nodes they used to cross.** In exported diagrams and layout warnings, an elbow connection that ran through another node switches to the other pair of sides when that clears it, as long as it does not cross or overlap other connections instead: a top-to-bottom fan-out now leaves its hub from the bottom and reaches each child from above. Layout warnings measure crossings exactly as the router does: rotated nodes count by their rotated outline, polygons count as nodes, and a box with only a caption inside is no longer treated as a frame.
+
+---
+
 ## [0.9.0] - 2026-11-27
 
 ### Added
