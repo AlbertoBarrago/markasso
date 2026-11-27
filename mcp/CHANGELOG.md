@@ -4,7 +4,7 @@ All notable changes to `@markasso/mcp` are documented here. The MCP server is ve
 
 ---
 
-## [Unreleased]
+## [0.8.0] - 2026-11-27
 
 ### Added
 - **Your own icon packs.** Agents can now draw with the icon sets you download, such as the official AWS, Azure or Google Cloud icon ZIPs: load one with the new `icons_import` tool, or list ZIPs and folders in `MARKASSO_ICON_PACKS` so every session has them. Icons are named like `aws/amazon-ec2`, `icons_search` finds them by name or category, and a bare name such as `"lambda"` works when it matches one icon. Each node embeds its icon's SVG, as the app's icon import does, so the diagram renders the same everywhere: in the app, share links, live rooms and exports. Packs are read like the app's import, and SVGs with scripts, event attributes or external references are skipped. Nothing vendor-made ships with Markasso.
