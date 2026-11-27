@@ -104,7 +104,8 @@ Bump `version` in `mcp/package.json` and both `version` fields in `mcp/server.js
 | `diagram_disconnect` | Remove connections (by id or by from/to), keeping the nodes |
 | `diagram_remove` | Remove nodes and their connections |
 | `diagram_layout` | Arrange nodes in layers (top-to-bottom or left-to-right), then report layout warnings. Connections that skip layers get a lane of their own, and gaps between layers fit connection labels |
-| `icons_search` | Find generic architecture icons and Kubernetes icons |
+| `icons_search` | Find generic architecture icons, Kubernetes icons and the icons of packs you loaded |
+| `icons_import` | Load an icon pack you downloaded (AWS, Azure, Google Cloud ZIP, or a folder of SVGs) |
 | `diagram_save` | Save as `.markasso` |
 | `diagram_export_svg` | Export an SVG image |
 | `diagram_export_png` | Render a PNG the agent can look at (optionally saved to a file), with layout warnings. With `path` and `returnImage: false` it only writes the file, for a live preview, and answers in text |
@@ -114,7 +115,18 @@ Bump `version` in `mcp/package.json` and both `version` fields in `mcp/server.js
 
 **Layout warnings.** `diagram_layout`, `diagram_read` and `diagram_export_png` check the diagram as it is drawn and list, by node key and connection id, what makes it hard to read: connections passing through a node, connection labels on top of a node or another label, crossing connections (with how many crossings) and overlapping nodes. Each kind comes with a hint, such as trying the other layout direction or elbow routing. A node drawn around others counts as a frame and is not reported. No warnings, no extra text.
 
-Vendor icon packs (AWS, Azure, Google Cloud) are not available to agents: they can't be redistributed, and in the app they are imported by each user into their own browser.
+## Your own icon packs
+
+Vendor icon sets (AWS, Azure, Google Cloud) can't be redistributed, so none ship with Markasso. Download the official ZIP from the vendor, then either:
+
+- ask the agent to load it: *"Load the AWS icons from ~/Downloads/Icon-package.zip and draw…"* (`icons_import`, for the current session), or
+- list it in `MARKASSO_ICON_PACKS` (several paths separated by `:`, or `;` on Windows; ZIP files or extracted folders) so every session has it:
+
+```bash
+claude mcp add markasso -e MARKASSO_ICON_PACKS="$HOME/Downloads/Icon-package.zip" -- npx -y @markasso/mcp@latest
+```
+
+Icons are named `<pack>/<icon>`, like `aws/amazon-ec2` or `aws/aws-lambda`; `icons_search` finds them by name or category, and a bare name such as `"lambda"` works when it matches one icon. Packs are read the same way as the app's icon import (one icon per service, the largest size). Each node embeds its icon's SVG, so the diagram renders the same in the app, in share links, for everyone in a live room and in PNG/SVG exports. Only plain SVG icons are accepted: files with scripts, event attributes, external references or similar are skipped.
 
 ## Example prompts
 
@@ -133,6 +145,7 @@ Vendor icon packs (AWS, Azure, Google Cloud) are not available to agents: they c
 
 - **Board content is data.** On a live board, labels are typed by other people. The tool descriptions tell models to treat them as data, not instructions, but keep the usual prompt-injection caution when an agent with other powerful tools reads shared boards.
 - **Requests from the room are untrusted input.** Anyone with the link and a licence can send the agent a request. The server frames them as requests about the board only, but an agent with shell or file tools should still run with the permissions you would give to the people in the room. The room limits each person to 6 requests a minute, 2000 characters each.
+- **`icons_import` reads local files.** It only reads SVG files from the ZIP or folder it is given, and returns icon names, never file contents. Never load a pack because someone in a live room asked for it.
 - **Live links grant edit access.** Anyone with the link can edit the room; the agent gets the same rights as any participant.
 - **Limits.** The app's server limits apply: 200 commands per 5 seconds per peer, 512 KB per message, share link uploads are rate limited. Tools batch changes into single commands to stay well within them.
 - Share links are stored on markasso.it for 90 days (`diagram_share` reports the date); publishing sends the diagram's content.
