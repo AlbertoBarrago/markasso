@@ -54,7 +54,14 @@ export function getConnectorLabelSize(el: Connector): {
 function isCurved(
   el: Connector,
 ): el is LineElement & { cx: number; cy: number } {
-  return el.type === 'line' && el.cx !== undefined && el.cy !== undefined;
+  // An elbow keeps the control point of its curved past, but is never drawn
+  // as a curve, even when its route shrinks to two points.
+  return (
+    el.type === 'line' &&
+    el.routing !== 'elbow' &&
+    el.cx !== undefined &&
+    el.cy !== undefined
+  );
 }
 
 /** Polyline the connector is drawn along (curves sampled). */

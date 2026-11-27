@@ -172,6 +172,27 @@ const FLOWS: ReadonlyArray<Flow> = [
       { from: 'api', to: 'cache', label: 'get/set' },
     ],
   },
+  {
+    name: '07-flowchart-symbols',
+    about:
+      'Several connectors on one flowchart symbol side: a request and its response on a terminator, reads and writes on a cylinder, a document fed twice.',
+    nodes: [
+      { key: 'client', label: 'Client', kind: 'terminator', color: 'purple' },
+      { key: 'server', label: 'Server' },
+      { key: 'db', label: 'Orders', kind: 'database', color: 'blue' },
+      { key: 'report', label: 'Report', kind: 'document' },
+      { key: 'input', label: 'Upload', kind: 'data' },
+    ],
+    edges: [
+      { from: 'client', to: 'server', label: 'request' },
+      { from: 'server', to: 'client', label: 'response' },
+      { from: 'server', to: 'db', label: 'write' },
+      { from: 'db', to: 'server', label: 'read' },
+      { from: 'server', to: 'report' },
+      { from: 'input', to: 'report' },
+      { from: 'input', to: 'server' },
+    ],
+  },
 ];
 
 const DIRECTIONS: ReadonlyArray<LayoutDirection> = ['TB', 'LR'];
