@@ -102,6 +102,12 @@ export function isRoomInactive(
   return connectedPeers === 0 && now - lastActivity > thresholdMs;
 }
 
+/** One connection attempt on its way into the room (see openTicket). */
+interface AdmissionTicket {
+  readonly seq: number;
+  closed: boolean;
+}
+
 ///**
 /**
  * One live editing room. A single serialization point: it appends commands to
@@ -150,6 +156,10 @@ export class SessionRoom {
   private cmdWindowStart = Date.now();
   private loaded = false;
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
+  /** clientId -> number of its latest connection attempt (see openTicket). */
+  private readonly attemptSeq = new Map<string, number>();
+  /** clientId -> number of the attempt that holds its seat (see mayAdmit). */
+  private readonly admittedSeq = new Map<string, number>();
   private lastActivity = Date.now();
 
   constructor(state: DurableObjectState, env: Env) {
@@ -270,12 +280,45 @@ export class SessionRoom {
     const kind: PeerKind =
       request.headers.get(PEER_KIND_HEADER) === 'agent' ? 'agent' : 'browser';
 
+    // Before any await: a socket that closes while its licence or public id
+    // is resolved must be known as closed when admission resumes.
+    const ticket = this.openTicket(server, clientId);
     if (kind === 'agent' && this.env.LIVE_AGENT_REQUIRES_LICENSE === 'true') {
-      this.awaitAgentAuth(server, clientId);
+      this.awaitAgentAuth(server, clientId, ticket);
     } else {
-      await this.admit(server, clientId, kind);
+      await this.admit(server, clientId, kind, ticket);
     }
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  /**
+   * Numbers a new socket among the connections of `clientId` and tracks
+   * whether it closed, so a slower, older attempt never takes the seat of a
+   * newer one (see mayAdmit). Its close and error listeners are installed
+   * here, before any await, so a socket that drops at any point of its
+   * admission leaves no seat behind.
+   */
+  private openTicket(server: WebSocket, clientId: string): AdmissionTicket {
+    const seq = (this.attemptSeq.get(clientId) ?? 0) + 1;
+    this.attemptSeq.set(clientId, seq);
+    const ticket: AdmissionTicket = { seq, closed: false };
+    const closed = (): void => {
+      ticket.closed = true;
+      this.dropPeer(server, clientId);
+    };
+    server.addEventListener('close', closed);
+    server.addEventListener('error', closed);
+    return ticket;
+  }
+
+  /**
+   * Whether a socket may still take its seat: it is open, and no newer
+   * connection of the same clientId got in first. A client that gave up on
+   * an attempt reconnects with the same clientId; the abandoned attempt
+   * finishing its licence check later must not evict the live one.
+   */
+  private mayAdmit(clientId: string, ticket: AdmissionTicket): boolean {
+    return !ticket.closed && ticket.seq > (this.admittedSeq.get(clientId) ?? 0);
   }
 
   /**
@@ -284,11 +327,17 @@ export class SessionRoom {
    * licence. Nothing of the room is sent before that. Messages that arrive
    * while the licence is checked are replayed once the peer is admitted.
    */
-  private awaitAgentAuth(server: WebSocket, clientId: string): void {
+  private awaitAgentAuth(
+    server: WebSocket,
+    clientId: string,
+    ticket: AdmissionTicket = this.openTicket(server, clientId),
+  ): void {
     const queued: string[] = [];
     let state: 'waiting' | 'checking' | 'done' = 'waiting';
     const refuse = (code: number, error: string): void => {
       state = 'done';
+      // Gone already: nothing to tell it.
+      if (ticket.closed) return;
       try {
         server.send(JSON.stringify({ type: 'error', error }));
         server.close(code, error);
@@ -322,8 +371,9 @@ export class SessionRoom {
         async (valid) => {
           if (!valid) return refuse(CLOSE_LICENCE_REQUIRED, 'licence required');
           state = 'done';
-          await this.admit(server, clientId, 'agent');
-          for (const raw of queued) this.receive(clientId, raw);
+          if (ticket.closed) return;
+          if (!(await this.admit(server, clientId, 'agent', ticket))) return;
+          for (const raw of queued) this.receiveFrom(server, clientId, raw);
         },
         (error: unknown) => {
           console.log('[live] licence lookup failed', error);
@@ -331,7 +381,24 @@ export class SessionRoom {
         },
       );
     });
-    server.addEventListener('close', () => clearTimeout(timer));
+    // Ends the check: a late answer for a socket that is gone does nothing.
+    const gone = (): void => {
+      clearTimeout(timer);
+      state = 'done';
+      queued.length = 0;
+    };
+    server.addEventListener('close', gone);
+    server.addEventListener('error', gone);
+  }
+
+  /**
+   * Handles one raw message of `socket`, only while it holds the seat of
+   * `clientId`: frames of a socket that was replaced, or dropped, must not
+   * act under the identity of its successor.
+   */
+  private receiveFrom(socket: WebSocket, clientId: string, raw: string): void {
+    if (this.sockets.get(socket) !== clientId) return;
+    this.receive(clientId, raw);
   }
 
   /** Parses one raw socket message from an admitted peer. */
@@ -350,26 +417,58 @@ export class SessionRoom {
     this.handleMessage(clientId, msg);
   }
 
-  /** Registers a socket as a room peer and sends it the room state. */
+  /**
+   * Registers a socket as a room peer and sends it the room state. Returns
+   * false, leaving the room as it was, when the socket may no longer take
+   * its seat (see mayAdmit) or the room filled up meanwhile. Everything
+   * after the one await happens in a single step, so no close, message or
+   * other admission can land between the checks and the registration.
+   */
   private async admit(
     server: WebSocket,
     clientId: string,
     kind: PeerKind,
-  ): Promise<void> {
+    ticket: AdmissionTicket = this.openTicket(server, clientId),
+  ): Promise<boolean> {
     // Resolved first: the replacement below and the registration must not be
     // split by an await, or two tabs with the same clientId admitted at once
     // would both stay registered and miss each other's edits.
     const self = await this.publicId(clientId);
+    if (!this.mayAdmit(clientId, ticket)) {
+      // Superseded by a newer connection of the same client: it is the
+      // replaced one, whatever order the two finished in.
+      if (!ticket.closed) {
+        try {
+          server.close(1000, 'replaced');
+        } catch {
+          /* already closing */
+        }
+      }
+      return false;
+    }
+    // Rechecked: other peers may have joined while this one was checked.
+    if (this.roomFull(clientId)) {
+      try {
+        server.send(JSON.stringify({ type: 'error', error: 'room full' }));
+        server.close(1013, 'Room full');
+      } catch {
+        /* already closing */
+      }
+      return false;
+    }
+    this.admittedSeq.set(clientId, ticket.seq);
     // A reconnect with the same clientId replaces any stale live socket so a
     // peer never ends up with two identities in the same room.
     for (const [sock, id] of this.sockets) {
       if (id === clientId) {
+        // Removed first: its close event then finds no seat to drop, and
+        // leaves the licence and limits of this clientId to the new socket.
+        this.sockets.delete(sock);
         try {
           sock.close(1000, 'replaced');
         } catch {
           /* already closing */
         }
-        this.sockets.delete(sock);
       }
     }
 
@@ -387,8 +486,9 @@ export class SessionRoom {
         kind,
       });
     this.touch();
-    await this.indexRoom();
-    await this.state.storage.put(LAST_ACTIVITY_KEY, this.lastActivity);
+    server.addEventListener('message', (event) => {
+      this.receiveFrom(server, clientId, String(event.data));
+    });
 
     server.send(
       JSON.stringify({
@@ -399,16 +499,21 @@ export class SessionRoom {
       }),
     );
     this.broadcast({ type: 'presence', peers: this.peerList() });
+    // Bookkeeping only, after the peer is in: awaiting it before would leave
+    // a registered socket without its listeners in the meantime.
+    void this.recordJoin();
+    return true;
+  }
 
-    server.addEventListener('message', (event) => {
-      this.receive(clientId, String(event.data));
-    });
-    server.addEventListener('close', () => {
-      this.dropPeer(server, clientId);
-    });
-    server.addEventListener('error', () => {
-      this.dropPeer(server, clientId);
-    });
+  /** Indexes the room for the cleanup cron and stores its last activity. */
+  private async recordJoin(): Promise<void> {
+    await this.indexRoom();
+    try {
+      await this.state.storage.put(LAST_ACTIVITY_KEY, this.lastActivity);
+    } catch (error) {
+      // Saved again with the room log on the next command.
+      console.log('[live] could not save the last activity', error);
+    }
   }
 
   private handleMessage(clientId: string, msg: unknown): void {
@@ -676,11 +781,11 @@ export class SessionRoom {
   }
 
   private dropPeer(socket: WebSocket, clientId: string): void {
-    this.sockets.delete(socket);
-    this.cmdCounts.delete(clientId);
-    // A replaced socket closes after its successor joined: keep the
-    // successor's licence and limits.
+    // Not registered: never admitted, or already replaced. Its successor's
+    // seat, licence and limits are not its to clear.
+    if (!this.sockets.delete(socket)) return;
     if (!this.isConnected(clientId)) {
+      this.cmdCounts.delete(clientId);
       this.licensed.delete(clientId);
       this.authAttempts.delete(clientId);
       this.requestTimes.delete(clientId);
