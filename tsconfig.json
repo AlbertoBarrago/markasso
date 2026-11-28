@@ -23,6 +23,7 @@
     "tests/room_log.test.ts",
     "tests/live_gate.test.ts",
     "tests/live_requests.test.ts",
+    "tests/live_admission.test.ts",
     "tests/mac_download.test.ts",
     "tests/polar_fake.ts",
     "src/env.d.ts",
