@@ -4,6 +4,16 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [1.31.0] - 2026-11-28
+
+### Added
+- **A real chat with the AI agents in a live room ([#213](https://github.com/AlbertoBarrago/markasso/pull/213)).** The conversation with an agent moves out of the People menu into its own sidebar: one thread per agent with times and status, answers formatted (lists, code, links), drafts kept per agent, and the history kept across a reload of the tab. The library and the chat share the right edge, one open at a time.
+- **Replies don't go unnoticed ([#214](https://github.com/AlbertoBarrago/markasso/pull/214)).** The chat button counts the unread replies, and a short notice names the agent that replied, with Open to jump to its thread. A thread on screen is read as it updates.
+- **Show on canvas ([#215](https://github.com/AlbertoBarrago/markasso/pull/215)).** A reply points at the elements the agent changed for that request: one click selects them and zooms to them, clear of the sidebar. Needs Markasso MCP 0.10.0.
+- **See what the agent is doing ([#216](https://github.com/AlbertoBarrago/markasso/pull/216)).** Next to its name: listening, working or not listening; a request it has not picked up yet says why. Needs Markasso MCP 0.10.0.
+
+---
+
 ## [1.30.0] - 2026-11-27
 
 ### Changed
