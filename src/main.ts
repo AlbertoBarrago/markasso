@@ -182,7 +182,7 @@ async function bootstrap(): Promise<void> {
   initMinimap(workspace, hist);
   initElementSearch(workspace, hist);
   initLibraryPanel(workspace, hist, canvas);
-  initAgentChatPanel(workspace);
+  initAgentChatPanel(workspace, hist);
   initShortcutsHelp(appEl);
   initHintBar(appEl, hist);
   initIdleTips(appEl, hist);

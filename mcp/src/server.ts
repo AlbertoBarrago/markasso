@@ -6,7 +6,10 @@ import { z } from 'zod';
 import { ARROW_HEAD_STYLES } from '../../src/elements/element';
 import { GENERIC_ICON_IDS } from '../../src/elements/stencils/generic';
 import { loadBundledPack } from '../../src/elements/stencils/packs';
-import { MAX_AGENT_REPLY_CHARS } from '../../src/io/agent_requests_protocol';
+import {
+  MAX_AGENT_REPLY_CHARS,
+  MAX_REPLY_ELEMENTS,
+} from '../../src/io/agent_requests_protocol';
 import { getElementBounds } from '../../src/rendering/draw_selection';
 import { sceneToSVG } from '../../src/rendering/export';
 import { version } from '../package.json';
@@ -796,7 +799,7 @@ server.registerTool(
   {
     title: 'Reply to a live request',
     description:
-      'Answer a request from a person in the live room. The answer appears under your name in their participant list. Keep it short; the board itself shows what you changed.',
+      'Answer a request from a person in the live room. The answer appears in their chat with you, with a button that selects and zooms to the elements you changed for that request. When you handle several requests at once, pass nodes: changes made while more than one request is open are not attributed to any of them. Keep it short; the board itself shows what you changed.',
     inputSchema: {
       requestId: z.string().min(1).max(64).describe('Id of the request'),
       text: z
@@ -804,13 +807,38 @@ server.registerTool(
         .min(1)
         .max(MAX_AGENT_REPLY_CHARS)
         .describe('Short answer shown to the person'),
+      nodes: z
+        .array(z.string().min(1))
+        .max(MAX_REPLY_ELEMENTS)
+        .optional()
+        .describe(
+          'Keys of the nodes the answer is about (see diagram_read). Defaults to the elements you changed for this request.',
+        ),
     },
   },
-  guarded(({ requestId, text }: { requestId: string; text: string }) => {
-    if (!live) return 'Not in a live session.';
-    live.reply(requestId, text);
-    return 'Reply sent.';
-  }),
+  guarded(
+    ({
+      requestId,
+      text,
+      nodes,
+    }: {
+      requestId: string;
+      text: string;
+      nodes?: string[] | undefined;
+    }) => {
+      if (!live) return 'Not in a live session.';
+      const { pointed, ambiguous } = live.reply(
+        requestId,
+        text,
+        nodes ? diagram.idsOfKeys(nodes) : undefined,
+      );
+      if (ambiguous)
+        return 'Reply sent without pointing at elements: you changed the board while several requests were open, so the changes cannot be told apart. Pass nodes to point at what this request changed.';
+      return pointed > 0
+        ? `Reply sent, pointing at ${pointed} element${pointed === 1 ? '' : 's'}.`
+        : 'Reply sent.';
+    },
+  ),
 );
 
 await server.connect(new StdioServerTransport());

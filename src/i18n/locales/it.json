@@ -123,6 +123,8 @@
   "agentReplyToast": "{{name}} ha risposto",
   "agentChatUnread": "da leggere: {{count}}",
   "agentChatOpenThread": "Apri",
+  "agentReplyShow": "Mostra sulla lavagna ({{count}})",
+  "agentReplyShowGone": "Questi elementi non sono più sulla lavagna",
   "shareLiveCopied": "Link live copiato!",
   "liveStartedCopied": "Link live copiato! Da Persone puoi ricopiarlo o invitare un agente AI.",
   "liveDisconnected": "Sessione live disconnessa — riconnessione…",

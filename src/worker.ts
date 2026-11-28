@@ -4,10 +4,12 @@ import {
   type AgentRequestRejection,
   MAX_AGENT_REPLY_CHARS,
   MAX_AGENT_REQUEST_CHARS,
+  MAX_REPLIES_PER_REQUEST,
   type PeerKind,
   REQUEST_REF_RE,
   type RequestAccessMsg,
   type RequestStatusMsg,
+  sanitizeReplyElements,
 } from './io/agent_requests_protocol';
 import { randomAnimalName } from './io/animal_names';
 import { validateElements } from './io/element_validation';
@@ -133,8 +135,14 @@ export class SessionRoom {
   private authCount = 0;
   /** Send times of each peer's recent agent requests, for the rate limit. */
   private readonly requestTimes = new Map<string, number[]>();
-  /** Request id -> sender and target, so only the target can answer. */
-  private readonly requests = new Map<string, { from: string; to: string }>();
+  /**
+   * Request id -> sender and target, so only the target can answer, the
+   * sender's ref, echoed on every status, and the replies relayed so far.
+   */
+  private readonly requests = new Map<
+    string,
+    { from: string; to: string; ref: string | undefined; replies: number }
+  >();
   private cmdWindowStart = Date.now();
   private loaded = false;
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
@@ -562,7 +570,7 @@ export class SessionRoom {
     }
 
     const id = crypto.randomUUID();
-    this.requests.set(id, { from: clientId, to });
+    this.requests.set(id, { from: clientId, to, ref, replies: 0 });
     if (this.requests.size > MAX_TRACKED_REQUESTS) {
       // Maps iterate in insertion order: drop the oldest.
       const oldest = this.requests.keys().next().value;
@@ -590,23 +598,31 @@ export class SessionRoom {
     const tracked = this.requests.get(id);
     // Only the agent the request was sent to may answer it.
     if (!tracked || tracked.to !== clientId) return;
+    const ref = tracked.ref ? { ref: tracked.ref } : {};
     if (m.status === 'received') {
       this.sendTo(tracked.from, {
         type: 'request_status',
         id,
         status: 'received',
+        ...ref,
       });
       return;
     }
     if (m.status === 'replied') {
       const text = typeof m.text === 'string' ? m.text.trim() : '';
       if (!text || text.length > MAX_AGENT_REPLY_CHARS) return;
+      // Follow-ups are fine; an agent stuck in a loop is not relayed.
+      if (tracked.replies >= MAX_REPLIES_PER_REQUEST) return;
+      tracked.replies++;
+      const elements = sanitizeReplyElements(m.elements);
       this.touch();
       this.sendTo(tracked.from, {
         type: 'request_status',
         id,
         status: 'replied',
         text,
+        ...ref,
+        ...(elements.length > 0 ? { elements } : {}),
       });
     }
   }

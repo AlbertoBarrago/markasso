@@ -128,6 +128,8 @@
   "agentReplyToast": "{{name}} replied",
   "agentChatUnread": "{{count}} unread",
   "agentChatOpenThread": "Open",
+  "agentReplyShow": "Show on canvas ({{count}})",
+  "agentReplyShowGone": "These elements are no longer on the board",
   "shareLiveCopied": "Live link copied!",
   "liveStartedCopied": "Live link copied! Copy it again or invite an AI agent from People.",
   "liveDisconnected": "Live session disconnected — reconnecting…",

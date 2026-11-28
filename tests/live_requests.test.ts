@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { MAX_REPLIES_PER_REQUEST } from '../src/io/agent_requests_protocol';
 import { SessionRoom } from '../src/worker';
 import { mockPolar, polarEnv } from './polar_fake';
 
@@ -241,10 +242,93 @@ describe('live agent requests', () => {
       text: 'Done',
     });
     expect(alice.ofType('request_status').slice(1)).toEqual([
-      { type: 'request_status', id, status: 'received' },
-      { type: 'request_status', id, status: 'replied', text: 'Done' },
+      { type: 'request_status', id, status: 'received', ref: 'r1' },
+      {
+        type: 'request_status',
+        id,
+        status: 'replied',
+        text: 'Done',
+        ref: 'r1',
+      },
     ]);
     expect(bob.ofType('request_status')).toEqual([]);
+  });
+
+  it('echoes the sender ref on every status', async () => {
+    const { alice, agent } = await room();
+    await authorize(alice, KEY);
+    ask(alice, 'Add a cache', 'my-ref');
+    const id = agent.ofType('request')[0]?.id;
+    agent.receive({ type: 'agent_status', id, status: 'received' });
+    agent.receive({ type: 'agent_status', id, status: 'replied', text: 'Ok' });
+    expect(alice.ofType('request_status').map((m) => m.ref)).toEqual([
+      'my-ref',
+      'my-ref',
+      'my-ref',
+    ]);
+  });
+
+  it('relays the elements of a reply, keeping only valid ids', async () => {
+    const { alice, agent } = await room();
+    await authorize(alice, KEY);
+    ask(alice);
+    const id = agent.ofType('request')[0]?.id;
+    const many = Array.from({ length: 60 }, (_, i) => `el-${i}`);
+    agent.receive({
+      type: 'agent_status',
+      id,
+      status: 'replied',
+      text: 'Done',
+      elements: ['a', 'a', '', 42, 'x'.repeat(129), ...many],
+    });
+    const [reply] = alice.ofType('request_status').slice(-1);
+    expect(reply?.elements).toEqual(['a', ...many.slice(0, 49)]);
+
+    agent.receive({
+      type: 'agent_status',
+      id,
+      status: 'replied',
+      text: 'Again',
+      elements: 'not a list',
+    });
+    expect(alice.ofType('request_status').at(-1)).not.toHaveProperty(
+      'elements',
+    );
+  });
+
+  it('relays at most MAX_REPLIES_PER_REQUEST replies to one request', async () => {
+    const { alice, agent } = await room();
+    await authorize(alice, KEY);
+    ask(alice);
+    const id = agent.ofType('request')[0]?.id;
+    for (let i = 0; i < MAX_REPLIES_PER_REQUEST + 5; i++)
+      agent.receive({
+        type: 'agent_status',
+        id,
+        status: 'replied',
+        text: `${i}`,
+      });
+    expect(
+      alice.ofType('request_status').filter((m) => m.status === 'replied'),
+    ).toHaveLength(MAX_REPLIES_PER_REQUEST);
+  });
+
+  it('looks at a bounded part of a huge elements list', async () => {
+    const { alice, agent } = await room();
+    await authorize(alice, KEY);
+    ask(alice);
+    const id = agent.ofType('request')[0]?.id;
+    const junk = Array.from({ length: 10_000 }, () => 42);
+    agent.receive({
+      type: 'agent_status',
+      id,
+      status: 'replied',
+      text: 'Done',
+      elements: [...junk, 'late-id'],
+    });
+    expect(alice.ofType('request_status').at(-1)).not.toHaveProperty(
+      'elements',
+    );
   });
 
   it('ignores answers from anyone but the target agent', async () => {

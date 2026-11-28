@@ -267,6 +267,8 @@
   "agentReplyToast": "{{name}} ha respondido",
   "agentChatUnread": "{{count}} sin leer",
   "agentChatOpenThread": "Abrir",
+  "agentReplyShow": "Mostrar en la pizarra ({{count}})",
+  "agentReplyShowGone": "Estos elementos ya no están en la pizarra",
   "shapes": "Formas de diagrama",
   "shapeKind": "Forma",
   "hintShape": "Arrastrar para dibujar la forma seleccionada. Elige otra en la Biblioteca [[I]]",

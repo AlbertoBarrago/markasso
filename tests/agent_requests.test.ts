@@ -396,3 +396,58 @@ describe('unread agent replies', () => {
     expect(unreadAgentReplies()).toBe(0);
   });
 });
+
+describe('reply elements', () => {
+  it('keeps the valid element ids of a reply, across a reload', () => {
+    const sent = connect();
+    handleRequestAccess({ type: 'request_access', allowed: true });
+    sendAgentRequest(AGENT, 'hi');
+    handleRequestStatus({
+      type: 'request_status',
+      ref: sent[0]?.ref as string,
+      id: 'r',
+      status: 'replied',
+      text: 'Done',
+      elements: ['a', 'b', 'a', ''],
+    });
+    expect(agentRequests('agent')[0]?.replies[0]?.elements).toEqual(['a', 'b']);
+    reload(storage);
+    expect(agentRequests('agent')[0]?.replies[0]?.elements).toEqual(['a', 'b']);
+  });
+
+  it('stores no elements field for a reply without any', () => {
+    const sent = connect();
+    handleRequestAccess({ type: 'request_access', allowed: true });
+    sendAgentRequest(AGENT, 'hi');
+    handleRequestStatus({
+      type: 'request_status',
+      ref: sent[0]?.ref as string,
+      id: 'r',
+      status: 'replied',
+      text: 'Done',
+    });
+    expect(agentRequests('agent')[0]?.replies[0]).not.toHaveProperty(
+      'elements',
+    );
+  });
+
+  it('matches a reply by ref when the `sent` status was lost', () => {
+    const sent = connect();
+    handleRequestAccess({ type: 'request_access', allowed: true });
+    sendAgentRequest(AGENT, 'hi');
+    // The socket dropped before `sent`, then the tab reloaded.
+    revokeAgentRequestAccess();
+    reload(storage);
+    handleRequestStatus({
+      type: 'request_status',
+      ref: sent[0]?.ref as string,
+      id: 'r',
+      status: 'replied',
+      text: 'Done',
+    });
+    expect(agentRequests('agent')[0]).toMatchObject({
+      status: 'replied',
+      replies: [{ text: 'Done' }],
+    });
+  });
+});

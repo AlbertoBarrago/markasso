@@ -2,8 +2,10 @@ import {
   type AgentRequestRejection,
   type AgentRequestStatus,
   MAX_AGENT_REQUEST_CHARS,
+  MAX_REPLIES_PER_REQUEST,
   type RequestAccessMsg,
   type RequestStatusMsg,
+  sanitizeReplyElements,
 } from './agent_requests_protocol';
 import {
   readSessionStorage,
@@ -28,6 +30,8 @@ export interface AgentReply {
   readonly text: string;
   /** Epoch ms when this tab received it. */
   readonly at: number;
+  /** Elements the agent changed for the request (absent when none). */
+  readonly elements?: readonly string[];
 }
 
 /**
@@ -71,7 +75,7 @@ export interface AgentReplyEvent {
 /** Requests kept per agent; older ones are dropped. */
 export const MAX_ENTRIES_PER_AGENT = 50;
 /** Replies kept per request (an agent may answer one request many times). */
-export const MAX_REPLIES_PER_ENTRY = 20;
+export const MAX_REPLIES_PER_ENTRY = MAX_REPLIES_PER_REQUEST;
 /**
  * Entries per agent tried, in order, when the full history does not fit the
  * tab's storage quota: the newest messages are the ones worth keeping.
@@ -175,7 +179,8 @@ function parseReply(value: unknown): AgentReply | null {
   if (!isRecord(value)) return null;
   const { text, at } = value;
   if (typeof text !== 'string' || typeof at !== 'number') return null;
-  return { text, at };
+  const elements = sanitizeReplyElements(value.elements);
+  return elements.length > 0 ? { text, at, elements } : { text, at };
 }
 
 function parseEntry(value: unknown): AgentRequestEntry | null {
@@ -384,7 +389,13 @@ export function handleRequestStatus(msg: RequestStatusMsg): void {
   let replied: AgentThread | undefined;
   if (msg.status === 'replied') {
     if (typeof msg.text === 'string' && msg.text) {
-      entry.replies.push({ text: msg.text, at: Date.now() });
+      // The room validated them; this tab checks again before using them.
+      const elements = sanitizeReplyElements(msg.elements);
+      entry.replies.push(
+        elements.length > 0
+          ? { text: msg.text, at: Date.now(), elements }
+          : { text: msg.text, at: Date.now() },
+      );
       replied = [...threads.values()].find((t) => t.entries.includes(entry));
       if (replied) replied.unread++;
     }

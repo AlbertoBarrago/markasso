@@ -351,4 +351,88 @@ describe('LiveLink requests', () => {
     });
     expect(() => result.link.reply('r1', ' ')).toThrow(/characters/);
   });
+
+  it('points a reply at the elements the agent changed for the request', async () => {
+    const diagram = new Diagram();
+    const { result, socket } = await join(diagram, []);
+    // Created before the request, changed during it.
+    await diagram.addNodes([{ key: 'old' }, { key: 'untouched' }]);
+    socket.receive(request('r1'));
+    result.link.takeRequests();
+    diagram.update('old', { label: 'Renamed' });
+    // A no-op edit changes nothing to point at.
+    diagram.update('untouched', { label: 'untouched' });
+    await diagram.addNodes([{ key: 'api' }, { key: 'tmp' }]);
+    diagram.remove(['tmp']);
+    // A person's edit in the room is theirs, not the agent's.
+    socket.receive({
+      type: 'apply',
+      from: 'p1',
+      command: { type: 'CREATE_ELEMENT', element: rect('peer', 'Peer') },
+    });
+    expect(result.link.reply('r1', 'Done')).toEqual({
+      pointed: 2,
+      ambiguous: false,
+    });
+    const { elements } = socket.sent.at(-1) as { elements: string[] };
+    expect(elements).toHaveLength(2);
+    expect(elements).toContain(diagram.idsOfKeys(['old'])[0]);
+    expect(elements).toContain(diagram.idsOfKeys(['api'])[0]);
+  });
+
+  it('attributes nothing it cannot tell apart while several requests are open', async () => {
+    const diagram = new Diagram();
+    const { result, socket } = await join(diagram, []);
+    socket.receive(request('r1'));
+    socket.receive(request('r2', 'Add a db'));
+    result.link.takeRequests();
+    await diagram.addNodes([{ key: 'cache' }]);
+    expect(result.link.reply('r1', 'Done')).toEqual({
+      pointed: 0,
+      ambiguous: true,
+    });
+    expect(socket.sent.at(-1)).not.toHaveProperty('elements');
+    // Named explicitly, the answer still points where the agent says.
+    result.link.reply('r2', 'Done', diagram.idsOfKeys(['cache']));
+    expect(socket.sent.at(-1)).toMatchObject({
+      elements: diagram.idsOfKeys(['cache']),
+    });
+  });
+
+  it('forgets deleted elements, so they never use up the bound', async () => {
+    const diagram = new Diagram();
+    const { result, socket } = await join(diagram, []);
+    socket.receive(request('r1'));
+    result.link.takeRequests();
+    const scratch = Array.from({ length: 600 }, (_, i) => ({ key: `t${i}` }));
+    await diagram.addNodes(scratch);
+    diagram.remove(scratch.map((n) => n.key));
+    await diagram.addNodes([{ key: 'final' }]);
+    expect(result.link.reply('r1', 'Done')).toEqual({
+      pointed: 1,
+      ambiguous: false,
+    });
+    expect(socket.sent.at(-1)).toMatchObject({
+      elements: diagram.idsOfKeys(['final']),
+    });
+  });
+
+  it('points at the nodes given instead, and stops counting once answered', async () => {
+    const diagram = new Diagram();
+    const { result, socket } = await join(diagram, []);
+    await diagram.addNodes([{ key: 'old' }]);
+    socket.receive(request('r1'));
+    result.link.takeRequests();
+    await diagram.addNodes([{ key: 'api' }]);
+    result.link.reply('r1', 'See old', diagram.idsOfKeys(['old']));
+    expect(socket.sent.at(-1)).toMatchObject({
+      elements: diagram.idsOfKeys(['old']),
+    });
+    // Edits after the first answer belong to later requests.
+    await diagram.addNodes([{ key: 'later' }]);
+    result.link.reply('r1', 'Again');
+    expect(socket.sent.at(-1)).toMatchObject({
+      elements: diagram.idsOfKeys(['api']),
+    });
+  });
 });
