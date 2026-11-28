@@ -4,8 +4,11 @@ import {
   agentRequests,
   agentThreads,
   canSendAgentRequests,
+  markAgentThreadRead,
+  onAgentReply,
   sendAgentRequest,
   subscribeAgentRequests,
+  unreadAgentReplies,
 } from '../io/agent_requests';
 import { MAX_AGENT_REQUEST_CHARS } from '../io/agent_requests_protocol';
 import { onLivePeers, type PeerInfo } from '../io/realtime';
@@ -77,14 +80,36 @@ export function toggleAgentChat(): void {
   toggleImpl?.();
 }
 
+/** How long a reply toast stays on screen. */
+const TOAST_MS = 6000;
+
+/** "9+" past nine: the badge is a hint, not a counter to read. */
+function badgeText(count: number): string {
+  return count > 9 ? '9+' : String(count);
+}
+
 /**
  * Shows `button` only while there is someone to chat with (a connected agent
- * or an earlier thread) and makes it toggle the chat.
+ * or an earlier thread), with a badge of the unread replies, and makes it
+ * toggle the chat.
  */
 export function bindAgentChatTrigger(button: HTMLElement): void {
   let agentsOnline = false;
+  const badge = document.createElement('span');
+  badge.className = 'tb-badge';
+  badge.setAttribute('aria-hidden', 'true');
+  button.appendChild(badge);
   const update = (): void => {
     button.hidden = !agentsOnline && agentThreads().length === 0;
+    const unread = unreadAgentReplies();
+    badge.hidden = unread === 0;
+    badge.textContent = badgeText(unread);
+    const label =
+      unread === 0
+        ? t('agentChat')
+        : `${t('agentChat')}, ${t('agentChatUnread').replace('{{count}}', String(unread))}`;
+    button.title = label;
+    button.setAttribute('aria-label', label);
   };
   onLivePeers((others) => {
     agentsOnline = others.some((p) => p.kind === 'agent');
@@ -188,8 +213,11 @@ export function initAgentChatPanel(workspace: HTMLElement): void {
     // An agent that left while being written to stays, offline, until the
     // draft is sent elsewhere or cleared: otherwise the focused composer would
     // silently switch to another agent mid-sentence.
+    // Once the session ended (no peers, threads forgotten) nothing stays.
+    const inSession = livePeers.length > 0 || agentThreads().length > 0;
     const name = selected ? knownNames.get(selected) : undefined;
     if (
+      inSession &&
       selected &&
       name !== undefined &&
       input.value.trim() &&
@@ -212,12 +240,17 @@ export function initAgentChatPanel(workspace: HTMLElement): void {
   }
 
   function renderAgents(agents: ChatAgent[], active: ChatAgent | null): void {
-    const shown = JSON.stringify([agents, active?.id]);
+    const unread = new Map(agentThreads().map((t) => [t.agentId, t.unread]));
+    const shown = JSON.stringify([agents, active?.id, [...unread]]);
     if (shown === agentsShown) return;
     agentsShown = shown;
-    // The tab just clicked is about to be replaced: keep the keyboard on the
-    // row, on the newly selected tab.
-    const hadFocus = agentsBar.contains(document.activeElement);
+    // The tabs are about to be replaced: keep the keyboard on the tab that
+    // had it (the one just clicked, or one reached with Tab).
+    const focused = document.activeElement;
+    const focusedId =
+      focused instanceof HTMLElement && agentsBar.contains(focused)
+        ? (focused.dataset.agentId ?? null)
+        : null;
     agentsBar.innerHTML = '';
     for (const agent of agents) {
       // A single agent is a title, not a choice.
@@ -226,6 +259,7 @@ export function initAgentChatPanel(workspace: HTMLElement): void {
       if (item instanceof HTMLButtonElement) {
         item.type = 'button';
         item.className = 'ui-button ac-agent';
+        item.dataset.agentId = agent.id;
         item.setAttribute('role', 'tab');
         item.setAttribute('aria-selected', String(agent.id === active?.id));
         item.addEventListener('click', () => select(agent.id));
@@ -238,10 +272,20 @@ export function initAgentChatPanel(workspace: HTMLElement): void {
       name.className = 'ac-agent-name';
       name.textContent = agent.name;
       item.append(dot, name);
+      // The thread on screen is read as it updates; other tabs show a count.
+      const count = agent.id === active?.id ? 0 : (unread.get(agent.id) ?? 0);
+      if (count > 0) {
+        const badge = document.createElement('span');
+        badge.className = 'tb-badge ac-tab-badge';
+        badge.textContent = badgeText(count);
+        item.appendChild(badge);
+      }
       agentsBar.appendChild(item);
     }
-    if (hadFocus)
-      agentsBar.querySelector<HTMLElement>('[aria-selected="true"]')?.focus();
+    if (focusedId !== null)
+      [...agentsBar.querySelectorAll<HTMLElement>('.ac-agent')]
+        .find((tab) => tab.dataset.agentId === focusedId)
+        ?.focus();
   }
 
   function meta(text: string, error = false): HTMLElement {
@@ -334,15 +378,90 @@ export function initAgentChatPanel(workspace: HTMLElement): void {
     const agents = chatAgents();
     // Nobody left to talk to (the session ended): nothing to show.
     if (agents.length === 0 && open) setOpen(false);
+    // A toast for a conversation that is gone (session ended) is stale.
+    if (toast && !agents.some((a) => a.id === toast?.agentId)) dismissToast();
     const agent = current(agents);
     if (agent && selected !== agent.id) {
       if (selected) drafts.set(selected, input.value);
       selected = agent.id;
       input.value = drafts.get(agent.id) ?? '';
     }
+    if (agent && isShowing(agent.id)) {
+      // Seen in the panel: its toast has nothing left to say.
+      if (toast?.agentId === agent.id) dismissToast();
+      // Marking read notifies again, which renders with the count at zero.
+      if (markAgentThreadRead(agent.id)) return;
+    }
     renderAgents(agents, agent);
     renderMessages(agent);
     renderFooter(agent);
+  }
+
+  /** Whether `agentId`'s thread is on screen right now. */
+  function isShowing(agentId: string): boolean {
+    return (
+      open && selected === agentId && document.visibilityState === 'visible'
+    );
+  }
+
+  let toast: {
+    readonly el: HTMLElement;
+    readonly agentId: string;
+    timer: ReturnType<typeof setTimeout> | null;
+  } | null = null;
+
+  function dismissToast(): void {
+    if (!toast) return;
+    if (toast.timer) clearTimeout(toast.timer);
+    toast.el.remove();
+    toast = null;
+  }
+
+  /**
+   * "{{name}} replied" with an Open button, for a reply that arrives while
+   * its thread is not on screen. One at a time: a newer reply replaces it.
+   */
+  function showReplyToast(agentId: string, agentName: string): void {
+    // Replacing a toast the keyboard is on moves the focus to the new one.
+    const hadFocus = toast?.el.contains(document.activeElement) ?? false;
+    dismissToast();
+    const el = document.createElement('div');
+    el.className = 'share-toast agent-reply-toast';
+    el.setAttribute('role', 'status');
+    const text = document.createElement('span');
+    text.textContent = t('agentReplyToast').replace('{{name}}', agentName);
+    const openBtn = document.createElement('button');
+    openBtn.type = 'button';
+    openBtn.className = 'ui-button agent-reply-toast-open';
+    openBtn.textContent = t('agentChatOpenThread');
+    openBtn.addEventListener('click', () => {
+      dismissToast();
+      openAgentChat(agentId);
+    });
+    el.append(text, openBtn);
+    document.body.appendChild(el);
+    const current: NonNullable<typeof toast> = {
+      el,
+      agentId,
+      timer: setTimeout(dismissToast, TOAST_MS),
+    };
+    toast = current;
+    // It never expires under the pointer or the keyboard.
+    const pause = (): void => {
+      if (current.timer) clearTimeout(current.timer);
+      current.timer = null;
+    };
+    const resume = (): void => {
+      if (toast !== current || current.timer) return;
+      if (el.matches(':hover') || el.contains(document.activeElement)) return;
+      current.timer = setTimeout(dismissToast, TOAST_MS);
+    };
+    el.addEventListener('mouseenter', pause);
+    el.addEventListener('focusin', pause);
+    el.addEventListener('mouseleave', resume);
+    // After the focus has moved, so `activeElement` is the new target.
+    el.addEventListener('focusout', () => setTimeout(resume));
+    if (hadFocus) openBtn.focus();
   }
 
   /**
@@ -425,5 +544,14 @@ export function initAgentChatPanel(workspace: HTMLElement): void {
     render();
   });
   subscribeAgentRequests(render);
+  onAgentReply(({ agentId, agentName }) => {
+    if (isShowing(agentId)) markAgentThreadRead(agentId);
+    else showReplyToast(agentId, agentName);
+  });
+  // Replies that came in while the tab was in the background are read once
+  // the thread is back on screen.
+  document.addEventListener('visibilitychange', () => {
+    if (selected && isShowing(selected)) render();
+  });
   render();
 }

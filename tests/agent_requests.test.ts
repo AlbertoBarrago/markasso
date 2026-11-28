@@ -9,8 +9,11 @@ import {
   handleRequestStatus,
   MAX_ENTRIES_PER_AGENT,
   MAX_REPLIES_PER_ENTRY,
+  markAgentThreadRead,
+  onAgentReply,
   revokeAgentRequestAccess,
   sendAgentRequest,
+  unreadAgentReplies,
 } from '../src/io/agent_requests';
 
 const AGENT = { id: 'agent', name: 'Claude' };
@@ -286,5 +289,110 @@ describe('agent requests across a disconnect', () => {
     const replies = agentRequests('agent')[0]?.replies ?? [];
     expect(replies).toHaveLength(MAX_REPLIES_PER_ENTRY);
     expect(replies[0]?.text).toBe('reply 3');
+  });
+});
+
+describe('unread agent replies', () => {
+  /** Sends one request to `agent` and returns its server id. */
+  function ask(agent: { id: string; name: string }, id: string): string {
+    const sent = connected;
+    sendAgentRequest(agent, 'hi');
+    handleRequestStatus({
+      type: 'request_status',
+      ref: sent.at(-1)?.ref as string,
+      id,
+      status: 'sent',
+    });
+    return id;
+  }
+  function reply(id: string, text = 'Done'): void {
+    handleRequestStatus({
+      type: 'request_status',
+      id,
+      status: 'replied',
+      text,
+    });
+  }
+
+  let connected: Record<string, unknown>[];
+  beforeEach(() => {
+    connected = connect();
+    handleRequestAccess({ type: 'request_access', allowed: true });
+  });
+
+  it('counts replies per agent until the thread is read', () => {
+    const other = { id: 'other', name: 'Codex' };
+    reply(ask(AGENT, 'a'));
+    reply('a', 'More');
+    reply(ask(other, 'b'));
+    expect(unreadAgentReplies()).toBe(3);
+    expect(markAgentThreadRead('agent')).toBe(true);
+    expect(unreadAgentReplies()).toBe(1);
+    // Nothing left to clear: no notification either.
+    expect(markAgentThreadRead('agent')).toBe(false);
+  });
+
+  it('does not count a reply without text or a status change', () => {
+    const id = ask(AGENT, 'a');
+    handleRequestStatus({ type: 'request_status', id, status: 'received' });
+    handleRequestStatus({ type: 'request_status', id, status: 'replied' });
+    expect(unreadAgentReplies()).toBe(0);
+  });
+
+  it('tells reply listeners who replied, before the change notification', () => {
+    const events: string[] = [];
+    const stop = onAgentReply(({ agentId, agentName }) => {
+      events.push(`${agentId}:${agentName}:${unreadAgentReplies()}`);
+      // A listener showing the thread reads it at once.
+      markAgentThreadRead(agentId);
+    });
+    reply(ask(AGENT, 'a'));
+    stop();
+    reply('a', 'Again');
+    expect(events).toEqual(['agent:Claude:1']);
+    expect(unreadAgentReplies()).toBe(1);
+  });
+
+  it('keeps the count across a reload and reads old copies as zero', () => {
+    reply(ask(AGENT, 'a'));
+    reload(storage);
+    expect(unreadAgentReplies()).toBe(1);
+
+    detachAgentRequests();
+    storage.set(
+      STORAGE_KEY,
+      JSON.stringify({
+        v: 1,
+        threads: [{ agentId: 'agent', name: 'Claude', entries: [] }],
+      }),
+    );
+    connect();
+    expect(unreadAgentReplies()).toBe(0);
+  });
+
+  it('never counts more unread than the replies kept', () => {
+    const id = ask(AGENT, 'a');
+    for (let i = 0; i < MAX_REPLIES_PER_ENTRY + 1; i++) reply(id, `r${i}`);
+    expect(unreadAgentReplies()).toBe(MAX_REPLIES_PER_ENTRY);
+  });
+
+  it('stores no unread count for replies the quota fallback dropped', () => {
+    const items = new Map<string, string>();
+    // Refuses any copy that still holds an entry.
+    vi.stubGlobal('sessionStorage', {
+      getItem: (key: string) => items.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        if (value.includes('"ref"')) throw new Error('QuotaExceededError');
+        items.set(key, value);
+      },
+      removeItem: (key: string) => items.delete(key),
+    });
+    connected = connect();
+    handleRequestAccess({ type: 'request_access', allowed: true });
+    reply(ask(AGENT, 'a'));
+    expect(unreadAgentReplies()).toBe(1);
+    reload(items);
+    expect(agentRequests('agent')).toEqual([]);
+    expect(unreadAgentReplies()).toBe(0);
   });
 });
