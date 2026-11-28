@@ -12,6 +12,7 @@ import {
 } from './io/realtime';
 import { initSession, loadSession } from './io/session';
 import { decodeScene, isShareHash } from './io/share';
+import { initAgentChatPanel } from './ui/agent_chat_panel';
 import { initCanvasView } from './ui/canvas_view';
 import { initCloudBoards } from './ui/cloud_boards';
 import { initCommandPalette } from './ui/command_palette';
@@ -181,6 +182,7 @@ async function bootstrap(): Promise<void> {
   initMinimap(workspace, hist);
   initElementSearch(workspace, hist);
   initLibraryPanel(workspace, hist, canvas);
+  initAgentChatPanel(workspace);
   initShortcutsHelp(appEl);
   initHintBar(appEl, hist);
   initIdleTips(appEl, hist);

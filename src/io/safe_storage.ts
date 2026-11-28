@@ -35,6 +35,37 @@ export function removeStorage(key: string): void {
   }
 }
 
+/**
+ * sessionStorage counterparts, for state that belongs to this tab only and
+ * must survive a reload (the agent chat of a live room). Same contract as the
+ * localStorage helpers above: unreadable is "not set", refused writes return
+ * false.
+ */
+export function readSessionStorage(key: string): string | null {
+  try {
+    return sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+export function writeSessionStorage(key: string, value: string): boolean {
+  try {
+    sessionStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function removeSessionStorage(key: string): void {
+  try {
+    sessionStorage.removeItem(key);
+  } catch {
+    // Nothing stored to remove.
+  }
+}
+
 /** Whether the browser lets this page use localStorage at all. */
 export function isStorageAvailable(): boolean {
   try {

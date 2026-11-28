@@ -330,11 +330,6 @@ body.toolbar-placing * {
   flex-direction: column;
   gap: calc(var(--spacing) * 1);
 }
-.pp-agent {
-  display: flex;
-  flex-direction: column;
-  gap: calc(var(--spacing) * 1);
-}
 .pp-ask {
   margin-left: auto;
   flex-shrink: 0;
@@ -348,83 +343,8 @@ body.toolbar-placing * {
   cursor: pointer;
 }
 .pp-ask:hover,
-.pp-ask:focus-visible,
-.pp-ask[aria-expanded="true"] {
+.pp-ask:focus-visible {
   background: var(--color-hover);
-}
-.pp-compose {
-  display: flex;
-  flex-direction: column;
-  gap: calc(var(--spacing) * 1);
-  /* Widens the panel while a request is being written. */
-  min-width: 260px;
-}
-.pp-composer {
-  display: block;
-  resize: none;
-  line-height: var(--leading-snug);
-  /* About 6 lines; the textbox scrolls past that. */
-  max-height: 128px;
-  overflow-y: auto;
-}
-.pp-compose-footer {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--spacing) * 2);
-}
-.pp-compose-hint {
-  flex: 1;
-  color: var(--color-text-muted);
-  font-size: var(--text-2xs);
-}
-.pp-send {
-  flex-shrink: 0;
-  padding: calc(var(--spacing) * 1) calc(var(--spacing) * 2);
-  border: none;
-  border-radius: var(--radius-md);
-  background: var(--color-accent);
-  color: var(--color-text-on-accent);
-  font: inherit;
-  font-size: var(--text-xs);
-  cursor: pointer;
-}
-.pp-send:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-.pp-thread {
-  display: flex;
-  flex-direction: column;
-  gap: calc(var(--spacing) * 2);
-  padding: calc(var(--spacing) * 0.5) calc(var(--spacing) * 2)
-    calc(var(--spacing) * 1) calc(var(--spacing) * 6);
-  max-width: 280px;
-}
-.pp-request {
-  display: flex;
-  flex-direction: column;
-  gap: calc(var(--spacing) * 0.5);
-  font-size: var(--text-xs);
-}
-.pp-request-text,
-.pp-reply {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-.pp-request-text {
-  color: var(--color-text);
-}
-.pp-request-status {
-  color: var(--color-text-muted);
-  font-size: var(--text-2xs);
-}
-.pp-request-error {
-  color: var(--color-danger);
-}
-.pp-reply {
-  color: var(--color-text);
-  border-left: 2px solid var(--color-accent);
-  padding-left: calc(var(--spacing) * 2);
 }
 .pp-action {
   width: 100%;

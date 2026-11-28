@@ -16,6 +16,7 @@ import {
   setLiveName,
 } from '../io/realtime';
 import { readStorage } from '../io/safe_storage';
+import { bindAgentChatTrigger } from './agent_chat_panel';
 import { showImportError } from './import_error';
 import { toggleLibrary } from './library_panel';
 import {
@@ -850,7 +851,12 @@ export function initToolbar(
       peoplePanel.style.display = 'none';
     }
   });
-  peopleIsland.append(peopleTrigger, peoplePanel);
+  // Agent chat: shown only while an agent is in the room (or was asked).
+  const chatIcon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12.5a7.5 7.5 0 0 1-11.1 6.6L4 20l1-4.2A7.5 7.5 0 1 1 20 12.5z"/><path d="M9 11h6M9 14h4"/></svg>`;
+  const agentChatTrigger = mkBtn(chatIcon, t('agentChat'));
+  agentChatTrigger.classList.add('tb-agent-chat');
+  bindAgentChatTrigger(agentChatTrigger);
+  peopleIsland.append(agentChatTrigger, peopleTrigger, peoplePanel);
 
   topRight.append(liveIsland, peopleIsland, nameIsland);
   // Cloud boards start before the toolbar (main.ts) and park their status

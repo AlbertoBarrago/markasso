@@ -22,6 +22,7 @@ import { deleteIconPack, listIconPacks } from '../io/icon_pack_store';
 import { readStorage, writeStorage } from '../io/safe_storage';
 import { confirmDialog } from './dialog';
 import { insertShape, insertStencil } from './library_insert';
+import { claimRightSidebar, releaseRightSidebar } from './right_sidebar';
 import { SHAPE_KIND_LABEL_KEYS, shapeKindIcon } from './shape_icons';
 import { GENERIC_ICON_LABEL_KEYS, genericIconSvg } from './stencil_icons';
 
@@ -513,6 +514,8 @@ export function initLibraryPanel(
   }
 
   function setOpen(open: boolean): void {
+    if (open) claimRightSidebar('library', () => setOpen(false));
+    else releaseRightSidebar('library');
     currentlyOpen = open;
     panel.classList.toggle('open', open);
     document.body.classList.toggle('library-open', open);
