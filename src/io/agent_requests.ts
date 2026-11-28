@@ -58,6 +58,14 @@ export interface AgentThread {
   /** The agent's name when last asked, shown once it left the room. */
   name: string;
   entries: AgentRequestEntry[];
+  /** Replies received and not yet seen in the chat panel. */
+  unread: number;
+}
+
+/** A reply just received, for notifications. */
+export interface AgentReplyEvent {
+  readonly agentId: string;
+  readonly agentName: string;
 }
 
 /** Requests kept per agent; older ones are dropped. */
@@ -79,6 +87,7 @@ const threads = new Map<string, AgentThread>();
 const byRef = new Map<string, AgentRequestEntry>();
 const byId = new Map<string, AgentRequestEntry>();
 const listeners = new Set<() => void>();
+const replyListeners = new Set<(event: AgentReplyEvent) => void>();
 
 function storageKey(roomId: string): string {
   return `${STORAGE_PREFIX}${roomId}`;
@@ -87,11 +96,25 @@ function storageKey(roomId: string): string {
 /** Writes the threads of the current room; a refused write only loses history. */
 let warnedStorage = false;
 
+/** Replies held in `entries`: the most there can be unread. */
+function replyTotal(entries: readonly AgentRequestEntry[]): number {
+  return entries.reduce((n, e) => n + e.replies.length, 0);
+}
+
+/** Unread never counts replies that were dropped to stay within limits. */
+function clampUnread(thread: AgentThread): void {
+  thread.unread = Math.min(thread.unread, replyTotal(thread.entries));
+}
+
 function serialize(entryLimit: number): string {
-  const kept = [...threads.values()].map((thread) => ({
-    ...thread,
-    entries: entryLimit > 0 ? thread.entries.slice(-entryLimit) : [],
-  }));
+  const kept = [...threads.values()].map((thread) => {
+    const entries = entryLimit > 0 ? thread.entries.slice(-entryLimit) : [];
+    return {
+      ...thread,
+      entries,
+      unread: Math.min(thread.unread, replyTotal(entries)),
+    };
+  });
   return JSON.stringify({ v: 1, threads: kept });
 }
 
@@ -213,14 +236,22 @@ function loadThreads(roomId: string): AgentThread[] {
       !Array.isArray(entries)
     )
       continue;
-    loaded.push({
+    const { unread } = value;
+    const thread: AgentThread = {
       agentId,
       name,
       entries: entries
         .map(parseEntry)
         .filter((e) => e !== null)
         .slice(-MAX_ENTRIES_PER_AGENT),
-    });
+      // Absent from copies stored before unread counts existed.
+      unread:
+        typeof unread === 'number' && Number.isInteger(unread) && unread > 0
+          ? unread
+          : 0,
+    };
+    clampUnread(thread);
+    loaded.push(thread);
   }
   return loaded;
 }
@@ -317,6 +348,7 @@ export function sendAgentRequest(
     agentId: agent.id,
     name: agent.name,
     entries: [],
+    unread: 0,
   };
   thread.name = agent.name;
   thread.entries.push(entry);
@@ -327,6 +359,7 @@ export function sendAgentRequest(
     byRef.delete(dropped.ref);
     if (dropped.id) byId.delete(dropped.id);
   }
+  clampUnread(thread);
   threads.set(agent.id, thread);
   index(entry);
   link.send({ type: 'request', ref, to: agent.id, text: trimmed });
@@ -348,13 +381,18 @@ export function handleRequestStatus(msg: RequestStatusMsg): void {
     entry.id = msg.id;
     byId.set(msg.id, entry);
   }
+  let replied: AgentThread | undefined;
   if (msg.status === 'replied') {
-    if (typeof msg.text === 'string' && msg.text)
+    if (typeof msg.text === 'string' && msg.text) {
       entry.replies.push({ text: msg.text, at: Date.now() });
+      replied = [...threads.values()].find((t) => t.entries.includes(entry));
+      if (replied) replied.unread++;
+    }
     entry.replies.splice(
       0,
       Math.max(0, entry.replies.length - MAX_REPLIES_PER_ENTRY),
     );
+    if (replied) clampUnread(replied);
     entry.status = 'replied';
   } else if (msg.status === 'rejected') {
     entry.status = 'rejected';
@@ -365,5 +403,38 @@ export function handleRequestStatus(msg: RequestStatusMsg): void {
     // `received` never overrides a reply that overtook it.
     entry.status = msg.status;
   }
+  // Before the change notification: a listener that is showing this thread
+  // marks it read, so the badge never flashes the reply as unread.
+  if (replied) {
+    const event = { agentId: replied.agentId, agentName: replied.name };
+    for (const listener of replyListeners) listener(event);
+  }
   emit();
+}
+
+/** Notified once per reply received, after it is counted as unread. */
+export function onAgentReply(cb: (event: AgentReplyEvent) => void): () => void {
+  replyListeners.add(cb);
+  return () => {
+    replyListeners.delete(cb);
+  };
+}
+
+/**
+ * The agent's replies were seen (its thread is shown in the panel). Returns
+ * whether anything changed, i.e. whether subscribers were notified.
+ */
+export function markAgentThreadRead(agentId: string): boolean {
+  const thread = threads.get(agentId);
+  if (!thread || thread.unread === 0) return false;
+  thread.unread = 0;
+  emit();
+  return true;
+}
+
+/** Replies not yet seen, over every agent of the room. */
+export function unreadAgentReplies(): number {
+  let total = 0;
+  for (const thread of threads.values()) total += thread.unread;
+  return total;
 }
