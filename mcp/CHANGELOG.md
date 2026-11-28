@@ -4,6 +4,14 @@ All notable changes to `@markasso/mcp` are documented here. The MCP server is ve
 
 ---
 
+## [0.10.1] - 2026-11-28
+
+### Fixed
+- **A dropped live session reconnects on its own.** When the room's socket closes without a final reason (a network drop, the room restarting), the agent gets back in by itself within about 45 seconds instead of waiting for another `live_join`. It keeps the same identity, so people in the room see the same participant and replies to requests received before the drop still reach them. The room stays authoritative: the board is reloaded from it and the next answer says so, since edits made in the last moments may be missing. A licence refusal, a full room or a newer connection of the same agent still end the session.
+- **The status line says why a session ended.** When the live session is lost, answers give the close code and reason; while it reconnects they say that edits do not reach the room, and `live_reply` asks to try again shortly. `live_wait_request` keeps waiting through a reconnect.
+
+---
+
 ## [0.10.0] - 2026-11-28
 
 ### Added
