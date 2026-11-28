@@ -3,6 +3,12 @@ import type { Element } from '../../src/elements/element';
 import { Diagram } from '../src/diagram';
 import { LiveLink, parseLiveLink } from '../src/live';
 
+type SocketEvent = {
+  data?: string;
+  code?: number | undefined;
+  reason?: string | undefined;
+};
+
 /** Minimal stand-in for the platform WebSocket, driven by the test. */
 class FakeSocket {
   static OPEN = 1;
@@ -10,10 +16,7 @@ class FakeSocket {
   readyState = 0;
   readonly url: string;
   readonly sent: unknown[] = [];
-  private listeners = new Map<
-    string,
-    Array<(event: { data?: string }) => void>
-  >();
+  private listeners = new Map<string, Array<(event: SocketEvent) => void>>();
   constructor(url: string) {
     this.url = url;
     FakeSocket.last = this;
@@ -22,17 +25,17 @@ class FakeSocket {
       this.emit('open', {});
     });
   }
-  addEventListener(type: string, cb: (event: { data?: string }) => void): void {
+  addEventListener(type: string, cb: (event: SocketEvent) => void): void {
     this.listeners.set(type, [...(this.listeners.get(type) ?? []), cb]);
   }
   send(data: string): void {
     this.sent.push(JSON.parse(data));
   }
-  close(): void {
+  close(code?: number, reason?: string): void {
     this.readyState = 3;
-    this.emit('close', {});
+    this.emit('close', { code, reason });
   }
-  emit(type: string, event: { data?: string }): void {
+  emit(type: string, event: SocketEvent): void {
     for (const cb of this.listeners.get(type) ?? []) cb(event);
   }
   receive(message: unknown): void {
@@ -321,11 +324,11 @@ describe('LiveLink requests', () => {
     expect((await waiting).map((r) => r.id)).toEqual(['r1']);
   });
 
-  it('returns nothing after the timeout or a disconnect', async () => {
+  it('returns nothing after the timeout or when the room ends the session', async () => {
     const { result, socket } = await join(new Diagram(), []);
     expect(await result.link.waitForRequests(5)).toEqual([]);
     const waiting = result.link.waitForRequests(10_000);
-    socket.close();
+    socket.close(1013, 'Room full');
     expect(await waiting).toEqual([]);
   });
 
