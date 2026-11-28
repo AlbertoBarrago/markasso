@@ -259,3 +259,15 @@ body.agent-chat-open #minimap {
   padding: calc(var(--spacing) * 1) calc(var(--spacing) * 2);
   font-size: var(--text-xs);
 }
+
+/* "Show on canvas" under a reply: .ui-button, sized to sit in the bubble. */
+.ac-show {
+  align-self: flex-start;
+  gap: calc(var(--spacing) * 1);
+  padding: calc(var(--spacing) * 1) calc(var(--spacing) * 2);
+  font-size: var(--text-xs);
+}
+/* Nothing left to show: muted, still clickable (a peer may restore them). */
+.ac-show-gone {
+  opacity: 0.5;
+}

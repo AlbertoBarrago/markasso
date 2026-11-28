@@ -3,6 +3,7 @@ import { isSessionCommand } from '../../src/engine/ephemeral';
 import {
   type AgentRequestMsg,
   MAX_AGENT_REPLY_CHARS,
+  sanitizeReplyElements,
 } from '../../src/io/agent_requests_protocol';
 import { isValidSessionCommand } from '../../src/io/command_validation';
 import { createCommands, LiveOutbox } from '../../src/io/live_outbox';
@@ -44,6 +45,8 @@ export interface LiveRequest {
 const MAX_INBOX = 20;
 /** Delivered request ids the agent may still answer with `reply`. */
 const MAX_ANSWERABLE = 100;
+/** Elements remembered per request; well above what a reply carries. */
+const MAX_TRACKED_ELEMENTS = 500;
 
 const ROOM_ID = /^[a-zA-Z0-9_-]{3,64}$/;
 const AGENT_COLOR = '#c77dff';
@@ -130,7 +133,16 @@ export class LiveLink {
   private selfId = '';
   private open = false;
   private inbox: LiveRequest[] = [];
-  private readonly answerable = new Set<string>();
+  /**
+   * Delivered request ids the agent may answer, each with the elements the
+   * agent changed for it (sent with the reply), or null once that cannot be
+   * told: edits made while several requests waited for an answer could be
+   * for any of them, so none of them claims those edits.
+   */
+  private readonly answerable = new Map<string, Set<string> | null>();
+  /** Delivered requests still waiting for their first reply. */
+  private readonly unanswered = new Set<string>();
+  private stopTracking: (() => void) | null = null;
   /** Pending `waitForRequests` calls, woken by a request or a disconnect. */
   private readonly waiters = new Set<() => void>();
   /** Set while replaying a remote undo/redo, which History re-emits. */
@@ -143,6 +155,42 @@ export class LiveLink {
   ) {
     this.room = room;
     this.url = `${origin}/?live=${encodeURIComponent(room)}`;
+  }
+
+  /**
+   * Attributes the agent's own edits to the request it is working on, when
+   * only one waits for an answer (see `answerable`). Deleted elements leave
+   * every request, so they never fill the bound.
+   */
+  private noteEdited(
+    changed: ReadonlySet<string>,
+    removed: ReadonlySet<string>,
+  ): void {
+    for (const requestId of this.answerable.keys()) {
+      const touched = this.answerable.get(requestId);
+      for (const id of removed) touched?.delete(id);
+    }
+    if (changed.size === 0) return;
+    if (this.unanswered.size > 1) {
+      for (const requestId of this.unanswered)
+        this.answerable.set(requestId, null);
+      return;
+    }
+    for (const requestId of this.unanswered) {
+      const touched = this.answerable.get(requestId);
+      if (!touched) continue;
+      for (const id of changed) {
+        // Bounded: a reply carries at most MAX_REPLY_ELEMENTS anyway.
+        if (touched.size >= MAX_TRACKED_ELEMENTS) break;
+        touched.add(id);
+      }
+    }
+  }
+
+  /** Stops attributing edits (the session is over). */
+  private untrack(): void {
+    this.stopTracking?.();
+    this.stopTracking = null;
   }
 
   static async join(
@@ -208,13 +256,15 @@ export class LiveLink {
     const taken = this.inbox;
     this.inbox = [];
     for (const request of taken) {
-      this.answerable.add(request.id);
+      this.answerable.set(request.id, new Set());
+      this.unanswered.add(request.id);
       this.send({ type: 'agent_status', id: request.id, status: 'received' });
     }
     while (this.answerable.size > MAX_ANSWERABLE) {
-      const oldest = this.answerable.values().next().value;
+      const oldest = this.answerable.keys().next().value;
       if (oldest === undefined) break;
       this.answerable.delete(oldest);
+      this.unanswered.delete(oldest);
     }
     return taken;
   }
@@ -238,17 +288,42 @@ export class LiveLink {
     return this.takeRequests();
   }
 
-  /** Sends an answer to the person behind a delivered request. */
-  reply(id: string, text: string): void {
+  /**
+   * Sends an answer to the person behind a delivered request, pointing at
+   * `elements` when given, else at the elements the agent changed for it.
+   * Returns how many elements the reply points at, and whether the changes
+   * could not be told apart from another request's (`ambiguous`).
+   */
+  reply(
+    id: string,
+    text: string,
+    elements?: ReadonlyArray<string>,
+  ): { pointed: number; ambiguous: boolean } {
     if (!this.open) throw new LiveError('Not connected to the live room.');
     if (!this.answerable.has(id))
       throw new LiveError(`Unknown request id "${id}".`);
+    const touched = this.answerable.get(id) ?? null;
     const trimmed = text.trim();
     if (!trimmed || trimmed.length > MAX_AGENT_REPLY_CHARS)
       throw new LiveError(
         `A reply needs 1 to ${MAX_AGENT_REPLY_CHARS} characters.`,
       );
-    this.send({ type: 'agent_status', id, status: 'replied', text: trimmed });
+    // Deleted since: nothing to show for them.
+    const present = new Set(this.diagram.elements.map((el) => el.id));
+    const ids = sanitizeReplyElements(
+      [...(elements ?? touched ?? [])].filter((elementId) =>
+        present.has(elementId),
+      ),
+    );
+    this.unanswered.delete(id);
+    this.send({
+      type: 'agent_status',
+      id,
+      status: 'replied',
+      text: trimmed,
+      ...(ids.length > 0 ? { elements: ids } : {}),
+    });
+    return { pointed: ids.length, ambiguous: !elements && touched === null };
   }
 
   private wakeWaiters(): void {
@@ -341,6 +416,11 @@ export class LiveLink {
               this.publish(command);
             }
           });
+          // Only once in the room: a join that fails leaves nothing behind.
+          this.untrack();
+          this.stopTracking = this.diagram.onLocalChange((changed, removed) =>
+            this.noteEdited(changed, removed),
+          );
           this.open = true;
           resolve({ seeded, discarded });
         } else if (msg.type === 'apply') {
@@ -393,6 +473,7 @@ export class LiveLink {
         this.open = false;
         this.outbox.clear();
         history.setOnCommand(undefined);
+        this.untrack();
         this.wakeWaiters();
       });
       socket.addEventListener('error', () => {
@@ -414,6 +495,7 @@ export class LiveLink {
     this.outbox.drain();
     this.open = false;
     this.wakeWaiters();
+    this.untrack();
     this.diagram.history.setOnCommand(undefined);
     this.socket?.close();
     this.socket = null;

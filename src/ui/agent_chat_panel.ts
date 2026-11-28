@@ -1,3 +1,5 @@
+import { fitToBox } from '../core/viewport';
+import type { History } from '../engine/history';
 import { getLocale, t } from '../i18n';
 import {
   type AgentRequestEntry,
@@ -12,6 +14,7 @@ import {
 } from '../io/agent_requests';
 import { MAX_AGENT_REQUEST_CHARS } from '../io/agent_requests_protocol';
 import { onLivePeers, type PeerInfo } from '../io/realtime';
+import { getRotatedBounds } from '../rendering/draw_selection';
 import { renderChatMarkdown } from './markdown';
 import { claimRightSidebar, releaseRightSidebar } from './right_sidebar';
 
@@ -80,6 +83,20 @@ export function toggleAgentChat(): void {
   toggleImpl?.();
 }
 
+/** Canvas width (px) below which the sidebar closes to show elements. */
+const MIN_FIT_WIDTH = 320;
+
+/** The box around `boxes` (at least one). */
+function unionOf(
+  boxes: ReadonlyArray<{ x: number; y: number; w: number; h: number }>,
+): { x: number; y: number; w: number; h: number } {
+  const left = Math.min(...boxes.map((b) => b.x));
+  const top = Math.min(...boxes.map((b) => b.y));
+  const right = Math.max(...boxes.map((b) => b.x + b.w));
+  const bottom = Math.max(...boxes.map((b) => b.y + b.h));
+  return { x: left, y: top, w: right - left, h: bottom - top };
+}
+
 /** How long a reply toast stays on screen. */
 const TOAST_MS = 6000;
 
@@ -121,7 +138,10 @@ export function bindAgentChatTrigger(button: HTMLElement): void {
   update();
 }
 
-export function initAgentChatPanel(workspace: HTMLElement): void {
+export function initAgentChatPanel(
+  workspace: HTMLElement,
+  history: History,
+): void {
   const panel = document.createElement('aside');
   panel.id = 'agent-chat-panel';
   panel.className = 'ui-island';
@@ -288,6 +308,58 @@ export function initAgentChatPanel(workspace: HTMLElement): void {
         ?.focus();
   }
 
+  /**
+   * "Show on canvas (N)": selects the elements a reply points at and fits
+   * the view to what is drawn for them (connectors resolved from their
+   * shapes, rotation included), clear of the sidebar. On a screen too narrow
+   * to show both, the sidebar closes first. Elements deleted since are
+   * skipped; with none left the button says so and stays clickable, since a
+   * peer may bring them back.
+   */
+  function showOnCanvasButton(ids: readonly string[]): HTMLElement {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'ui-button ac-show';
+    button.textContent = t('agentReplyShow').replace(
+      '{{count}}',
+      String(ids.length),
+    );
+    button.addEventListener('click', () => {
+      const all = history.present.elements;
+      const wanted = new Set(ids);
+      const elements = all.filter((el) => wanted.has(el.id));
+      const gone = elements.length === 0;
+      button.classList.toggle('ac-show-gone', gone);
+      button.title = gone ? t('agentReplyShowGone') : '';
+      if (gone) return;
+      history.dispatch({
+        type: 'SELECT_ELEMENTS',
+        ids: elements.map((el) => el.id),
+      });
+      let right = 20;
+      const sidebar = panel.getBoundingClientRect().width;
+      if (sidebar > 0) {
+        if (window.innerWidth - sidebar < MIN_FIT_WIDTH) setOpen(false);
+        // Keeps the elements out from under the sidebar.
+        else right = sidebar + 40;
+      }
+      const vp = fitToBox(
+        unionOf(elements.map((el) => getRotatedBounds(el, all))),
+        window.innerWidth,
+        window.innerHeight,
+        // A single small node should not fill the screen.
+        { right, maxZoom: 1.5 },
+      );
+      history.dispatch({
+        type: 'SET_VIEWPORT',
+        offsetX: vp.offsetX,
+        offsetY: vp.offsetY,
+        zoom: vp.zoom,
+      });
+    });
+    return button;
+  }
+
   function meta(text: string, error = false): HTMLElement {
     const el = document.createElement('div');
     el.className = 'ac-meta';
@@ -302,7 +374,15 @@ export function initAgentChatPanel(workspace: HTMLElement): void {
       agent?.id,
       agent?.name,
       getLocale(),
-      entries.map((e) => [e.ref, e.status, e.reason, e.replies.length]),
+      // The last reply's time too: past the reply cap the count stays put
+      // while the oldest reply gives way to a new one.
+      entries.map((e) => [
+        e.ref,
+        e.status,
+        e.reason,
+        e.replies.length,
+        e.replies.at(-1)?.at,
+      ]),
     ]);
     if (shown === messagesShown) return;
     messagesShown = shown;
@@ -350,7 +430,10 @@ export function initAgentChatPanel(workspace: HTMLElement): void {
         content.className = 'ac-text ac-markdown';
         // renderChatMarkdown escapes the text and keeps only http(s) links.
         content.innerHTML = renderChatMarkdown(reply.text);
-        theirs.append(content, meta(time.format(reply.at)));
+        theirs.append(content);
+        if (reply.elements?.length)
+          theirs.appendChild(showOnCanvasButton(reply.elements));
+        theirs.appendChild(meta(time.format(reply.at)));
         body.appendChild(theirs);
       }
     }

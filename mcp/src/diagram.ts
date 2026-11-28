@@ -207,6 +207,24 @@ export function elementLabel(el: Element): string {
   return 'label' in el && el.label ? el.label : '';
 }
 
+/** See Diagram.onLocalChange. */
+export type LocalChangeListener = (
+  changed: ReadonlySet<string>,
+  removed: ReadonlySet<string>,
+) => void;
+
+/**
+ * Whether two versions of an element hold the same values, one level deep:
+ * enough to tell a no-op patch (a label set to what it was) from an edit.
+ * Nested values (points, styles) compare by reference, so a rewritten array
+ * counts as a change even when equal: at worst one element too many.
+ */
+function sameFields(a: Element, b: Element): boolean {
+  const aKeys = Object.keys(a) as (keyof Element)[];
+  if (aKeys.length !== Object.keys(b).length) return false;
+  return aKeys.every((key) => a[key] === b[key]);
+}
+
 export class Diagram {
   readonly history: History;
   /** Keys given by the agent; other elements get derived keys on read. */
@@ -293,6 +311,14 @@ export class Diagram {
   }
 
   /** `findId`, or the error the model can act on. */
+  /**
+   * Element ids of the nodes `keys` names (as diagram_read shows them).
+   * Throws on an unknown key, like every tool that takes keys.
+   */
+  idsOfKeys(keys: ReadonlyArray<string>): string[] {
+    return keys.map((key) => this.idOf(key));
+  }
+
   private idOf(key: string): string {
     const id = this.findId(key);
     if (id !== undefined) return id;
@@ -301,8 +327,40 @@ export class Diagram {
     );
   }
 
+  /** See onLocalChange. */
+  private readonly changeListeners = new Set<LocalChangeListener>();
+
+  /**
+   * Notified after each edit this diagram makes itself (never a remote one
+   * from a live room) with the ids of the elements it created or really
+   * changed (an edit that leaves every field as it was does not count), and
+   * of those it deleted.
+   */
+  onLocalChange(cb: LocalChangeListener): () => void {
+    this.changeListeners.add(cb);
+    return () => {
+      this.changeListeners.delete(cb);
+    };
+  }
+
   private dispatch(command: Command): void {
+    if (this.changeListeners.size === 0) {
+      this.history.dispatch(command);
+      return;
+    }
+    const before = new Map(this.elements.map((el) => [el.id, el]));
     this.history.dispatch(command);
+    const changed = new Set<string>();
+    for (const el of this.elements) {
+      const old = before.get(el.id);
+      before.delete(el.id);
+      // The reducer never mutates, so an untouched element is the same
+      // object; a touched one is compared field by field.
+      if (old !== el && !(old && sameFields(old, el))) changed.add(el.id);
+    }
+    const removed = new Set(before.keys());
+    if (changed.size === 0 && removed.size === 0) return;
+    for (const listener of this.changeListeners) listener(changed, removed);
   }
 
   /** Bottom-left of the current content, where new nodes start a row. */

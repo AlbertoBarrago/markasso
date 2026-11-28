@@ -62,11 +62,6 @@ export function fitToElements(
 ): Viewport {
   if (elements.length === 0) return createViewport();
 
-  const iTop = insets.top ?? 70;
-  const iBottom = insets.bottom ?? 70;
-  const iLeft = insets.left ?? 20;
-  const iRight = insets.right ?? 20;
-
   let left = Infinity,
     top = Infinity,
     right = -Infinity,
@@ -115,8 +110,32 @@ export function fitToElements(
     }
   }
 
-  const bbW = Math.max(right - left, 1);
-  const bbH = Math.max(bottom - top, 1);
+  return fitToBox(
+    { x: left, y: top, w: right - left, h: bottom - top },
+    canvasWidth,
+    canvasHeight,
+    insets,
+  );
+}
+
+/**
+ * Compute a viewport that fits the world-space `box` into the usable area,
+ * with the same insets and zoom bounds as fitToElements.
+ */
+export function fitToBox(
+  box: { x: number; y: number; w: number; h: number },
+  canvasWidth: number,
+  canvasHeight: number,
+  insets: FitInsets = {},
+): Viewport {
+  const iTop = insets.top ?? 70;
+  const iBottom = insets.bottom ?? 70;
+  const iLeft = insets.left ?? 20;
+  const iRight = insets.right ?? 20;
+  const left = box.x;
+  const top = box.y;
+  const bbW = Math.max(box.w, 1);
+  const bbH = Math.max(box.h, 1);
   const availW = canvasWidth - iLeft - iRight;
   const availH = canvasHeight - iTop - iBottom;
   const newZoom = Math.min(

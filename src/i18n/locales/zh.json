@@ -267,6 +267,8 @@
   "agentReplyToast": "{{name}} 已回复",
   "agentChatUnread": "{{count}} 条未读",
   "agentChatOpenThread": "打开",
+  "agentReplyShow": "在白板上显示 ({{count}})",
+  "agentReplyShowGone": "这些元素已不在白板上",
   "shapes": "流程图形状",
   "shapeKind": "形状",
   "hintShape": "拖动绘制所选形状，可在素材库中切换 [[I]]",

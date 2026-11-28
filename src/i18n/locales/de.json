@@ -267,6 +267,8 @@
   "agentReplyToast": "{{name}} hat geantwortet",
   "agentChatUnread": "{{count}} ungelesen",
   "agentChatOpenThread": "Öffnen",
+  "agentReplyShow": "Auf dem Board zeigen ({{count}})",
+  "agentReplyShowGone": "Diese Elemente sind nicht mehr auf dem Board",
   "shapes": "Flussdiagramm-Formen",
   "shapeKind": "Form",
   "hintShape": "Ziehen zum Zeichnen der gewählten Form. Eine andere in der Bibliothek wählen [[I]]",
