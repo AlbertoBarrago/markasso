@@ -4,6 +4,16 @@ All notable changes to `@markasso/mcp` are documented here. The MCP server is ve
 
 ---
 
+## [0.10.0] - 2026-11-28
+
+### Added
+- **Replies point at what changed.** `live_reply` sends, with the answer, the elements the agent created or changed since it received the request (edits by people in the room do not count, deleted elements are left out). The person sees a "Show on canvas" button under the reply that selects those elements and zooms to them. The new optional `nodes` parameter points at specific nodes by key instead.
+
+### Changed
+- The `live_reply` description now says where the answer shows up (the person's chat with the agent) instead of the participant list.
+
+---
+
 ## [0.9.1] - 2026-11-27
 
 ### Changed
