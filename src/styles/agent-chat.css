@@ -271,3 +271,31 @@ body.agent-chat-open #minimap {
 .ac-show-gone {
   opacity: 0.5;
 }
+
+/* ── Agent activity (presence): after the name, in the chat and People ── */
+.ac-activity {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-normal);
+}
+.ac-activity[data-activity="listening"] {
+  color: var(--color-success);
+}
+.ac-activity[data-activity="working"] {
+  color: var(--color-warning);
+}
+/* People list: the same activity as a dot, its text in the title. */
+.pp-activity {
+  flex-shrink: 0;
+  width: calc(var(--spacing) * 2);
+  height: calc(var(--spacing) * 2);
+  border-radius: var(--radius-full);
+  background: var(--color-text-muted);
+}
+.pp-activity[data-activity="listening"] {
+  background: var(--color-success);
+}
+.pp-activity[data-activity="working"] {
+  background: var(--color-warning);
+}

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Element } from '../../src/elements/element';
 import { Diagram } from '../src/diagram';
 import { LiveLink, parseLiveLink } from '../src/live';
@@ -434,5 +434,74 @@ describe('LiveLink requests', () => {
     expect(socket.sent.at(-1)).toMatchObject({
       elements: diagram.idsOfKeys(['api']),
     });
+  });
+});
+
+describe('LiveLink activity', () => {
+  const request = (id: string) => ({
+    type: 'request',
+    id,
+    from: 'p1',
+    fromName: 'Alberto',
+    text: 'Add a cache',
+  });
+  /** The activities the agent announced, in order. */
+  const announced = (socket: FakeSocket): unknown[] =>
+    socket.sent
+      .filter(
+        (m): m is { type: string; activity?: string } =>
+          typeof m === 'object' && m !== null && 'activity' in m,
+      )
+      .map((m) => m.activity);
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('announces listening, working and, after a grace, idle', async () => {
+    const { result, socket } = await join(new Diagram(), []);
+    vi.useFakeTimers();
+    expect(announced(socket)).toEqual(['idle']);
+    const waiting = result.link.waitForRequests(60_000);
+    expect(announced(socket)).toEqual(['idle', 'listening']);
+    socket.receive(request('r1'));
+    await waiting;
+    expect(announced(socket)).toEqual(['idle', 'listening', 'working']);
+    result.link.reply('r1', 'Done');
+    // Not yet: the agent may pick up the next request right away.
+    vi.advanceTimersByTime(4000);
+    expect(announced(socket)).toHaveLength(3);
+    vi.advanceTimersByTime(2000);
+    expect(announced(socket)).toEqual(['idle', 'listening', 'working', 'idle']);
+  });
+
+  it('never shows idle between two waits in a row', async () => {
+    const { result, socket } = await join(new Diagram(), []);
+    vi.useFakeTimers();
+    const first = result.link.waitForRequests(1000);
+    vi.advanceTimersByTime(1000);
+    await first;
+    // The model calls again within the grace.
+    const second = result.link.waitForRequests(60_000);
+    vi.advanceTimersByTime(10_000);
+    expect(announced(socket)).toEqual(['idle', 'listening']);
+    result.link.leave();
+    await second;
+  });
+
+  it('announces working before any received, even with two waits', async () => {
+    const { result, socket } = await join(new Diagram(), []);
+    const first = result.link.waitForRequests(60_000);
+    const second = result.link.waitForRequests(60_000);
+    const before = socket.sent.length;
+    socket.receive(request('r1'));
+    await Promise.all([first, second]);
+    const after = socket.sent
+      .slice(before)
+      .map((m) => m as { type: string; activity?: string; status?: string });
+    expect(after.map((m) => m.activity ?? m.status)).toEqual([
+      'working',
+      'received',
+    ]);
   });
 });
