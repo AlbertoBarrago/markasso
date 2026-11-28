@@ -1,5 +1,4 @@
-pnpm lint
-git add -u
+pnpm lint:ci
 pnpm typecheck
 pnpm test
 pnpm coverage
