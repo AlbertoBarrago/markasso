@@ -3,10 +3,11 @@ import type { Element } from '../elements/element';
 import { isSessionCommand } from '../engine/ephemeral';
 import type { History } from '../engine/history';
 import {
+  attachAgentRequests,
+  detachAgentRequests,
   handleRequestAccess,
   handleRequestStatus,
   revokeAgentRequestAccess,
-  setAgentRequestSender,
 } from './agent_requests';
 import type {
   PeerKind,
@@ -334,7 +335,7 @@ export function joinLiveSession(
     left = true;
     ready = false;
     document.removeEventListener('markasso-cloud-change', onLicenseChange);
-    setAgentRequestSender(null);
+    detachAgentRequests();
     if (reconnectTimer) {
       clearTimeout(reconnectTimer);
       reconnectTimer = null;
@@ -373,7 +374,7 @@ export function joinLiveSession(
   setLocalCursorSender((cursor) => {
     send({ type: 'cursor', ...cursor, name: self.name, color: self.color });
   });
-  setAgentRequestSender(send);
+  attachAgentRequests(roomId, send);
 
   history.setOnCommand((command) => {
     if (!ready || !isSessionCommand(command)) return;

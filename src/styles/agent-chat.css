@@ -1,0 +1,224 @@
+/* ── Agent chat sidebar (agent_chat_panel.ts) ───────────────────────── */
+/* Shares the right edge and the layout of the library sidebar (one open at a
+   time); surface comes from .ui-island (components.css). */
+#agent-chat-panel {
+  position: fixed;
+  top: max(calc(var(--spacing) * 20), var(--toolbar-panel-top, 0px));
+  right: calc(var(--spacing) * 4);
+  bottom: max(calc(var(--spacing) * 20), var(--toolbar-panel-bottom, 0px));
+  width: min(380px, calc(100vw - 32px));
+  max-height: 690px;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--spacing) * 2);
+  padding: calc(var(--spacing) * 2);
+  color: var(--color-text);
+  z-index: calc(var(--z-raised) + 20);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(8px);
+  transition:
+    opacity var(--duration-base),
+    transform var(--duration-base);
+}
+#agent-chat-panel.open {
+  opacity: 1;
+  pointer-events: all;
+  transform: translateX(0);
+}
+body.agent-chat-open #minimap {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  #agent-chat-panel {
+    transition: none;
+  }
+}
+.tb-agent-chat[hidden] {
+  display: none;
+}
+
+.ac-header {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--spacing) * 2);
+}
+.ac-agents {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  gap: calc(var(--spacing) * 1);
+  overflow-x: auto;
+}
+/* Tabs are .ui-button (fill, border and selected ring from the family);
+   only the layout is set here. A single agent is a plain title. */
+.ac-agent,
+.ac-agent-title {
+  gap: calc(var(--spacing) * 2);
+  min-width: 0;
+  padding: calc(var(--spacing) * 1) calc(var(--spacing) * 2);
+  font-size: var(--text-sm);
+}
+.ac-agent-title {
+  display: flex;
+  align-items: center;
+  font-weight: var(--font-weight-semibold);
+}
+.ac-agent:focus-visible,
+.ac-send:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+.ac-agent-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ac-dot-offline {
+  border: 1px solid var(--color-text-muted);
+}
+.ac-close {
+  flex-shrink: 0;
+}
+
+.ac-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--spacing) * 2);
+  overflow-y: auto;
+  padding: calc(var(--spacing) * 1);
+  scrollbar-color: var(--color-scrollbar) transparent;
+}
+.ac-empty {
+  margin: auto calc(var(--spacing) * 4);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  text-align: center;
+}
+.ac-msg {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--spacing) * 1);
+  max-width: 88%;
+  padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3);
+  border-radius: var(--radius-xl);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+}
+.ac-msg-me {
+  align-self: flex-end;
+  background: var(--color-accent-subtle);
+}
+.ac-msg-agent {
+  align-self: flex-start;
+  background: var(--color-hover);
+  border: 1px solid var(--color-border-subtle);
+}
+.ac-text {
+  overflow-wrap: anywhere;
+}
+.ac-msg-me .ac-text {
+  white-space: pre-wrap;
+}
+.ac-markdown p,
+.ac-markdown ul,
+.ac-markdown ol,
+.ac-markdown pre {
+  margin: 0;
+}
+.ac-markdown > * + * {
+  margin-top: calc(var(--spacing) * 2);
+}
+.ac-markdown ul,
+.ac-markdown ol {
+  padding-left: calc(var(--spacing) * 5);
+}
+.ac-markdown code {
+  padding: 0 calc(var(--spacing) * 1);
+  border-radius: var(--radius-sm);
+  background: var(--color-hover);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+.ac-markdown pre {
+  overflow-x: auto;
+  padding: calc(var(--spacing) * 2);
+  border-radius: var(--radius-md);
+  background: var(--color-hover);
+}
+.ac-markdown pre code {
+  padding: 0;
+  background: none;
+}
+.ac-markdown a {
+  color: var(--color-accent);
+}
+.ac-meta {
+  color: var(--color-text-muted);
+  font-size: var(--text-2xs);
+}
+.ac-msg-me .ac-meta {
+  align-self: flex-end;
+}
+.ac-meta-error {
+  color: var(--color-text-danger);
+}
+
+.ac-footer {
+  display: flex;
+  flex-direction: column;
+}
+.ac-notice {
+  margin: 0;
+  padding: calc(var(--spacing) * 2);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  text-align: center;
+}
+.ac-notice[hidden],
+.ac-compose[hidden] {
+  display: none;
+}
+.ac-compose {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--spacing) * 1);
+}
+.ac-input {
+  display: block;
+  width: 100%;
+  resize: none;
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  /* About 6 lines; the textbox scrolls past that. */
+  max-height: 128px;
+  overflow-y: auto;
+}
+.ac-compose-footer {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--spacing) * 2);
+}
+.ac-hint {
+  flex: 1;
+  color: var(--color-text-muted);
+  font-size: var(--text-2xs);
+}
+/* .ui-button; the accent fill is the documented difference: it is the
+   panel's primary action. */
+.ac-send {
+  padding: calc(var(--spacing) * 1) calc(var(--spacing) * 3);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font-size: var(--text-xs);
+}
+.ac-send:hover:not(:disabled) {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-text-on-accent);
+  opacity: 0.88;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderMarkdown } from '../src/ui/markdown';
+import { renderChatMarkdown, renderMarkdown } from '../src/ui/markdown';
 
 describe('renderMarkdown', () => {
   it('skips a leading raw-HTML preamble and starts at the first heading', () => {
@@ -64,6 +64,60 @@ describe('renderMarkdown', () => {
     expect(html).toContain('<hr>');
     expect(html).toContain(
       '<blockquote><strong>Note:</strong> careful.</blockquote>',
+    );
+  });
+});
+
+describe('renderChatMarkdown', () => {
+  it('keeps line breaks inside a paragraph and splits on blank lines', () => {
+    expect(renderChatMarkdown('one\ntwo\n\nthree')).toBe(
+      '<p>one<br>two</p><p>three</p>',
+    );
+  });
+
+  it('renders lists and fenced code, escaping the code', () => {
+    expect(renderChatMarkdown('- a\n- **b**\n\n```\n<x> & y\n```')).toBe(
+      '<ul><li>a</li><li><strong>b</strong></li></ul><pre><code>&lt;x&gt; &amp; y</code></pre>',
+    );
+  });
+
+  it('keeps web links and drops scriptable ones to their label', () => {
+    expect(renderChatMarkdown('[ok](https://example.com)')).toContain(
+      '<a href="https://example.com" target="_blank" rel="noopener noreferrer">ok</a>',
+    );
+    for (const href of [
+      'javascript:alert%281%29',
+      'JaVaScRiPt:void0',
+      'data:text/html,x',
+      '/relative',
+    ])
+      expect(renderChatMarkdown(`[x](${href})`)).toBe('<p>x</p>');
+  });
+
+  it('cannot break out of the href attribute', () => {
+    const html = renderChatMarkdown('[x](https://a.b/"onmouseover="alert(1))');
+    expect(html).not.toContain('" onmouseover');
+    expect(html).not.toMatch(/href="[^"]*"onmouseover/);
+  });
+
+  it('escapes raw HTML', () => {
+    expect(renderChatMarkdown('<img src=x onerror=alert(1)>')).toBe(
+      '<p>&lt;img src=x onerror=alert(1)&gt;</p>',
+    );
+  });
+
+  it('never formats inside a link target or a code span', () => {
+    expect(renderChatMarkdown('[x](https://a.b/a**b**c)')).toBe(
+      '<p><a href="https://a.b/a**b**c" target="_blank" rel="noopener noreferrer">x</a></p>',
+    );
+    expect(renderChatMarkdown('`[x](https://a.b)` and `**y**`')).toBe(
+      '<p><code>[x](https://a.b)</code> and <code>**y**</code></p>',
+    );
+  });
+
+  it('cannot forge a placeholder with a NUL in the text', () => {
+    expect(renderChatMarkdown('a\u00000\u0000 `<i>`')).toBe(
+      '<p>a0 <code>&lt;i&gt;</code></p>',
     );
   });
 });

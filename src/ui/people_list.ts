@@ -1,175 +1,31 @@
 import { t } from '../i18n';
-import {
-  type AgentRequestEntry,
-  agentRequests,
-  canSendAgentRequests,
-  sendAgentRequest,
-  subscribeAgentRequests,
-} from '../io/agent_requests';
-import { MAX_AGENT_REQUEST_CHARS } from '../io/agent_requests_protocol';
 import { onLivePeers, type PeerInfo, setLiveName } from '../io/realtime';
-
-const STATUS_KEYS: Record<AgentRequestEntry['status'], string> = {
-  sending: 'agentRequestSending',
-  sent: 'agentRequestSent',
-  received: 'agentRequestReceived',
-  replied: 'agentRequestReplied',
-  rejected: 'agentRequestInvalid',
-};
-
-const REJECTION_KEYS: Record<
-  NonNullable<AgentRequestEntry['reason']>,
-  string
-> = {
-  unauthorized: 'agentRequestUnauthorized',
-  unavailable: 'agentRequestUnavailable',
-  rate_limited: 'agentRequestRateLimited',
-  invalid: 'agentRequestInvalid',
-};
-
-function statusLabel(entry: AgentRequestEntry): string {
-  if (entry.status === 'rejected' && entry.reason)
-    return t(REJECTION_KEYS[entry.reason]);
-  return t(STATUS_KEYS[entry.status]);
-}
+import { openAgentChat } from './agent_chat_panel';
 
 /**
  * Renders the live-session participant list: an editable "you" row followed by
  * the other connected peers. Called with presence updates via `onLivePeers`.
  *
- * AI agent rows get an Ask composer when the room confirmed this tab's licence
- * (see io/agent_requests.ts), followed by the recent requests and answers.
- * The list is rebuilt on every change, so the open composer, its draft and
- * its focus live here and are restored after each render.
+ * AI agent rows get an Ask button that opens the agent chat sidebar on that
+ * agent (see agent_chat_panel.ts); the click also reaches the document, which
+ * closes the People popover.
  */
 export function initPeopleList(container: HTMLElement): () => void {
   let editing = false;
-  let composerFor: string | null = null;
-  const drafts = new Map<string, string>();
   let lastOthers: PeerInfo[] = [];
   let lastSelf: PeerInfo | null = null;
 
-  function buildThread(agentId: string): HTMLElement | null {
-    const entries = agentRequests(agentId);
-    if (entries.length === 0) return null;
-    const thread = document.createElement('div');
-    thread.className = 'pp-thread';
-    for (const entry of entries) {
-      const item = document.createElement('div');
-      item.className = 'pp-request';
-      const text = document.createElement('div');
-      text.className = 'pp-request-text';
-      text.textContent = entry.text;
-      const status = document.createElement('div');
-      status.className = 'pp-request-status';
-      if (entry.status === 'rejected') status.classList.add('pp-request-error');
-      status.textContent = statusLabel(entry);
-      item.append(text, status);
-      for (const reply of entry.replies) {
-        const answer = document.createElement('div');
-        answer.className = 'pp-reply';
-        answer.textContent = reply;
-        item.appendChild(answer);
-      }
-      thread.appendChild(item);
-    }
-    return thread;
-  }
-
-  /**
-   * Grows the textbox with its text, up to the CSS max-height; past that it
-   * scrolls. Needs the element in the DOM to measure it.
-   */
-  function fitComposer(input: HTMLTextAreaElement): void {
-    input.style.height = 'auto';
-    input.style.height = `${input.scrollHeight + 2}px`;
-  }
-
-  /** Textbox plus a footer with the key hint and a Send button. */
-  function buildComposer(agent: PeerInfo): HTMLElement {
-    const box = document.createElement('div');
-    box.className = 'pp-compose';
-    const input = document.createElement('textarea');
-    input.className = 'pp-input pp-composer';
-    input.rows = 2;
-    input.maxLength = MAX_AGENT_REQUEST_CHARS;
-    input.placeholder = t('agentAskPlaceholder').replace(
-      '{{name}}',
-      agent.name,
-    );
-    input.value = drafts.get(agent.id) ?? '';
-
-    const footer = document.createElement('div');
-    footer.className = 'pp-compose-footer';
-    const hint = document.createElement('span');
-    hint.className = 'pp-compose-hint';
-    hint.textContent = t('agentAskHint');
-    const sendBtn = document.createElement('button');
-    sendBtn.type = 'button';
-    sendBtn.className = 'pp-send';
-    sendBtn.textContent = t('agentSend');
-    sendBtn.disabled = !input.value.trim();
-    footer.append(hint, sendBtn);
-
-    const submit = (): void => {
-      if (!sendAgentRequest(agent.id, input.value)) return;
-      // The send already re-rendered the list: rebuild it without the draft
-      // and keep typing in the fresh textbox.
-      drafts.delete(agent.id);
-      rerender();
-      container.querySelector<HTMLElement>('.pp-composer')?.focus();
-    };
-    input.addEventListener('input', () => {
-      drafts.set(agent.id, input.value);
-      sendBtn.disabled = !input.value.trim();
-      fitComposer(input);
-    });
-    input.addEventListener('keydown', (e) => {
-      // Keeps canvas shortcuts (and the panel's own keys) out of the textbox.
-      e.stopPropagation();
-      if (e.key === 'Escape') {
-        composerFor = null;
-        rerender();
-      } else if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
-        e.preventDefault();
-        submit();
-      }
-    });
-    sendBtn.addEventListener('click', submit);
-    box.append(input, footer);
-    return box;
-  }
-
-  /** An AI agent's row: name, Ask toggle, composer and recent requests. */
+  /** An AI agent's row: name and the Ask button. */
   function buildAgent(peer: PeerInfo): HTMLElement {
-    const block = document.createElement('div');
-    block.className = 'pp-agent';
-    // Clicks here must not reach the document handler closing the panel.
-    block.addEventListener('click', (e) => e.stopPropagation());
     const row = buildRow(peer.name, peer.color, false);
-    block.appendChild(row);
-    // Earlier requests stay visible even if access was lost since.
-    const thread = buildThread(peer.id);
-    if (!canSendAgentRequests()) {
-      if (thread) block.appendChild(thread);
-      return block;
-    }
-
+    row.classList.add('pp-agent');
     const ask = document.createElement('button');
     ask.type = 'button';
     ask.className = 'pp-ask';
     ask.textContent = t('agentAsk');
-    ask.setAttribute('aria-expanded', String(composerFor === peer.id));
-    ask.addEventListener('click', () => {
-      composerFor = composerFor === peer.id ? null : peer.id;
-      rerender();
-      if (composerFor)
-        container.querySelector<HTMLElement>('.pp-composer')?.focus();
-    });
+    ask.addEventListener('click', () => openAgentChat(peer.id));
     row.appendChild(ask);
-    if (composerFor === peer.id) block.appendChild(buildComposer(peer));
-    if (thread) block.appendChild(thread);
-    return block;
+    return row;
   }
 
   function rerender(): void {
@@ -201,20 +57,6 @@ export function initPeopleList(container: HTMLElement): () => void {
     lastSelf = self;
     // A rename in progress owns the list until it ends (it re-renders then).
     if (editing) return;
-    // activeElement, not `:focus`: the latter stops matching while the window
-    // is in the background, and an update arriving then would drop focus.
-    const active = document.activeElement;
-    const focused =
-      active instanceof HTMLTextAreaElement &&
-      active.classList.contains('pp-composer') &&
-      container.contains(active)
-        ? active
-        : null;
-    const caret = focused
-      ? [focused.selectionStart, focused.selectionEnd]
-      : null;
-    if (composerFor && !others.some((p) => p.id === composerFor))
-      composerFor = null;
     container.innerHTML = '';
 
     const title = document.createElement('div');
@@ -267,24 +109,10 @@ export function initPeopleList(container: HTMLElement): () => void {
           : buildRow(peer.name, peer.color, false),
       );
     }
-
-    const composer =
-      container.querySelector<HTMLTextAreaElement>('.pp-composer');
-    if (composer) {
-      fitComposer(composer);
-      if (caret) {
-        composer.focus();
-        composer.setSelectionRange(caret[0] ?? 0, caret[1] ?? 0);
-      }
-    }
   }
 
   const stopPeers = onLivePeers((others, self) => {
     render(others, self);
   });
-  const stopRequests = subscribeAgentRequests(rerender);
-  return () => {
-    stopPeers();
-    stopRequests();
-  };
+  return stopPeers;
 }
