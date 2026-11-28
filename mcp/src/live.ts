@@ -35,6 +35,9 @@ type ServerMsg =
   | { type: 'rejected'; reason: unknown }
   | AgentRequestMsg;
 
+/** The room state a socket gets once it is admitted. */
+type InitMsg = Extract<ServerMsg, { type: 'init' }>;
+
 /** A request a person in the room sent to this agent. */
 export interface LiveRequest {
   readonly id: string;
@@ -59,11 +62,71 @@ const AGENT_COLOR = '#c77dff';
 const JOIN_TIMEOUT_MS = 10_000;
 /** Close code the room uses for an agent without a valid licence. */
 const CLOSE_LICENCE_REQUIRED = 4402;
+/** Close code the room uses when it has no place for another peer. */
+const CLOSE_ROOM_FULL = 1013;
+/** Close code (with reason "replaced") for a socket a newer one replaced. */
+const CLOSE_REPLACED = 1000;
+const RECONNECT_BASE_MS = 1000;
+const RECONNECT_MAX_MS = 10_000;
+/**
+ * How long the link keeps trying to get back into the room after a drop,
+ * join timeouts included: the attempts never outlast this window.
+ */
+const RECONNECT_WINDOW_MS = 45_000;
 const LICENCE_MESSAGE =
   "Drawing live with an AI agent needs a Markasso Cloud licence. Get one at https://markasso.it/cloud, then set MARKASSO_LICENSE in this MCP server's environment.";
 
 export class LiveError extends Error {
   override name = 'LiveError';
+}
+
+/**
+ * Where the link stands with the room: joining for the first time, in it,
+ * trying to get back in after a drop, given up (the room refused it or the
+ * reconnect window ran out), or left on purpose.
+ */
+export type LiveState =
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'lost'
+  | 'left';
+
+/** How a socket ended, as the room or the network reported it. */
+export interface LiveClose {
+  /** WebSocket close code, or null when the attempt failed before one. */
+  readonly code: number | null;
+  readonly reason: string;
+}
+
+/** A close the room means as final: retrying would only repeat it. */
+function isFinalClose(close: LiveClose): boolean {
+  return (
+    close.code === CLOSE_LICENCE_REQUIRED ||
+    close.code === CLOSE_ROOM_FULL ||
+    (close.code === CLOSE_REPLACED && close.reason === 'replaced')
+  );
+}
+
+/** " (code 1006: reason)" for a status line, empty when nothing is known. */
+export function describeClose(close: LiveClose | null): string {
+  if (!close) return '';
+  const parts = [
+    close.code !== null ? `code ${close.code}` : '',
+    close.reason,
+  ].filter(Boolean);
+  return parts.length > 0 ? ` (${parts.join(': ')})` : '';
+}
+
+/** One connection attempt that did not get into the room. */
+class AttemptFailed extends LiveError {
+  constructor(
+    message: string,
+    readonly close: LiveClose,
+    readonly final: boolean,
+  ) {
+    super(message);
+  }
 }
 
 /**
@@ -137,7 +200,27 @@ export class LiveLink {
   private socket: WebSocket | null = null;
   private peers: PeerInfo[] = [];
   private selfId = '';
-  private open = false;
+  /**
+   * One identity for the whole session, reused on every reconnect: the room
+   * then replaces the stale socket instead of seeing a second peer, and
+   * still accepts replies to requests it routed to this agent before a drop.
+   */
+  private readonly clientId = randomClientId();
+  private _state: LiveState = 'connecting';
+  /** How the last socket or attempt ended (see describeClose). */
+  private _lastClose: LiveClose | null = null;
+  /**
+   * Bumped for each socket and on leave: events of an older socket arriving
+   * late are ignored, so they never act on the current connection.
+   */
+  private attemptId = 0;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private reconnectAttempt = 0;
+  private reconnectDeadline = 0;
+  /** The close that started the current reconnect, for its notice. */
+  private dropClose: LiveClose | null = null;
+  /** One-shot notes for the model's next tool answer (see takeNotices). */
+  private notices: string[] = [];
   private inbox: LiveRequest[] = [];
   /**
    * Delivered request ids the agent may answer, each with the elements the
@@ -161,11 +244,43 @@ export class LiveLink {
   private constructor(
     private readonly diagram: Diagram,
     room: string,
-    origin: string,
+    private readonly origin: string,
     private readonly name: string,
   ) {
     this.room = room;
     this.url = `${origin}/?live=${encodeURIComponent(room)}`;
+  }
+
+  /** Only a link in the room sends edits, activity and answers. */
+  private get open(): boolean {
+    return this._state === 'connected';
+  }
+
+  get state(): LiveState {
+    return this._state;
+  }
+
+  get lastClose(): LiveClose | null {
+    return this._lastClose;
+  }
+
+  /** Notes about the connection since the last call, each reported once. */
+  takeNotices(): string[] {
+    const taken = this.notices;
+    this.notices = [];
+    return taken;
+  }
+
+  /** Throws a LiveError that says why the room cannot be reached now. */
+  assertConnected(): void {
+    if (this._state === 'reconnecting')
+      throw new LiveError(
+        'The live session is reconnecting: try again in a few seconds.',
+      );
+    if (!this.open)
+      throw new LiveError(
+        'Not connected to the live room: call live_join again.',
+      );
   }
 
   /**
@@ -257,7 +372,8 @@ export class LiveLink {
   ): Promise<JoinResult> {
     const { room, origin } = parseLiveLink(link);
     const live = new LiveLink(diagram, room, origin, name);
-    const result = await live.connect(origin);
+    // The first join is not retried: its failure goes back to the caller.
+    const result = await live.openSocket((msg) => live.enterRoom(msg, true));
     return { link: live, ...result };
   }
 
@@ -300,16 +416,22 @@ export class LiveLink {
     await new Promise((resolve) => setTimeout(resolve, graceMs));
   }
 
-  /** Requests received and not yet handed to the model. */
+  /**
+   * Requests received and ready to hand to the model. None while out of the
+   * room: they stay queued until it is back, since telling their senders
+   * they were received needs the room.
+   */
   get pendingRequests(): number {
-    return this.inbox.length;
+    return this.open ? this.inbox.length : 0;
   }
 
   /**
    * Hands every queued request to the caller (the model) and tells each
-   * sender it was received. They can then be answered with `reply`.
+   * sender it was received. They can then be answered with `reply`. Hands
+   * nothing while out of the room (see pendingRequests).
    */
   takeRequests(): LiveRequest[] {
+    if (!this.open) return [];
     const taken = this.inbox;
     this.inbox = [];
     for (const request of taken) {
@@ -332,28 +454,45 @@ export class LiveLink {
 
   /**
    * Resolves with the queued requests as soon as there is one, or with none
-   * after `timeoutMs` or when the room disconnects.
+   * after `timeoutMs`, or once the session is lost or left. A drop the link
+   * recovers from does not end the wait: it keeps the same deadline.
    */
   async waitForRequests(timeoutMs: number): Promise<LiveRequest[]> {
-    if (this.inbox.length === 0 && this.open) {
-      this.waiting++;
-      this.updateActivity();
-      await new Promise<void>((resolve) => {
-        const wake = (): void => {
-          clearTimeout(timer);
-          this.waiters.delete(wake);
-          // Here, not after the await: a request wakes every waiting call
-          // at once, and none may take it while the others still count as
-          // listening (the room would hear `received` before `working`).
-          this.waiting--;
-          resolve();
-        };
-        const timer = setTimeout(wake, timeoutMs);
-        this.waiters.add(wake);
-      });
+    const deadline = Date.now() + timeoutMs;
+    while (this.recoverable && this.pendingRequests === 0) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) break;
+      await this.waitForWake(remaining);
+      // Woken in the room: by a request (another waiting call may take
+      // it) or the timeout. Only a wake while out of the room waits on.
+      if (this.open) break;
     }
     // Updates the activity: working with what it got, else idle (late).
     return this.takeRequests();
+  }
+
+  /** In the room, or on its way back. */
+  private get recoverable(): boolean {
+    return this._state === 'connected' || this._state === 'reconnecting';
+  }
+
+  /** Waits for a request, a change of connection, or `timeoutMs`. */
+  private waitForWake(timeoutMs: number): Promise<void> {
+    this.waiting++;
+    this.updateActivity();
+    return new Promise<void>((resolve) => {
+      const wake = (): void => {
+        clearTimeout(timer);
+        this.waiters.delete(wake);
+        // Here, not after the await: a request wakes every waiting call
+        // at once, and none may take it while the others still count as
+        // listening (the room would hear `received` before `working`).
+        this.waiting--;
+        resolve();
+      };
+      const timer = setTimeout(wake, timeoutMs);
+      this.waiters.add(wake);
+    });
   }
 
   /**
@@ -367,7 +506,7 @@ export class LiveLink {
     text: string,
     elements?: ReadonlyArray<string>,
   ): { pointed: number; ambiguous: boolean } {
-    if (!this.open) throw new LiveError('Not connected to the live room.');
+    this.assertConnected();
     if (!this.answerable.has(id))
       throw new LiveError(`Unknown request id "${id}".`);
     const touched = this.answerable.get(id) ?? null;
@@ -428,25 +567,74 @@ export class LiveLink {
     }
   }
 
-  private connect(
-    origin: string,
-  ): Promise<{ seeded: boolean; discarded: number }> {
+  /**
+   * Opens one socket to the room and resolves with what `onInit` returns,
+   * run as soon as the room's `init` arrives (in the same event, so no
+   * remote command can slip in before it). Rejects with an AttemptFailed
+   * when the attempt ends before that. Every listener belongs to this
+   * attempt only: once another socket is opened or the link is left, this
+   * socket's events are ignored.
+   */
+  private openSocket<T>(
+    onInit: (msg: InitMsg) => T,
+    timeoutMs = JOIN_TIMEOUT_MS,
+  ): Promise<T> {
+    const attempt = ++this.attemptId;
+    const current = (): boolean => attempt === this.attemptId;
+    const origin = this.origin;
     const wsOrigin = origin.replace(/^http/, 'ws');
-    const socket = new WebSocket(
-      `${wsOrigin}/session/ws?room=${encodeURIComponent(this.room)}&clientId=${randomClientId()}`,
-    );
-    this.socket = socket;
-    const history = this.diagram.history;
+    const url = `${wsOrigin}/session/ws?room=${encodeURIComponent(this.room)}&clientId=${this.clientId}`;
 
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        socket.close();
-        reject(new LiveError('Timed out joining the live room.'));
-      }, JOIN_TIMEOUT_MS);
+    return new Promise<T>((resolve, reject) => {
+      let socket: WebSocket;
+      try {
+        socket = new WebSocket(url);
+      } catch (error) {
+        reject(
+          new AttemptFailed(
+            'Could not connect to the live room.',
+            {
+              code: null,
+              reason: error instanceof Error ? error.message : String(error),
+            },
+            false,
+          ),
+        );
+        return;
+      }
+      this.socket = socket;
+      /** In the room: `init` arrived. */
+      let admitted = false;
+      /** The promise is settled, one way or the other. */
+      let settled = false;
+      const fail = (error: AttemptFailed): void => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        reject(error);
+        try {
+          socket.close();
+        } catch {
+          /* already closing */
+        }
+      };
+      const timer = setTimeout(
+        () =>
+          fail(
+            new AttemptFailed(
+              'Timed out joining the live room.',
+              { code: null, reason: 'join timed out' },
+              false,
+            ),
+          ),
+        timeoutMs,
+      );
 
       socket.addEventListener('open', () => {
+        if (!current()) return;
         // Must be the first message: rooms that require a licence for agents
         // admit the peer only after checking it, and ignore it otherwise.
+        // The room forgets it on disconnect, so every socket sends it.
         const license = process.env.MARKASSO_LICENSE?.trim();
         if (license && isConfiguredInstance(origin))
           this.send({ type: 'auth', license });
@@ -454,6 +642,7 @@ export class LiveLink {
       });
 
       socket.addEventListener('message', (event) => {
+        if (!current()) return;
         let msg: ServerMsg;
         try {
           msg = JSON.parse(String(event.data)) as ServerMsg;
@@ -461,39 +650,14 @@ export class LiveLink {
           return;
         }
         if (msg.type === 'init') {
+          if (settled) return;
+          admitted = true;
+          settled = true;
           clearTimeout(timer);
-          this.selfId = msg.self;
-          this.peers = msg.peers;
-          const local = [...this.diagram.elements];
-          let seeded = false;
-          let discarded = 0;
-          if (msg.commands.length > 0) {
-            // The room is authoritative, as in the app.
-            discarded = local.length;
-            history.resetForLiveReplay(
-              msg.commands.filter(isValidSessionCommand),
-            );
-          } else if (local.length > 0) {
-            // Empty room: publish what the agent already drew, in pieces
-            // the room accepts.
-            for (const command of createCommands(local, { validOnly: true }))
-              this.publish(command);
-            seeded = true;
-          }
-          history.setOnCommand((command) => {
-            if (this.open && isSessionCommand(command)) {
-              this.publish(command);
-            }
-          });
-          // Only once in the room: a join that fails leaves nothing behind.
-          this.untrack();
-          this.stopTracking = this.diagram.onLocalChange((changed, removed) =>
-            this.noteEdited(changed, removed),
-          );
-          this.open = true;
-          this.sendActivity(this.currentActivity());
-          resolve({ seeded, discarded });
+          resolve(onInit(msg));
         } else if (msg.type === 'apply') {
+          // Before `init` the room's log already holds it.
+          if (!admitted) return;
           // Bare UNDO/REDO from an outdated client: see isSessionCommand.
           if (
             isSessionCommand(msg.command) &&
@@ -501,7 +665,7 @@ export class LiveLink {
           ) {
             // An exception in a socket listener would end the process.
             try {
-              history.applyRemote(msg.command);
+              this.diagram.history.applyRemote(msg.command);
             } catch (error) {
               console.error(
                 'Skipped a live command that failed to apply',
@@ -512,63 +676,204 @@ export class LiveLink {
         } else if (msg.type === 'presence') {
           this.peers = msg.peers;
         } else if (msg.type === 'request') {
+          // Kept even before `init`: the room registers a socket, and may
+          // route requests to it, before it sends the room state.
           this.receiveRequest(msg);
         } else if (msg.type === 'rejected' && typeof msg.reason === 'string') {
           // Reported with the next tool answer (see takeRejections).
           if (!this.rejections.includes(msg.reason))
             this.rejections.push(msg.reason);
-        } else if (msg.type === 'error' && !this.open) {
-          clearTimeout(timer);
-          reject(
-            new LiveError(
+        } else if (msg.type === 'error' && !admitted) {
+          const final =
+            msg.error === 'licence required' || msg.error === 'room full';
+          fail(
+            new AttemptFailed(
               msg.error === 'licence required'
                 ? licenceMessage(origin)
                 : `The live room refused to join: ${msg.error}.`,
+              { code: null, reason: msg.error },
+              final,
             ),
           );
         }
       });
 
       socket.addEventListener('close', (event) => {
-        clearTimeout(timer);
-        // A no-op when the error message above already rejected.
-        if (!this.open)
-          reject(
-            new LiveError(
-              event.code === CLOSE_LICENCE_REQUIRED
+        if (!current()) return;
+        const close: LiveClose = {
+          code: typeof event.code === 'number' ? event.code : null,
+          reason: typeof event.reason === 'string' ? event.reason : '',
+        };
+        if (!admitted) {
+          fail(
+            new AttemptFailed(
+              close.code === CLOSE_LICENCE_REQUIRED
                 ? licenceMessage(origin)
                 : 'The live room closed the connection.',
+              close,
+              isFinalClose(close),
             ),
           );
-        this.open = false;
-        this.outbox.clear();
-        history.setOnCommand(undefined);
-        this.untrack();
-        this.clearIdleTimer();
-        this.wakeWaiters();
+          return;
+        }
+        this.dropped(close);
       });
       socket.addEventListener('error', () => {
-        if (!this.open) {
-          clearTimeout(timer);
-          reject(new LiveError('Could not connect to the live room.'));
-        }
+        if (!current() || admitted) return;
+        fail(
+          new AttemptFailed(
+            'Could not connect to the live room.',
+            { code: null, reason: 'socket error' },
+            false,
+          ),
+        );
       });
     });
   }
 
+  /**
+   * Takes the room's state on `init`. On the first join the room's log
+   * replaces the local diagram, or the local diagram seeds an empty room;
+   * on a reconnect the room is authoritative even when empty, and nothing
+   * is published, so stale content never comes back.
+   */
+  private enterRoom(
+    msg: InitMsg,
+    first: boolean,
+  ): { seeded: boolean; discarded: number } {
+    const history = this.diagram.history;
+    this.selfId = msg.self;
+    this.peers = msg.peers;
+    const local = [...this.diagram.elements];
+    let seeded = false;
+    let discarded = 0;
+    if (msg.commands.length > 0 || !first) {
+      if (first) discarded = local.length;
+      history.resetForLiveReplay(msg.commands.filter(isValidSessionCommand));
+    } else if (local.length > 0) {
+      // Empty room: publish what the agent already drew, in pieces the
+      // room accepts.
+      for (const command of createCommands(local, { validOnly: true }))
+        this.publish(command);
+      seeded = true;
+    }
+    if (first) {
+      // Installed once for the whole session: both check `open`, so edits
+      // made while out of the room are neither sent nor attributed to a
+      // request (an offline deletion would drop a valid reference).
+      history.setOnCommand((command) => {
+        if (this.open && isSessionCommand(command)) this.publish(command);
+      });
+      this.untrack();
+      this.stopTracking = this.diagram.onLocalChange((changed, removed) => {
+        if (this.open) this.noteEdited(changed, removed);
+      });
+    }
+    this._state = 'connected';
+    this.reconnectAttempt = 0;
+    // A new socket starts with no activity in the room: say it again.
+    this.clearIdleTimer();
+    this.sendActivity(this.currentActivity());
+    // Requests that arrived while out of the room can be delivered now.
+    if (this.inbox.length > 0) this.wakeWaiters();
+    return { seeded, discarded };
+  }
+
+  /** The socket of a joined session closed: retry unless it is final. */
+  private dropped(close: LiveClose): void {
+    this._lastClose = close;
+    this.dropClose = close;
+    // Not sent: the room's log replaces the diagram when the link is back.
+    this.outbox.clear();
+    this.clearIdleTimer();
+    if (isFinalClose(close)) {
+      this.lose();
+      return;
+    }
+    this._state = 'reconnecting';
+    this.reconnectAttempt = 0;
+    this.reconnectDeadline = Date.now() + RECONNECT_WINDOW_MS;
+    this.scheduleReconnect();
+  }
+
+  private scheduleReconnect(): void {
+    const delay = Math.min(
+      RECONNECT_BASE_MS * 2 ** this.reconnectAttempt,
+      RECONNECT_MAX_MS,
+    );
+    this.reconnectAttempt++;
+    if (Date.now() + delay >= this.reconnectDeadline) {
+      this.lose();
+      return;
+    }
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      void this.reconnect();
+    }, delay);
+  }
+
+  private async reconnect(): Promise<void> {
+    if (this._state !== 'reconnecting') return;
+    const remaining = this.reconnectDeadline - Date.now();
+    try {
+      await this.openSocket(
+        (msg) => {
+          // Written with the state change, so no answer can miss it.
+          this.notices.push(
+            `The live session dropped${describeClose(this.dropClose)} and reconnected. The board was reloaded from the room, so your most recent edits may be missing: call diagram_read before editing further.`,
+          );
+          return this.enterRoom(msg, false);
+        },
+        Math.min(JOIN_TIMEOUT_MS, remaining),
+      );
+    } catch (error) {
+      // Left while the attempt ran: nothing more to do.
+      if (this._state !== 'reconnecting') return;
+      if (error instanceof AttemptFailed) {
+        this._lastClose = error.close;
+        if (error.final) {
+          this.lose();
+          return;
+        }
+      } else {
+        console.error('Unexpected error while reconnecting', error);
+      }
+      this.scheduleReconnect();
+    }
+  }
+
+  /** Gives up on the room: waiting calls return, nothing is sent anymore. */
+  private lose(): void {
+    this._state = 'lost';
+    this.cancelReconnect();
+    this.untrack();
+    this.clearIdleTimer();
+    this.wakeWaiters();
+  }
+
+  private cancelReconnect(): void {
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
+  }
+
   /** Moves the agent's cursor so people see where it is working. */
   pointAt(x: number, y: number): void {
+    if (!this.open) return;
     this.send({ type: 'cursor', x, y, name: this.name, color: AGENT_COLOR });
   }
 
   leave(): void {
     // Edits already applied here still reach the peers before the close.
-    this.outbox.drain();
-    this.open = false;
+    if (this.open) this.outbox.drain();
+    this._state = 'left';
+    // Late events of any socket of this link are ignored from now on.
+    this.attemptId++;
+    this.cancelReconnect();
     this.wakeWaiters();
     this.untrack();
     this.clearIdleTimer();
-    this.diagram.history.setOnCommand(undefined);
+    // The History hook is left in place: it checks `open`, and clearing it
+    // here could detach the hook of a link that joined after this one.
     this.socket?.close();
     this.socket = null;
   }

@@ -16,7 +16,7 @@ import { version } from '../package.json';
 import { describeDiagram } from './describe';
 import { Diagram, NODE_COLORS, NODE_KINDS } from './diagram';
 import { userIconPacks } from './icon_packs';
-import { LiveLink, type LiveRequest } from './live';
+import { describeClose, LiveError, LiveLink, type LiveRequest } from './live';
 import { exportPng } from './png';
 import {
   createShareLink,
@@ -158,6 +158,14 @@ const edgeRefSchema = {
 
 let diagram = new Diagram();
 let live: LiveLink | null = null;
+/**
+ * Bumped whenever the session changes (new or opened diagram, join, leave),
+ * so a live_join that another change overtook while it was connecting
+ * leaves its room instead of taking over.
+ */
+let sessionEpoch = 0;
+/** live_join calls run one at a time (see joinLive). */
+let joining: Promise<unknown> = Promise.resolve();
 
 function text(message: string) {
   return { content: [{ type: 'text' as const, text: message }] };
@@ -250,15 +258,59 @@ function guarded<A>(run: (args: A) => Promise<string> | string) {
       .map((link) => link?.takeRejections() ?? '')
       .filter(Boolean);
     if (refused.length > 0 && first) first.text += `\n${refused.join('\n')}`;
+    if (live && first) {
+      const edited = live.editCount > (live === before ? editsBefore : 0);
+      const status = liveStatus(live, edited);
+      if (status) first.text += `\n${status}`;
+    }
     return result;
   });
 }
 
-function liveSuffix(): string {
-  if (!live) return '';
-  if (!live.connected)
-    return '\nWarning: the live session disconnected; call live_join again.';
-  return `\nLive: changes are visible to everyone in ${live.url}`;
+/**
+ * The live session's status for the end of an answer, written after the
+ * call's edits are settled: one-shot notes (a reconnect), a warning while
+ * the room is out of reach, or where the edits of this call can be seen.
+ */
+function liveStatus(link: LiveLink, edited: boolean): string {
+  const lines = link.takeNotices();
+  if (link.state === 'reconnecting')
+    lines.push(
+      'Warning: the live session dropped and is reconnecting: edits made now do not reach the room.',
+    );
+  else if (link.state === 'lost')
+    lines.push(
+      `Warning: the live session was lost${describeClose(link.lastClose)}; call live_join again.`,
+    );
+  else if (edited && link.connected)
+    lines.push(`Live: changes are visible to everyone in ${link.url}`);
+  return lines.join('\n');
+}
+
+/**
+ * Leaves the current room and joins the one at `link`. Joins run one at a
+ * time, since two at once would both replay their room into the same
+ * diagram; one overtaken by another session change leaves right away.
+ */
+function joinLive(link: string, name: string) {
+  const run = async () => {
+    live?.leave();
+    live = null;
+    const epoch = ++sessionEpoch;
+    const target = diagram;
+    const result = await LiveLink.join(target, link, name);
+    if (epoch !== sessionEpoch || target !== diagram) {
+      result.link.leave();
+      throw new LiveError(
+        'The session changed while joining (another diagram or live call): the join was cancelled.',
+      );
+    }
+    live = result.link;
+    return result;
+  };
+  const next = joining.then(run, run);
+  joining = next.catch(() => undefined);
+  return next;
 }
 
 /** Points the agent's cursor at the given nodes on a live board. */
@@ -290,6 +342,7 @@ server.registerTool(
   guarded(() => {
     live?.leave();
     live = null;
+    sessionEpoch++;
     diagram = new Diagram();
     return 'New empty diagram ready.';
   }),
@@ -314,6 +367,7 @@ server.registerTool(
       : await loadMarkassoFile(source);
     live?.leave();
     live = null;
+    sessionEpoch++;
     diagram = new Diagram(elements);
     return `Opened ${elements.length} elements.\n${describeDiagram(diagram)}`;
   }),
@@ -351,7 +405,7 @@ server.registerTool(
       nodes as Parameters<Diagram['addNodes']>[0],
     );
     pointAtKeys(keys);
-    return `Added ${keys.length} nodes: ${keys.join(', ')}.${liveSuffix()}`;
+    return `Added ${keys.length} nodes: ${keys.join(', ')}.`;
   }),
 );
 
@@ -368,7 +422,7 @@ server.registerTool(
   guarded(({ edges }: { edges: z.infer<typeof edgeSchema>[] }) => {
     const count = diagram.connect(edges as Parameters<Diagram['connect']>[0]);
     pointAtKeys(edges.map((e) => e.to));
-    return `Added ${count} connections.${liveSuffix()}`;
+    return `Added ${count} connections.`;
   }),
 );
 
@@ -393,7 +447,7 @@ server.registerTool(
     const { key, ...patch } = args;
     diagram.update(key, patch as Parameters<Diagram['update']>[1]);
     pointAtKeys([key]);
-    return `Updated ${key}.${liveSuffix()}`;
+    return `Updated ${key}.`;
   }),
 );
 
@@ -414,7 +468,7 @@ server.registerTool(
   },
   guarded(({ keys }: { keys: string[] }) => {
     const count = diagram.remove(keys);
-    return `Removed ${count} nodes.${liveSuffix()}`;
+    return `Removed ${count} nodes.`;
   }),
 );
 
@@ -438,7 +492,7 @@ server.registerTool(
       const count = diagram.disconnect(
         edges as Parameters<Diagram['disconnect']>[0],
       );
-      return `Removed ${count} connections.${liveSuffix()}`;
+      return `Removed ${count} connections.`;
     },
   ),
 );
@@ -484,7 +538,7 @@ server.registerTool(
           ...(newLabel !== undefined && { label: newLabel }),
         },
       );
-      return `Updated the connection.${liveSuffix()}`;
+      return `Updated the connection.`;
     },
   ),
 );
@@ -516,7 +570,7 @@ server.registerTool(
     }) => {
       const count = diagram.layout(direction ?? 'TB', keys);
       if (count === 0) return 'Nothing to lay out.';
-      return `Arranged ${count} nodes (${direction ?? 'TB'}).${warningsSuffix(diagram)}${liveSuffix()}`;
+      return `Arranged ${count} nodes (${direction ?? 'TB'}).${warningsSuffix(diagram)}`;
     },
   ),
 );
@@ -728,9 +782,7 @@ server.registerTool(
   },
   guarded(
     async ({ link, name }: { link: string; name?: string | undefined }) => {
-      live?.leave();
-      const result = await LiveLink.join(diagram, link, name ?? 'AI agent');
-      live = result.link;
+      const result = await joinLive(link, name ?? 'AI agent');
       const notes = [
         result.seeded
           ? 'The room was empty: your diagram was published to it.'
@@ -739,9 +791,11 @@ server.registerTool(
           ? `The room already had content: it replaced your ${result.discarded} local elements.`
           : '',
       ].filter(Boolean);
-      return [`Joined ${live.url}.`, ...notes, describeDiagram(diagram)].join(
-        '\n',
-      );
+      return [
+        `Joined ${result.link.url}.`,
+        ...notes,
+        describeDiagram(diagram),
+      ].join('\n');
     },
   ),
 );
@@ -757,6 +811,7 @@ server.registerTool(
     if (!live) return 'Not in a live session.';
     live.leave();
     live = null;
+    sessionEpoch++;
     return 'Left the live session.';
   }),
 );
@@ -787,8 +842,11 @@ server.registerTool(
         (timeoutSeconds ?? 50) * 1000,
       );
       if (requests.length > 0) return formatRequests(requests).trimStart();
-      if (!link.connected)
-        return 'The live session disconnected; call live_join again.';
+      if (link.state === 'left')
+        return 'Stopped waiting: the live session was left.';
+      // The status line added to every answer says why and what to do.
+      if (link.state === 'lost')
+        return 'Stopped waiting: the live session ended.';
       return 'No requests yet. Call live_wait_request again to keep listening, or live_leave to stop.';
     },
   ),
@@ -827,6 +885,8 @@ server.registerTool(
       nodes?: string[] | undefined;
     }) => {
       if (!live) return 'Not in a live session.';
+      // First: an unknown node key must not hide that the room is away.
+      live.assertConnected();
       const { pointed, ambiguous } = live.reply(
         requestId,
         text,

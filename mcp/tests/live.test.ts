@@ -508,3 +508,207 @@ describe('LiveLink activity', () => {
     ]);
   });
 });
+
+describe('LiveLink reconnect', () => {
+  const request = (id: string) => ({
+    type: 'request',
+    id,
+    from: 'p1',
+    fromName: 'Alberto',
+    text: 'Add a cache',
+  });
+  const init = (socket: FakeSocket, commands: unknown[] = []): void =>
+    socket.receive({ type: 'init', self: 'me', commands, peers: [] });
+  const clientIdOf = (socket: FakeSocket): string | null =>
+    new URL(socket.url).searchParams.get('clientId');
+  const commandsSent = (socket: FakeSocket): unknown[] =>
+    socket.sent.filter((m) => (m as { type?: string }).type === 'command');
+
+  /** Joins, then drops the socket the way the network does (no final code). */
+  async function joinAndDrop(diagram = new Diagram()) {
+    const joined = await join(diagram, []);
+    vi.useFakeTimers();
+    joined.socket.close(1006, '');
+    return joined;
+  }
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('reconnects with the same identity and adopts the room', async () => {
+    const diagram = new Diagram();
+    const { result, socket } = await joinAndDrop(diagram);
+    expect(result.link.state).toBe('reconnecting');
+    await vi.advanceTimersByTimeAsync(1000);
+    const next = FakeSocket.last!;
+    expect(next).not.toBe(socket);
+    expect(clientIdOf(next)).toBe(clientIdOf(socket));
+    init(next, [{ type: 'CREATE_ELEMENT', element: rect('room', 'Room') }]);
+    expect(result.link.state).toBe('connected');
+    expect(diagram.elements.map((el) => el.id)).toEqual(['room']);
+    expect(next.sent[0]).toMatchObject({ type: 'presence', name: 'Claude' });
+    // The new socket says again what the agent is doing.
+    expect(next.sent.at(-1)).toMatchObject({ activity: 'idle' });
+    const notices = result.link.takeNotices();
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toContain('code 1006');
+    expect(result.link.takeNotices()).toEqual([]);
+  });
+
+  it('never republishes its board to a room found empty on reconnect', async () => {
+    const diagram = new Diagram([rect('local', 'Mine')]);
+    const { result } = await joinAndDrop(diagram);
+    await vi.advanceTimersByTimeAsync(1000);
+    const next = FakeSocket.last!;
+    init(next, []);
+    expect(result.link.state).toBe('connected');
+    expect(diagram.elements).toEqual([]);
+    expect(commandsSent(next)).toEqual([]);
+  });
+
+  it.each([
+    [4402, 'licence required'],
+    [1013, 'Room full'],
+    [1000, 'replaced'],
+  ])('does not retry a final close (%i %s)', async (code, reason) => {
+    const { result, socket } = await join(new Diagram(), []);
+    vi.useFakeTimers();
+    socket.close(code, reason);
+    expect(result.link.state).toBe('lost');
+    expect(result.link.lastClose).toEqual({ code, reason });
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(FakeSocket.last).toBe(socket);
+  });
+
+  it('retries an attempt that never gets into the room', async () => {
+    const { result } = await joinAndDrop();
+    await vi.advanceTimersByTimeAsync(1000);
+    const silent = FakeSocket.last!;
+    // No init: the join timeout ends the attempt, then the next one starts.
+    await vi.advanceTimersByTimeAsync(10_000 + 2000);
+    expect(FakeSocket.last).not.toBe(silent);
+    expect(result.link.lastClose).toEqual({
+      code: null,
+      reason: 'join timed out',
+    });
+    init(FakeSocket.last!);
+    expect(result.link.state).toBe('connected');
+  });
+
+  it('gives up once the reconnect window runs out', async () => {
+    const { result } = await joinAndDrop();
+    const waiting = result.link.waitForRequests(300_000);
+    let seen = FakeSocket.last;
+    for (let elapsed = 0; elapsed < 60_000; elapsed += 500) {
+      await vi.advanceTimersByTimeAsync(500);
+      if (FakeSocket.last !== seen) {
+        seen = FakeSocket.last;
+        seen?.close(1006, '');
+      }
+    }
+    expect(result.link.state).toBe('lost');
+    expect(result.link.lastClose).toEqual({ code: 1006, reason: '' });
+    // The waiting call returns once the session is lost, not at its timeout.
+    expect(await waiting).toEqual([]);
+  });
+
+  it('keeps waiting through a reconnect and delivers requests after it', async () => {
+    const { result } = await joinAndDrop();
+    let done = false;
+    const waiting = result.link.waitForRequests(30_000).then((requests) => {
+      done = true;
+      return requests;
+    });
+    await vi.advanceTimersByTimeAsync(1000);
+    const next = FakeSocket.last!;
+    // Routed to the new socket before its init: queued, not delivered yet.
+    next.receive(request('r1'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(done).toBe(false);
+    expect(result.link.pendingRequests).toBe(0);
+    expect(result.link.takeRequests()).toEqual([]);
+    init(next);
+    expect((await waiting).map((r) => r.id)).toEqual(['r1']);
+    expect(next.sent.at(-1)).toEqual({
+      type: 'agent_status',
+      id: 'r1',
+      status: 'received',
+    });
+  });
+
+  it('answers a request received before the drop once it is back', async () => {
+    const { result, socket } = await join(new Diagram(), []);
+    socket.receive(request('r1'));
+    result.link.takeRequests();
+    vi.useFakeTimers();
+    socket.close(1006, '');
+    expect(() => result.link.reply('r1', 'Done')).toThrow(/reconnecting/);
+    await vi.advanceTimersByTimeAsync(1000);
+    const next = FakeSocket.last!;
+    init(next);
+    result.link.reply('r1', 'Done');
+    expect(next.sent.at(-1)).toEqual({
+      type: 'agent_status',
+      id: 'r1',
+      status: 'replied',
+      text: 'Done',
+    });
+  });
+
+  it('neither sends nor attributes the edits made while out of the room', async () => {
+    const diagram = new Diagram();
+    const { result, socket } = await join(diagram, []);
+    socket.receive(request('r1'));
+    result.link.takeRequests();
+    vi.useFakeTimers();
+    socket.close(1006, '');
+    const before = result.link.editCount;
+    await diagram.addNodes([{ key: 'offline' }]);
+    expect(result.link.editCount).toBe(before);
+    await vi.advanceTimersByTimeAsync(1000);
+    const next = FakeSocket.last!;
+    init(next, [{ type: 'CREATE_ELEMENT', element: rect('room', 'Room') }]);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(commandsSent(next)).toEqual([]);
+    expect(result.link.reply('r1', 'Done')).toEqual({
+      pointed: 0,
+      ambiguous: false,
+    });
+  });
+
+  it('ignores late events of a socket it replaced', async () => {
+    const diagram = new Diagram();
+    const { result, socket } = await joinAndDrop(diagram);
+    await vi.advanceTimersByTimeAsync(1000);
+    init(FakeSocket.last!);
+    socket.receive({
+      type: 'apply',
+      from: 'p1',
+      command: { type: 'CREATE_ELEMENT', element: rect('stale', 'Stale') },
+    });
+    socket.close(1006, '');
+    expect(diagram.elements).toEqual([]);
+    expect(result.link.state).toBe('connected');
+  });
+
+  it('cancels a pending retry when it leaves', async () => {
+    const { result, socket } = await joinAndDrop();
+    result.link.leave();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(FakeSocket.last).toBe(socket);
+    expect(result.link.state).toBe('left');
+  });
+
+  it('stops an attempt in progress when it leaves', async () => {
+    const { result } = await joinAndDrop();
+    await vi.advanceTimersByTimeAsync(1000);
+    const attempt = FakeSocket.last!;
+    result.link.leave();
+    expect(attempt.readyState).toBe(3);
+    init(attempt);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(result.link.state).toBe('left');
+    expect(FakeSocket.last).toBe(attempt);
+  });
+});
