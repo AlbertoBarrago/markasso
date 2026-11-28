@@ -331,6 +331,58 @@ describe('live agent requests', () => {
     );
   });
 
+  it('lets only an agent say what it is doing', async () => {
+    const { alice, bob, agent } = await room();
+    const activityOf = (peer: FakeServerSocket) =>
+      (
+        alice.ofType('presence').at(-1)?.peers as {
+          id: string;
+          activity?: string;
+        }[]
+      ).find((p) => p.id === idOf(peer))?.activity;
+    agent.receive({
+      type: 'presence',
+      name: 'Claude',
+      color: '#c77dff',
+      activity: 'working',
+    });
+    expect(activityOf(agent)).toBe('working');
+    agent.receive({
+      type: 'presence',
+      name: 'Claude',
+      color: '#c77dff',
+      activity: 'sleeping',
+    });
+    expect(activityOf(agent)).toBe('working');
+    bob.receive({
+      type: 'presence',
+      name: 'Bob',
+      color: '#00ff00',
+      activity: 'listening',
+    });
+    expect(activityOf(bob)).toBeUndefined();
+  });
+
+  it('forgets the activity of a connection that is replaced', async () => {
+    const { instance, alice, agent } = await room();
+    agent.receive({
+      type: 'presence',
+      name: 'Claude',
+      color: '#c77dff',
+      activity: 'working',
+    });
+    // Same client id again, from a client that never says what it does.
+    const again = new FakeServerSocket();
+    await instance.admit(again, 'agent-client', 'agent');
+    const peers = alice.ofType('presence').at(-1)?.peers as {
+      id: string;
+      activity?: string;
+    }[];
+    expect(peers.find((p) => p.id === idOf(again))).not.toHaveProperty(
+      'activity',
+    );
+  });
+
   it('ignores answers from anyone but the target agent', async () => {
     const { alice, bob, agent } = await room();
     await authorize(alice, KEY);

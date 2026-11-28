@@ -12,7 +12,10 @@ import {
   subscribeAgentRequests,
   unreadAgentReplies,
 } from '../io/agent_requests';
-import { MAX_AGENT_REQUEST_CHARS } from '../io/agent_requests_protocol';
+import {
+  type AgentActivity,
+  MAX_AGENT_REQUEST_CHARS,
+} from '../io/agent_requests_protocol';
 import { onLivePeers, type PeerInfo } from '../io/realtime';
 import { getRotatedBounds } from '../rendering/draw_selection';
 import { renderChatMarkdown } from './markdown';
@@ -53,9 +56,34 @@ const REJECTION_KEYS: Record<
   invalid: 'agentRequestInvalid',
 };
 
-function statusLabel(entry: AgentRequestEntry): string {
+const ACTIVITY_KEYS: Record<AgentActivity, string> = {
+  listening: 'agentListening',
+  working: 'agentWorking',
+  idle: 'agentIdle',
+};
+
+/** "Listening", "Working" or "Not listening"; null when the agent says nothing. */
+export function agentActivityLabel(
+  activity: AgentActivity | null,
+): string | null {
+  return activity ? t(ACTIVITY_KEYS[activity]) : null;
+}
+
+/**
+ * The status under a request. One the agent has not picked up yet says why
+ * when the agent tells what it is doing: busy with others, or not listening
+ * (requests also reach it with its next action, so it is not lost).
+ */
+function statusLabel(
+  entry: AgentRequestEntry,
+  activity: AgentActivity | null,
+): string {
   if (entry.status === 'rejected' && entry.reason)
     return t(REJECTION_KEYS[entry.reason]);
+  if (entry.status === 'sent' && activity === 'working')
+    return t('agentRequestQueued');
+  if (entry.status === 'sent' && activity === 'idle')
+    return t('agentRequestNotListening');
   return t(STATUS_KEYS[entry.status]);
 }
 
@@ -65,6 +93,8 @@ interface ChatAgent {
   readonly name: string;
   readonly color: string | null;
   readonly online: boolean;
+  /** From the agent's presence; null when it left or never says. */
+  readonly activity: AgentActivity | null;
 }
 
 /** How close to the bottom (px) still counts as "following" the thread. */
@@ -220,7 +250,13 @@ export function initAgentChatPanel(
   function chatAgents(): ChatAgent[] {
     const agents: ChatAgent[] = livePeers
       .filter((p) => p.kind === 'agent')
-      .map((p) => ({ id: p.id, name: p.name, color: p.color, online: true }));
+      .map((p) => ({
+        id: p.id,
+        name: p.name,
+        color: p.color,
+        online: true,
+        activity: p.activity ?? null,
+      }));
     for (const thread of agentThreads()) {
       if (agents.some((a) => a.id === thread.agentId)) continue;
       agents.push({
@@ -228,6 +264,7 @@ export function initAgentChatPanel(
         name: thread.name,
         color: null,
         online: false,
+        activity: null,
       });
     }
     // An agent that left while being written to stays, offline, until the
@@ -243,7 +280,13 @@ export function initAgentChatPanel(
       input.value.trim() &&
       !agents.some((a) => a.id === selected)
     )
-      agents.push({ id: selected, name, color: null, online: false });
+      agents.push({
+        id: selected,
+        name,
+        color: null,
+        online: false,
+        activity: null,
+      });
     return agents;
   }
 
@@ -292,6 +335,14 @@ export function initAgentChatPanel(
       name.className = 'ac-agent-name';
       name.textContent = agent.name;
       item.append(dot, name);
+      const activity = agentActivityLabel(agent.activity);
+      if (activity) {
+        const label = document.createElement('span');
+        label.className = 'ac-activity';
+        label.dataset.activity = agent.activity ?? '';
+        label.textContent = activity;
+        item.appendChild(label);
+      }
       // The thread on screen is read as it updates; other tabs show a count.
       const count = agent.id === active?.id ? 0 : (unread.get(agent.id) ?? 0);
       if (count > 0) {
@@ -373,6 +424,7 @@ export function initAgentChatPanel(
     const shown = JSON.stringify([
       agent?.id,
       agent?.name,
+      agent?.activity,
       getLocale(),
       // The last reply's time too: past the reply cap the count stays put
       // while the oldest reply gives way to a new one.
@@ -414,7 +466,7 @@ export function initAgentChatPanel(
       const status =
         entry.status === 'replied'
           ? time.format(entry.sentAt)
-          : `${time.format(entry.sentAt)} · ${statusLabel(entry)}`;
+          : `${time.format(entry.sentAt)} · ${statusLabel(entry, agent.activity)}`;
       mine.append(
         text,
         meta(

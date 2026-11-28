@@ -1,6 +1,6 @@
 import { t } from '../i18n';
 import { onLivePeers, type PeerInfo, setLiveName } from '../io/realtime';
-import { openAgentChat } from './agent_chat_panel';
+import { agentActivityLabel, openAgentChat } from './agent_chat_panel';
 
 /**
  * Renders the live-session participant list: an editable "you" row followed by
@@ -19,6 +19,19 @@ export function initPeopleList(container: HTMLElement): () => void {
   function buildAgent(peer: PeerInfo): HTMLElement {
     const row = buildRow(peer.name, peer.color, false);
     row.classList.add('pp-agent');
+    // A dot here (the popover is narrow); the chat sidebar spells it out.
+    const activity = agentActivityLabel(peer.activity ?? null);
+    if (activity) {
+      const dot = document.createElement('span');
+      dot.className = 'pp-activity';
+      dot.dataset.activity = peer.activity ?? '';
+      dot.title = activity;
+      const text = document.createElement('span');
+      text.className = 'sr-only';
+      text.textContent = activity;
+      dot.appendChild(text);
+      row.appendChild(dot);
+    }
     const ask = document.createElement('button');
     ask.type = 'button';
     ask.className = 'pp-ask';

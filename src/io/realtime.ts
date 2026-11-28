@@ -10,6 +10,7 @@ import {
   revokeAgentRequestAccess,
 } from './agent_requests';
 import type {
+  AgentActivity,
   PeerKind,
   RequestAccessMsg,
   RequestStatusMsg,
@@ -32,6 +33,8 @@ export interface PeerInfo {
   color: string;
   /** Absent from rooms deployed before agent requests. */
   kind?: PeerKind;
+  /** Agents only; absent from agents and rooms that predate it. */
+  activity?: AgentActivity;
 }
 
 export interface LiveOptions {

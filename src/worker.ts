@@ -1,7 +1,9 @@
 import { isSessionCommand } from './engine/ephemeral';
 import {
+  type AgentActivity,
   type AgentRequestMsg,
   type AgentRequestRejection,
+  isAgentActivity,
   MAX_AGENT_REPLY_CHARS,
   MAX_AGENT_REQUEST_CHARS,
   MAX_REPLIES_PER_REQUEST,
@@ -43,6 +45,8 @@ interface PeerInfo {
   name: string;
   color: string;
   kind: PeerKind;
+  /** Agents only, set by the agent itself (see AgentActivity). */
+  activity?: AgentActivity;
 }
 
 const LAST_ACTIVITY_KEY = 'lastActivity';
@@ -371,8 +375,12 @@ export class SessionRoom {
 
     this.sockets.set(server, clientId);
     const known = this.peers.get(clientId);
-    if (known) known.kind = kind;
-    else
+    if (known) {
+      known.kind = kind;
+      // A new connection says again what it is doing, if it says anything:
+      // the old one's activity would show forever otherwise.
+      delete known.activity;
+    } else
       this.peers.set(clientId, {
         name: randomAnimalName(),
         color: '#a78bfa',
@@ -465,6 +473,11 @@ export class SessionRoom {
       }
       if (typeof m.color === 'string' && /^#[0-9a-f]{6}$/i.test(m.color)) {
         peer.color = m.color;
+      }
+      // Only an agent says what it is doing: a person cannot pose as busy
+      // or listening.
+      if (peer.kind === 'agent' && isAgentActivity(m.activity)) {
+        peer.activity = m.activity;
       }
       this.touch();
       this.broadcast({ type: 'presence', peers: this.peerList() });

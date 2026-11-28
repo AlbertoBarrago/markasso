@@ -53,6 +53,17 @@ export function sanitizeReplyElements(value: unknown): string[] {
 
 export type PeerKind = 'browser' | 'agent';
 
+/**
+ * What an agent peer is doing, from its own presence: waiting for requests,
+ * busy with delivered ones, or neither (it sees new requests only with its
+ * next action). Absent for agents that predate it.
+ */
+export type AgentActivity = 'listening' | 'working' | 'idle';
+
+export function isAgentActivity(value: unknown): value is AgentActivity {
+  return value === 'listening' || value === 'working' || value === 'idle';
+}
+
 export type AgentRequestRejection =
   /** The sender has no valid licence (or never proved one). */
   | 'unauthorized'

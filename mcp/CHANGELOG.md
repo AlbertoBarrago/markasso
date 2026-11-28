@@ -8,6 +8,7 @@ All notable changes to `@markasso/mcp` are documented here. The MCP server is ve
 
 ### Added
 - **Replies point at what changed.** `live_reply` sends, with the answer, the elements the agent created or changed since it received the request (edits by people in the room do not count, deleted elements are left out). The person sees a "Show on canvas" button under the reply that selects those elements and zooms to them. The new optional `nodes` parameter points at specific nodes by key instead.
+- **People see what the agent is doing.** In a live room the agent tells the others whether it is listening for requests (in `live_wait_request`), working on delivered ones, or neither. Their chat shows it next to the agent's name, and a request the agent has not picked up yet says why: queued behind its work, or waiting for its next action. The idle state is announced only after a few seconds, so calling `live_wait_request` again after a timeout never shows the agent as idle.
 
 ### Changed
 - The `live_reply` description now says where the answer shows up (the person's chat with the agent) instead of the participant list.

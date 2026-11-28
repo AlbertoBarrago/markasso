@@ -1,6 +1,7 @@
 import type { Command } from '../../src/commands/commands';
 import { isSessionCommand } from '../../src/engine/ephemeral';
 import {
+  type AgentActivity,
   type AgentRequestMsg,
   MAX_AGENT_REPLY_CHARS,
   sanitizeReplyElements,
@@ -45,6 +46,11 @@ export interface LiveRequest {
 const MAX_INBOX = 20;
 /** Delivered request ids the agent may still answer with `reply`. */
 const MAX_ANSWERABLE = 100;
+/**
+ * How long the agent must stay idle before the room hears it: a model that
+ * calls live_wait_request again right after a timeout never shows as idle.
+ */
+const IDLE_GRACE_MS = 5000;
 /** Elements remembered per request; well above what a reply carries. */
 const MAX_TRACKED_ELEMENTS = 500;
 
@@ -142,6 +148,11 @@ export class LiveLink {
   private readonly answerable = new Map<string, Set<string> | null>();
   /** Delivered requests still waiting for their first reply. */
   private readonly unanswered = new Set<string>();
+  /** live_wait_request calls currently waiting. */
+  private waiting = 0;
+  /** The activity the room last heard from this agent. */
+  private activitySent: AgentActivity | null = null;
+  private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private stopTracking: (() => void) | null = null;
   /** Pending `waitForRequests` calls, woken by a request or a disconnect. */
   private readonly waiters = new Set<() => void>();
@@ -185,6 +196,52 @@ export class LiveLink {
         touched.add(id);
       }
     }
+  }
+
+  /**
+   * What the agent is doing for the people in the room: waiting for
+   * requests, busy with delivered ones still unanswered, or neither.
+   */
+  private currentActivity(): AgentActivity {
+    if (this.waiting > 0) return 'listening';
+    if (this.unanswered.size > 0) return 'working';
+    return 'idle';
+  }
+
+  /**
+   * Tells the room when the activity changes. Going idle waits
+   * IDLE_GRACE_MS, and is dropped if the agent is busy again by then.
+   */
+  private updateActivity(): void {
+    if (!this.open) return;
+    const next = this.currentActivity();
+    if (next === 'idle' && this.activitySent !== 'idle') {
+      if (this.idleTimer) return;
+      this.idleTimer = setTimeout(() => {
+        this.idleTimer = null;
+        if (this.currentActivity() === 'idle') this.sendActivity('idle');
+      }, IDLE_GRACE_MS);
+      // Never keeps the process alive on its own.
+      this.idleTimer.unref?.();
+      return;
+    }
+    this.clearIdleTimer();
+    if (next !== this.activitySent) this.sendActivity(next);
+  }
+
+  private sendActivity(activity: AgentActivity): void {
+    this.activitySent = activity;
+    this.send({
+      type: 'presence',
+      name: this.name,
+      color: AGENT_COLOR,
+      activity,
+    });
+  }
+
+  private clearIdleTimer(): void {
+    if (this.idleTimer) clearTimeout(this.idleTimer);
+    this.idleTimer = null;
   }
 
   /** Stops attributing edits (the session is over). */
@@ -258,7 +315,6 @@ export class LiveLink {
     for (const request of taken) {
       this.answerable.set(request.id, new Set());
       this.unanswered.add(request.id);
-      this.send({ type: 'agent_status', id: request.id, status: 'received' });
     }
     while (this.answerable.size > MAX_ANSWERABLE) {
       const oldest = this.answerable.keys().next().value;
@@ -266,6 +322,11 @@ export class LiveLink {
       this.answerable.delete(oldest);
       this.unanswered.delete(oldest);
     }
+    // "Working" first, so a sender never sees its request received by an
+    // agent the room still shows as listening.
+    this.updateActivity();
+    for (const request of taken)
+      this.send({ type: 'agent_status', id: request.id, status: 'received' });
     return taken;
   }
 
@@ -275,16 +336,23 @@ export class LiveLink {
    */
   async waitForRequests(timeoutMs: number): Promise<LiveRequest[]> {
     if (this.inbox.length === 0 && this.open) {
+      this.waiting++;
+      this.updateActivity();
       await new Promise<void>((resolve) => {
         const wake = (): void => {
           clearTimeout(timer);
           this.waiters.delete(wake);
+          // Here, not after the await: a request wakes every waiting call
+          // at once, and none may take it while the others still count as
+          // listening (the room would hear `received` before `working`).
+          this.waiting--;
           resolve();
         };
         const timer = setTimeout(wake, timeoutMs);
         this.waiters.add(wake);
       });
     }
+    // Updates the activity: working with what it got, else idle (late).
     return this.takeRequests();
   }
 
@@ -316,6 +384,7 @@ export class LiveLink {
       ),
     );
     this.unanswered.delete(id);
+    this.updateActivity();
     this.send({
       type: 'agent_status',
       id,
@@ -422,6 +491,7 @@ export class LiveLink {
             this.noteEdited(changed, removed),
           );
           this.open = true;
+          this.sendActivity(this.currentActivity());
           resolve({ seeded, discarded });
         } else if (msg.type === 'apply') {
           // Bare UNDO/REDO from an outdated client: see isSessionCommand.
@@ -474,6 +544,7 @@ export class LiveLink {
         this.outbox.clear();
         history.setOnCommand(undefined);
         this.untrack();
+        this.clearIdleTimer();
         this.wakeWaiters();
       });
       socket.addEventListener('error', () => {
@@ -496,6 +567,7 @@ export class LiveLink {
     this.open = false;
     this.wakeWaiters();
     this.untrack();
+    this.clearIdleTimer();
     this.diagram.history.setOnCommand(undefined);
     this.socket?.close();
     this.socket = null;
